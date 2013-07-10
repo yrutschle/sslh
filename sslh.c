@@ -28,7 +28,16 @@ Solaris:
 LynxOS:
   gcc -o tcproxy tcproxy.c -lnetinet
 
+Linux:
+  cc -o sslh sslh.c -lnet
+
 HISTORY
+
+v1.3: 14MAY2008
+        Added parsing for local interface to listen on
+        Changed default SSL connexion to port 442 (443 doesn't make
+        sense as a default as we're already listening on 443)
+        Syslog incoming connexions
 
 v1.2: 12MAY2008
         Fixed compilation warning for AMD64 (Thx Daniel Lange)
@@ -46,7 +55,7 @@ v1.0:
 
 */
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -61,6 +70,7 @@ v1.0:
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <syslog.h>
 
 #define CHECK_RES_DIE(res, str) \
 if (res == -1) {    \
@@ -72,16 +82,22 @@ if (res == -1) {    \
 "sslh v" VERSION "\n" \
 "usage:\n" \
 "\texport PIDFILE=/var/run/sslhc.pid\n" \
-"\tsslh [-t <timeout>] -u <username> -p <listenport> -s [sshhost:]port -l [sslhost:]port [-v]\n"
+"\tsslh [-t <timeout>] -u <username> -p [listenaddr:]<listenport> \n" \
+"\t\t-s [sshhost:]port -l [sslhost:]port [-v]\n\n" \
+"-v: verbose\n" \
+"-p: address and port to listen on. default: 0.0.0.0:443\n" \
+"-s: SSH address: where to connect an SSH connexion. default: localhost:22\n" \
+"-l: SSL address: where to connect an SSL connexion.\n" \
+""
 
 int verbose = 0; /* That's really quite global */
 
-/* Starts a listening socket on specified port.
+/* Starts a listening socket on specified address.
    Returns file descriptor
    */
-int start_listen_socket(int port)
+int start_listen_socket(struct sockaddr *addr)
 {
-   struct sockaddr_in saddr;
+   struct sockaddr_in *saddr = (struct sockaddr_in*)addr;
    int sockfd, res, reuse;
 
    sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -91,10 +107,7 @@ int start_listen_socket(int port)
    res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
    CHECK_RES_DIE(res, "setsockopt");
 
-   memset(&saddr, 0, sizeof(saddr));
-   saddr.sin_port = htons(port);
-
-   res = bind (sockfd, (struct sockaddr*)&saddr, sizeof(saddr));
+   res = bind (sockfd, (struct sockaddr*)saddr, sizeof(*saddr));
    CHECK_RES_DIE(res, "bind");
 
    res = listen (sockfd, 5);
@@ -178,10 +191,8 @@ char* sprintaddr(char* buf, size_t size, struct sockaddr* s)
 /* turns a "hostname:port" string into a struct sockaddr;
 sock: socket address to which to copy the addr
 fullname: input string -- it gets clobbered
-serv: default service/port
-(defaults don't work yet)
 */
-void resolve_name(struct sockaddr *sock, char* fullname, int port) {
+void resolve_name(struct sockaddr *sock, char* fullname) {
    struct addrinfo *addr, hint;
    char *serv, *host;
    int res;
@@ -191,7 +202,7 @@ void resolve_name(struct sockaddr *sock, char* fullname, int port) {
    if (!sep) /* No separator: parameter is just a port */
    {
       serv = fullname;
-      fprintf(stderr, "names must be fully specified as hostname:port for the moment\n");
+      fprintf(stderr, "names must be fully specified as hostname:port\n");
       exit(1);
    }
    else {
@@ -215,13 +226,29 @@ void resolve_name(struct sockaddr *sock, char* fullname, int port) {
    memcpy(sock, addr->ai_addr, sizeof(*sock));
 }
 
+/* syslogs who connected to where */
+void log_connexion(int socket, char* target)
+{
+    struct sockaddr peeraddr;
+    socklen_t size = sizeof(peeraddr);
+    char buf[64];
+    int res;
+
+    res = getpeername(socket, &peeraddr, &size);
+    CHECK_RES_DIE(res, "getpeername");
+
+    syslog(LOG_INFO, "connexion from %s forwarded to %s\n", 
+           sprintaddr(buf, sizeof(buf), &peeraddr), target);
+
+}
+
 /* 
  * Settings that depend on the command line. That's less global than verbose * :-)
  * They're set in main(), but also used in start_shoveler(), and it'd be heavy-handed
  * to pass it all as parameters
  */
 int timeout = 2;
-int listen_port = 443;
+struct sockaddr addr_listen;
 struct sockaddr addr_ssl, addr_ssh;
 
 
@@ -234,6 +261,7 @@ void start_shoveler(int in_socket)
    struct sockaddr *saddr;
    int res;
    int out_socket;
+   char *target;
 
    FD_ZERO(&fds);
    FD_SET(in_socket, &fds);
@@ -247,14 +275,14 @@ void start_shoveler(int in_socket)
    if (FD_ISSET(in_socket, &fds)) {
       /* The client wrote something to the socket: it's an SSL connection */
       saddr = &addr_ssl;
-      if (verbose)
-         fprintf(stderr, "Forwarding to SSL\n");
+      target = "SSL";
    } else {
       /* The client hasn't written anything and we timed out: connect to SSH */
       saddr = &addr_ssh;
-      if (verbose)
-         fprintf(stderr, "Forwarding to SSH\n");
+      target = "SSH";
    }
+
+   log_connexion(in_socket, target);
 
    /* Connect the target socket */
    out_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -342,7 +370,7 @@ void printsettings(void)
             timeout
            );
     fprintf(stderr, "SSH addr: %s\n", sprintaddr(buf, sizeof(buf), &addr_ssh));
-    fprintf(stderr, "listening on port %d\n", listen_port);
+    fprintf(stderr, "listening on %s\n", sprintaddr(buf, sizeof(buf), &addr_listen));
 }
 
 int main(int argc, char *argv[])
@@ -356,11 +384,13 @@ int main(int argc, char *argv[])
 
    /* Init defaults */
    char *user_name = "nobody";
-   char ssl_str[] = "localhost:443";
+   char listen_str[] = "0.0.0.0:443";
+   char ssl_str[] = "localhost:442";
    char ssh_str[] = "localhost:22";
 
-   resolve_name(&addr_ssl, ssl_str, 443);
-   resolve_name(&addr_ssh, ssh_str, 22);
+   resolve_name(&addr_listen, listen_str);
+   resolve_name(&addr_ssl, ssl_str);
+   resolve_name(&addr_ssh, ssh_str);
 
    while ((c = getopt(argc, argv, "t:l:s:p:vu:")) != EOF) {
       switch (c) {
@@ -370,15 +400,15 @@ int main(int argc, char *argv[])
                       break;
 
               case 'p':
-                      listen_port = atoi(optarg);
+                      resolve_name(&addr_listen, optarg);
                       break;
 
               case 'l':
-                      resolve_name(&addr_ssl, optarg, 443);
+                      resolve_name(&addr_ssl, optarg);
                       break;
 
               case 's':
-                      resolve_name(&addr_ssh, optarg, 22);
+                      resolve_name(&addr_ssh, optarg);
                       break;
 
               case 'v':
@@ -400,7 +430,7 @@ int main(int argc, char *argv[])
 
    setup_signals();
 
-   listen_socket = start_listen_socket(listen_port);
+   listen_socket = start_listen_socket(&addr_listen);
 
    if (fork() > 0) exit(0); /* Detach */
 
@@ -411,6 +441,9 @@ int main(int argc, char *argv[])
    /* New session -- become group leader */
    res = setsid();
    CHECK_RES_DIE(res, "setsid: already process leader");
+
+   /* Open syslog connexion */
+   openlog(argv[0], LOG_CONS, LOG_AUTH);
 
    /* Main server loop: accept connections, find what they are, fork shovelers */
    while (1)
