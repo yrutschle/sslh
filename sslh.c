@@ -1,7 +1,7 @@
 /*
    Reimplementation of sslh in C
 
-# Copyright (C) 2007  Yves Rutschle
+# Copyright (C) 2007-2008  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -30,6 +30,9 @@ LynxOS:
 
 HISTORY
 
+v1.2: 12MAY2008
+        Fixed compilation warning for AMD64 (Thx Daniel Lange)
+
 v1.1: 21MAY2007
         Making sslhc more like a real daemon:
         * If $PIDFILE is defined, write first PID to it upon startup
@@ -43,7 +46,7 @@ v1.0:
 
 */
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -65,8 +68,10 @@ if (res == -1) {    \
    exit(1);         \
 }
 
-#define USAGE_STRING "usage:\n" \
-"\texport PIDFILE=/var/run/sslhc.pid" \
+#define USAGE_STRING \
+"sslh v" VERSION "\n" \
+"usage:\n" \
+"\texport PIDFILE=/var/run/sslhc.pid\n" \
 "\tsslh [-t <timeout>] -u <username> -p <listenport> -s [sshhost:]port -l [sslhost:]port [-v]\n"
 
 int verbose = 0; /* That's really quite global */
@@ -279,10 +284,13 @@ void child_handler(int signo)
 }
 void setup_signals(void)
 {
-    int res;
+    void* res;
 
-    res = (int)signal(SIGCHLD, &child_handler);
-    CHECK_RES_DIE(res, "signal");
+    res = signal(SIGCHLD, &child_handler);
+    if (res == SIG_ERR) {
+        perror("signal");
+        exit(1);
+    }
 }
 
 
