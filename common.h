@@ -16,6 +16,7 @@
 #include <syslog.h>
 #include <libgen.h>
 #include <time.h>
+#include <getopt.h>
 
 #ifndef VERSION
 #define VERSION "v?"
@@ -46,27 +47,23 @@ enum connection_state {
     ST_SHOVELING   /* Connexion is established */
 };
 
-
-/* Different types of protocols we support.
- * These must match the order of the protocols[] array in common.c */
-typedef enum protocol_type {
-    PROT_SSH,
-    PROT_OPENVPN,
-    PROT_TINC,
-    PROT_SSL,
-} T_PROTO_ID;
+typedef int T_PROTO_ID; /* Index into protocols[] array */
 
 /* For each protocol we need: */
 struct proto {
     int affected;       /* are we actually using it? */
     char* description;  /* a string that says what it is (for logging and command-line parsing) */
     char* service;      /* service name to do libwrap checks */
-    struct sockaddr_storage saddr; /* where to switch that protocol */
+    struct addrinfo saddr; /* where to switch that protocol */
     int (*probe)(const char*, int); /* function to probe that protocol */
 };
 
 /* A table in common.c contains all the known protocols */
 extern struct proto protocols[];
+extern int num_known_protocols;
+
+/* this is used to pass protocols through the command-line parameter parsing */
+#define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
 
 /* A 'queue' is composed of a file descriptor (which can be read from or
  * written to), and a queue for defered write data */
@@ -94,10 +91,10 @@ struct connection {
 
 /* common.c */
 void init_cnx(struct connection *cnx);
-void start_listen_sockets(int sockfd[], struct sockaddr_storage addr[], int num_addr);
+int connect_addr(struct addrinfo *addr, char* cnx_name);
 int fd2fd(struct queue *target, struct queue *from);
-char* sprintaddr(char* buf, size_t size, struct sockaddr_storage* s);
-void resolve_name(struct sockaddr_storage *sock, char* fullname) ;
+char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
+void resolve_name(struct addrinfo **out, char* fullname);
 T_PROTO_ID probe_client_protocol(struct connection *cnx);
 void log_connection(struct connection *cnx);
 int check_access_rights(int in_socket, char* service);
@@ -110,12 +107,15 @@ void parse_cmdline(int argc, char* argv[]);
 void log_message(int type, char* msg, ...);
 void dump_connection(struct connection *cnx);
 
+void append_protocols(struct option *options, int n_opts, struct proto *prot, int n_prots);
+int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 
 int defer_write(struct queue *q, void* data, int data_size);
 int flush_defered(struct queue *q);
 
-extern int probing_timeout, verbose, inetd;
-extern struct sockaddr_storage *addr_listen, addr_ssl, addr_ssh, addr_openvpn;
+extern int probing_timeout, verbose, inetd, foreground, numeric;
+extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
+extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
 extern char* user_name, *pid_file;
 extern const char* server_type;
@@ -124,5 +124,3 @@ extern const char* server_type;
 void start_shoveler(int);
 
 void main_loop(int *listen_sockets, int num_addr_listen);
-
-

@@ -34,42 +34,33 @@
 int is_ssh_protocol(const char *p, int len);
 int is_openvpn_protocol(const char *p, int len);
 int is_tinc_protocol(const char *p, int len);
+int is_xmpp_protocol(const char *p, int len);
 int is_true(const char *p, int len) { return 1; }
 
+/* Table of all the protocols we know how to connect to.
+ *
+ * The first protocol in the table is where we connect in case of timeout
+ * (client didn't speak: typically this is SSH.)
+ *
+ * The last protocol in the table is where we connect if client spoke but we
+ * couldn't probe what it's saying.
+ */
 struct proto protocols[] = {
     /* affected  description   service  saddr   probe  */
     { 0,         "ssh",        "sshd",  {0},   is_ssh_protocol },
     { 0,         "openvpn",     NULL,   {0},   is_openvpn_protocol },
     { 0,         "tinc",        NULL,   {0},   is_tinc_protocol },
+    { 0,         "xmpp",        NULL,   {0},   is_xmpp_protocol },
     /* probe for SSL always successes: it's the default, and must be tried last
      **/
     { 0,        "ssl",          NULL,   {0},   is_true }
 };
-
-
-const char* USAGE_STRING =
-"sslh " VERSION "\n" \
-"usage:\n" \
-"\tsslh  [-v] [-i] [-V] [-f]\n"
-"\t[-t <timeout>] [-P <pidfile>] -u <username> -p <add> [-p <addr> ...] \n" \
-"\t[--ssh <addr>] [--ssl <addr>] [--openvpn <addr>] [--tinc <addr>]\n\n" \
-"-v: verbose\n" \
-"-V: version\n" \
-"-f: foreground\n" \
-"-p: address and port to listen on. default: 0.0.0.0:443.\n    Can be used several times to bind to several addresses.\n" \
-"--ssh: SSH address: where to connect an SSH connection.\n" \
-"--ssl: SSL address: where to connect an SSL connection.\n" \
-"--openvpn: OpenVPN address: where to connect an OpenVPN connection.\n" \
-"--tinc: tinc address: where to connect a tinc connection.\n" \
-"-P: PID file. Default: /var/run/sslh.pid.\n" \
-"-i: Run as a inetd service.\n" \
-"";
-
+int num_known_protocols = ARRAY_SIZE(protocols);
 
 /* 
- * Settings that depend on the command line. 
- * They're set in main(), but also used in other places, and it'd be
- * heavy-handed to pass it all as parameters
+ * Settings that depend on the command line.  They're set in main(), but also
+ * used in other places in common.c, and it'd be heavy-handed to pass it all as
+ * parameters
  */
 int verbose = 0;
 int probing_timeout = 2;
@@ -78,8 +69,7 @@ int foreground = 0;
 int numeric = 0;
 char *user_name, *pid_file;
 
-struct sockaddr_storage *addr_listen = NULL; /* what addresses do we listen to? */
-int num_addr_listen = 0; /* How many addresses do we listen to? */
+struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -88,13 +78,13 @@ int allow_severity =0, deny_severity = 0;
 
 
 /* check result and die, printing the offending address and error */
-void check_res_dumpdie(int res, struct sockaddr_storage *sock, char* syscall)
+void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
 {
-    char buf[64];
+    char buf[NI_MAXHOST];
 
     if (res == -1) {
         fprintf(stderr, "%s:%s: %s\n", 
-                sprintaddr(buf, sizeof(buf), sock), 
+                sprintaddr(buf, sizeof(buf), addr), 
                 syscall, 
                 strerror(errno));
         exit(1);
@@ -103,31 +93,77 @@ void check_res_dumpdie(int res, struct sockaddr_storage *sock, char* syscall)
 
 /* Starts listening sockets on specified addresses.
  * IN: addr[], num_addr
- * OUT: sockfd[]
- * Bound file descriptors are returned in alread-allocated *sockfd pointer
-   Returns file descriptor
+ * OUT: *sockfd[]  pointer to newly-allocated array of file descriptors
+ * Returns number of addresses bound
+ * Bound file descriptors are returned in newly-allocated *sockfd pointer
    */
-void start_listen_sockets(int sockfd[], struct sockaddr_storage addr[], int num_addr)
+int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
 {
    struct sockaddr_storage *saddr;
+   struct addrinfo *addr;
    int i, res, reuse;
+   int num_addr = 0;
 
-   for (i = 0; i < num_addr; i++) {
-       saddr = &addr[i];
+   for (addr = addr_list; addr; addr = addr->ai_next)
+       num_addr++;
 
-       sockfd[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
-       check_res_dumpdie(sockfd[i], saddr, "socket");
+   if (verbose)
+       fprintf(stderr, "listening to %d addresses\n", num_addr);
+
+   *sockfd = malloc(num_addr * sizeof(*sockfd[0]));
+
+   for (i = 0, addr = addr_list; i < num_addr && addr; i++, addr = addr->ai_next) {
+       if (!addr) {
+           fprintf(stderr, "FATAL: Inconsistent listen number. This should not happen.\n");
+           exit(1);
+       }
+       saddr = (struct sockaddr_storage*)addr->ai_addr;
+
+       (*sockfd)[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
+       check_res_dumpdie((*sockfd)[i], addr, "socket");
 
        reuse = 1;
-       res = setsockopt(sockfd[i], SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
-       check_res_dumpdie(res, saddr, "setsockopt");
+       res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
+       check_res_dumpdie(res, addr, "setsockopt");
 
-       res = bind (sockfd[i], (struct sockaddr*)saddr, sizeof(*saddr));
-       check_res_dumpdie(res, saddr, "bind");
+       res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
+       check_res_dumpdie(res, addr, "bind");
 
-       res = listen (sockfd[i], 50);
-       check_res_dumpdie(res, saddr, "listen");
+       res = listen ((*sockfd)[i], 50);
+       check_res_dumpdie(res, addr, "listen");
+
    }
+
+   return num_addr;
+}
+
+/* Connect to first address that works and returns a file descriptor, or -1 if
+ * none work. cnx_name points to the name of the service (for logging) */
+int connect_addr(struct addrinfo *addr, char* cnx_name)
+{
+    struct addrinfo *a;
+    char buf[NI_MAXHOST];
+    int fd, res;
+
+    for (a = addr; a; a = a->ai_next) {
+        if (verbose) 
+            fprintf(stderr, "connecting to %s family %d len %d\n", 
+                    sprintaddr(buf, sizeof(buf), a),
+                    a->ai_addr->sa_family, a->ai_addrlen);
+        fd = socket(a->ai_family, SOCK_STREAM, 0);
+        if (fd == -1) {
+            log_message(LOG_ERR, "forward to %s failed:socket: %s\n", cnx_name, strerror(errno));
+        } else {
+            res = connect(fd, a->ai_addr, a->ai_addrlen);
+            if (res == -1) {
+                log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 
+                            cnx_name, strerror(errno));
+            } else {
+                return fd;
+            }
+        }
+    }
+    return -1;
 }
 
 /* Store some data to write to the queue later */
@@ -290,8 +326,18 @@ int is_openvpn_protocol (const char*p,int len)
  * */
 int is_tinc_protocol( const char *p, int len)
 {
-    return !strncmp(p, "0 ", len);
+    return !strncmp(p, "0 ", 2);
 }
+
+/* Is the buffer the beginning of a jabber (XMPP) connections?
+ * (Protocol is documented (http://tools.ietf.org/html/rfc6120) but for lazy
+ * clients, just checking first frame containing "jabber" in xml entity)
+ * */
+int is_xmpp_protocol( const char *p, int len)
+{
+    return strstr(p, "jabber") ? 1 : 0;
+}
+
 
 /* 
  * Read the beginning of data coming from the client connection and check if
@@ -335,23 +381,33 @@ T_PROTO_ID probe_client_protocol(struct connection *cnx)
 }
 
 /* returns a string that prints the IP and port of the sockaddr */
-char* sprintaddr(char* buf, size_t size, struct sockaddr_storage* s)
+char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 {
    char host[NI_MAXHOST], serv[NI_MAXSERV];
+   int res;
 
-   getnameinfo((struct sockaddr*)s, sizeof(*s), host, sizeof(host), serv, sizeof(serv), numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
+   res = getnameinfo(a->ai_addr, a->ai_addrlen,
+               host, sizeof(host), 
+               serv, sizeof(serv), 
+               numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
+
+   if (res) {
+      fprintf(stderr, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
+      exit(1);
+   }
+
    snprintf(buf, size, "%s:%s", host, serv);
 
    return buf;
 }
 
-/* turns a "hostname:port" string into a struct sockaddr;
-sock: socket address to which to copy the addr
+/* turns a "hostname:port" string into a list of struct addrinfo;
+out: list of newly allocated addrinfo (see getaddrinfo(3)); freeaddrinfo(3) when done
 fullname: input string -- it gets clobbered
 */
-void resolve_name(struct sockaddr_storage *sock, char* fullname)
+void resolve_name(struct addrinfo **out, char* fullname)
 {
-   struct addrinfo *addr, hint;
+   struct addrinfo hint;
    char *serv, *host;
    int res;
 
@@ -371,17 +427,13 @@ void resolve_name(struct sockaddr_storage *sock, char* fullname)
    hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
 
-   res = getaddrinfo(host, serv, &hint, &addr);
+   res = getaddrinfo(host, serv, &hint, out);
    if (res) {
       fprintf(stderr, "%s `%s'\n", gai_strerror(res), fullname);
       if (res == EAI_SERVICE)
          fprintf(stderr, "(Check you have specified all ports)\n");
-      exit(1);
+      exit(4);
    }
-
-   memcpy(sock, addr->ai_addr, sizeof(*sock));
-
-   freeaddrinfo(addr);
 }
 
 /* Log to syslog, and to stderr if foreground */
@@ -402,41 +454,40 @@ void log_message(int type, char* msg, ...)
 /* syslogs who connected to where */
 void log_connection(struct connection *cnx)
 {
-    struct sockaddr_storage peeraddr; /* Who's connecting to sshd */
-    struct sockaddr_storage listenaddr; /* Where is it connecting to */
-    struct sockaddr_storage forwardfromaddr; /* Where is it forwarded from */
-    struct sockaddr_storage targetaddr; /* Where is it forwarded to */
-    socklen_t size = sizeof(peeraddr);
+    struct addrinfo addr;
+    struct sockaddr_storage ss;
 #define MAX_NAMELENGTH (NI_MAXHOST + NI_MAXSERV + 1)
-    char buf[MAX_NAMELENGTH], buf2[MAX_NAMELENGTH], buf3[MAX_NAMELENGTH], buf4[MAX_NAMELENGTH];
+    char peer[MAX_NAMELENGTH], service[MAX_NAMELENGTH],
+        local[MAX_NAMELENGTH], target[MAX_NAMELENGTH];
     int res;
 
-    memset(&peeraddr, 0, sizeof(peeraddr));
-    memset(&listenaddr, 0, sizeof(listenaddr));
-    memset(&forwardfromaddr, 0, sizeof(forwardfromaddr));
-    memset(&targetaddr, 0, sizeof(targetaddr));
+    addr.ai_addr = (struct sockaddr*)&ss;
+    addr.ai_addrlen = sizeof(ss);
 
-    res = getpeername(cnx->q[0].fd, (struct sockaddr*)&peeraddr, &size);
+    res = getpeername(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
     if (res == -1) return; /* that should never happen, right? */
+    sprintaddr(peer, sizeof(peer), &addr);
 
-    size = sizeof(listenaddr);
-    res = getsockname(cnx->q[0].fd, (struct sockaddr*)&listenaddr, &size);
+    addr.ai_addrlen = sizeof(ss);
+    res = getsockname(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
     if (res == -1) return;
+    sprintaddr(service, sizeof(service), &addr);
 
-    size = sizeof(targetaddr);
-    res = getpeername(cnx->q[1].fd, (struct sockaddr*)&targetaddr, &size);
+    addr.ai_addrlen = sizeof(ss);
+    res = getpeername(cnx->q[1].fd, addr.ai_addr, &addr.ai_addrlen);
     if (res == -1) return;
+    sprintaddr(target, sizeof(target), &addr);
 
-    size = sizeof(forwardfromaddr);
-    res = getsockname(cnx->q[1].fd, (struct sockaddr*)&forwardfromaddr, &size);
+    addr.ai_addrlen = sizeof(ss);
+    res = getsockname(cnx->q[1].fd, addr.ai_addr, &addr.ai_addrlen);
     if (res == -1) return;
+    sprintaddr(local, sizeof(local), &addr);
 
-    log_message(LOG_INFO, "connection from %s to %s forwarded from %s to %s\n", 
-           sprintaddr(buf, sizeof(buf), &peeraddr), 
-           sprintaddr(buf2, sizeof(buf2), &listenaddr),
-           sprintaddr(buf3, sizeof(buf3), &forwardfromaddr),
-           sprintaddr(buf4, sizeof(buf4), &targetaddr));
-
+    log_message(LOG_INFO, "connection from %s to %s forwarded from %s to %s\n",
+                peer,
+                service,
+                local,
+                target);
 }
 
 
@@ -498,6 +549,14 @@ void setup_signals(void)
     action.sa_flags = SA_NOCLDWAIT;
     res = sigaction(SIGCHLD, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
+
+
+    /* Set SIGTERM to exit. For some reason if it's not set explicitely,
+     * coverage information is lost when killing the process */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = exit;
+    res = sigaction(SIGTERM, &action, NULL);
+    CHECK_RES_DIE(res, "sigaction");
 }
 
 /* Open syslog connection with appropriate banner; 
@@ -521,7 +580,7 @@ void drop_privileges(char* user_name)
     struct passwd *pw = getpwnam(user_name);
     if (!pw) {
         fprintf(stderr, "%s: not found\n", user_name);
-        exit(1);
+        exit(2);
     }
     if (verbose)
         fprintf(stderr, "turning into %s\n", user_name);
@@ -540,7 +599,7 @@ void write_pid_file(char* pidfile)
     f = fopen(pidfile, "w");
     if (!f) {
         perror(pidfile);
-        exit(1);
+        exit(3);
     }
 
     fprintf(f, "%d\n", getpid());
@@ -549,20 +608,23 @@ void write_pid_file(char* pidfile)
 
 void printsettings(void)
 {
-    char buf[64];
+    char buf[NI_MAXHOST];
+    struct addrinfo *a;
     int i;
     
     for (i = 0; i < ARRAY_SIZE(protocols); i++) {
         if (protocols[i].affected)
             fprintf(stderr,
-                    "%s addr: %s. libwrap service: %s\n", 
+                    "%s addr: %s. libwrap service: %s family %d %d\n", 
                     protocols[i].description, 
                     sprintaddr(buf, sizeof(buf), &protocols[i].saddr), 
-                    protocols[i].service);
+                    protocols[i].service,
+                    protocols[i].saddr.ai_family,
+                    protocols[i].saddr.ai_addr->sa_family);
     }
     fprintf(stderr, "listening on:\n");
-    for (i = 0; i < num_addr_listen; i++) {
-        fprintf(stderr, "\t%s\n", sprintaddr(buf, sizeof(buf), &addr_listen[i]));
+    for (a = addr_listen; a; a = a->ai_next) {
+        fprintf(stderr, "\t%s\n", sprintaddr(buf, sizeof(buf), a));
     }
     fprintf(stderr, "timeout to ssh: %d\n", probing_timeout);
 }
@@ -574,7 +636,6 @@ void printsettings(void)
  * prot: array of protocols
  * n_prots: number of protocols in *prot
  * */
-#define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
 void append_protocols(struct option *options, int n_opts, struct proto *prot, int n_prots)
 {
     int o, p;
@@ -587,126 +648,3 @@ void append_protocols(struct option *options, int n_opts, struct proto *prot, in
     }
 }
 
-void parse_cmdline(int argc, char* argv[])
-{
-    int c, affected = 0;
-    struct option const_options[] = {
-        { "inetd",      no_argument,            &inetd,         1 },
-        { "foreground", no_argument,            &foreground,    1 },
-        { "verbose",    no_argument,            &verbose,       1 },
-        { "numeric",    no_argument,            &numeric,       1 },
-        { "user",       required_argument,      0,              'u' },
-        { "pidfile",   required_argument,       0,              'P' },
-        { "timeout",    required_argument,      0,              't' },
-        { "listen",     required_argument,      0,              'p' },
-    };
-    struct option all_options[ARRAY_SIZE(const_options) + ARRAY_SIZE(protocols) + 1];
-
-    memset(all_options, 0, sizeof(all_options));
-    memcpy(all_options, const_options, sizeof(const_options));
-    append_protocols(all_options, ARRAY_SIZE(const_options), protocols, ARRAY_SIZE(protocols));
-
-    while ((c = getopt_long_only(argc, argv, "t:l:s:o:T:p:VP:", all_options, NULL)) != -1) {
-        if (c == 0) continue;
-
-        if (c >= PROT_SHIFT) {
-            affected++;
-            protocols[c - PROT_SHIFT].affected = 1;
-            resolve_name(&protocols[c - PROT_SHIFT].saddr, optarg);
-            continue;
-        }
-
-        switch (c) {
-
-        case 't':
-            probing_timeout = atoi(optarg);
-            break;
-
-        case 'p':
-            num_addr_listen++;
-            addr_listen = realloc(addr_listen, num_addr_listen * sizeof(addr_listen[0]));
-            resolve_name(&addr_listen[num_addr_listen - 1], optarg);
-            break;
-
-        case 'V':
-            printf("%s %s\n", server_type, VERSION);
-            exit(0);
-
-        case 'u':
-            user_name = optarg;
-            break;
-
-        case 'P':
-            pid_file = optarg;
-            break;
-
-        default:
-            fprintf(stderr, USAGE_STRING);
-            exit(2);
-        }
-    }
-
-    if (!affected) {
-        fprintf(stderr, "At least one target protocol must be specified.\n");
-        exit(2);
-    }
-
-    if (!num_addr_listen) {
-        fprintf(stderr, "No listening address specified; use at least one -p option\n");
-        exit(1);
-    }
-
-}
-
-int main(int argc, char *argv[])
-{
-
-   extern char *optarg;
-   extern int optind;
-   int res;
-
-   int *listen_sockets;
-
-   /* Init defaults */
-   pid_file = "/var/run/sslh.pid";
-   user_name = "nobody";
-   foreground = 0;
-
-   parse_cmdline(argc, argv);
-
-   if (inetd)
-   {
-       verbose = 0;
-       start_shoveler(0);
-       exit(0);
-   }
-
-   if (verbose)
-       printsettings();
-
-   listen_sockets = malloc(num_addr_listen * sizeof(*listen_sockets));
-   start_listen_sockets(listen_sockets, addr_listen, num_addr_listen);
-   free(addr_listen);
-
-   if (!foreground)
-       if (fork() > 0) exit(0); /* Detach */
-
-   setup_signals();
-
-   write_pid_file(pid_file);
-
-   drop_privileges(user_name);
-
-   /* New session -- become group leader */
-   if (getuid() == 0) {
-       res = setsid();
-       CHECK_RES_DIE(res, "setsid: already process leader");
-   }
-
-   /* Open syslog connection */
-   setup_syslog(argv[0]);
-
-   main_loop(listen_sockets, num_addr_listen);
-
-   return 0;
-}

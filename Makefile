@@ -1,7 +1,8 @@
 # Configuration
 
-VERSION="v1.9"
+VERSION="v1.10"
 USELIBWRAP=	# Use libwrap?
+COV_TEST= 	# Perform test coverage?
 PREFIX=/usr/local
 
 MAN=sslh.8.gz	# man page name
@@ -9,19 +10,23 @@ MAN=sslh.8.gz	# man page name
 # End of configuration -- the rest should take care of
 # itself
 
+ifneq ($(strip $(COV_TEST)),)
+    CFLAGS_COV=-fprofile-arcs -ftest-coverage
+endif
+
 CC = gcc
-CFLAGS=-Wall -g
+CFLAGS=-Wall -g $(CFLAGS_COV)
 
 #LIBS=-lnet
 LIBS=
-OBJS=common.o
+OBJS=common.o sslh-main.o
 
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
 	CFLAGS:=$(CFLAGS) -DLIBWRAP
 endif
 
-all: sslh $(MAN)
+all: sslh $(MAN) echosrv
 
 .c.o: *.h
 	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -c $<
@@ -31,12 +36,14 @@ sslh: $(OBJS) sslh-fork sslh-select
 
 sslh-fork: $(OBJS) sslh-fork.o Makefile common.h
 	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
-	strip sslh-fork
+	#strip sslh-fork
 
 sslh-select: $(OBJS) sslh-select.o Makefile common.h 
 	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-select sslh-select.o $(OBJS) $(LIBS)
-	strip sslh-select
+	#strip sslh-select
 
+echosrv: $(OBJS) echosrv.o
+	$(CC) $(CFLAGS) -o echosrv echosrv.o common.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
@@ -58,7 +65,7 @@ uninstall:
 	update-rc.d sslh remove
 
 clean:
-	rm -f sslh-fork sslh-select $(MAN) *.o
+	rm -f sslh-fork sslh-select echosrv $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info 
 
 tags:
 	ctags -T *.[ch]

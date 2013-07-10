@@ -1,0 +1,128 @@
+#! /usr/bin/perl -w
+
+# Test script for sslh -- mass communication
+
+# This creates many clients that perform concurrent
+# connections, disconnect at any time, and try to generally
+# behave as badly as possible.
+
+# It can be used to test sslh behaves properly with many
+# clients, however its main use is to get an idea of how
+# much load it can take on your system before things start
+# to go wrong.
+
+use strict;
+use IO::Socket::INET6;
+use Data::Dumper;
+
+## BEGIN TEST CONFIG
+
+# Do we test sslh-select or sslh-fork?
+my $sslh_binary = "./sslh-select";
+
+# How many clients to we start for each protocol?
+my $NUM_CNX = 30;
+
+# Delay between starting new processes when starting up. If
+# you start 200 processes in under a second, things go wrong
+# and it's not sslh's fault (typically the echosrv won't be
+# forking fast enough).
+my $start_time_delay = 0.5;
+
+# If you test 4 protocols, you'll start $NUM_CNX * 4 clients
+# (e.g. 40), starting one every $start_time_delay seconds.
+
+# Max times we repeat the test string: allows to test for
+# large messages.
+my $block_rpt = 4096;
+
+# Probability to stop a client after a message (e.g. with
+# .01 a client will send an average of 100 messages before
+# disconnecting).
+my $stop_client_probability = .001;
+
+# What protocols we test, and on what ports
+# Just comment out protocols you don't want to use.
+my %protocols = (
+    "ssh" => { address => "localhost:9001", client => client("ssh") },
+    "ssl" => { address => "localhost:9002", client => client("ssl") },
+    "openvpn" => {address => "localhost:9003", client => client("openvpn") },
+    "tinc" => {address => "localhost:9004", client => client("tinc") },
+);
+
+##END CONFIG
+
+
+# We use ports 9000, 9001 and 9002 -- hope that won't clash
+# with anything...
+my $sslh_address = "localhost:9000";
+my $pidfile = "/tmp/sslh_test.pid";
+
+sub client {
+    my ($service) = @_;
+
+    return sub {
+        while (1) {
+            my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
+            my $test_data = "$service testing " x int(rand($block_rpt)+1) . "\n";
+
+            sleep 5 if $service eq "ssh";
+            if ($service eq "openvpn") {
+                syswrite $cnx, "\x00\x0F\x38\n";
+                my $msg;
+                sysread $cnx, $msg, 14; # length "openvpn: \x0\xF\x38\n" => 14
+            }
+            if ($service eq "tinc") {
+                syswrite $cnx, "0 \n";
+                my $msg;
+                sysread $cnx, $msg, 10; # length "tinc: 0 \n" => 10 
+            }
+            while (1) {
+                print $cnx $test_data;
+                my $r = <$cnx>;
+                ($? = 1, die "$service got [$r]\n") if ($r ne "$service: $test_data");
+                last if rand(1) < $stop_client_probability;
+            }
+        }
+        exit 0;
+    }
+}
+
+foreach my $p (keys %protocols) {
+    if (!fork) {
+        exec "./echosrv --listen $protocols{$p}->{address} --prefix '$p: '";
+    }
+}
+
+# Start sslh with the right plumbing
+my $sslh_pid;
+if (!($sslh_pid = fork)) {
+    my $user = (getpwuid $<)[0]; # Run under current username
+    my $prots = join " ", map "--$_ $protocols{$_}->{address}", keys %protocols;
+    my $cmd = "$sslh_binary -f -t 3 -u $user --listen $sslh_address $prots -P $pidfile";
+    print "$cmd\n";
+    exec $cmd;
+    exit 0;
+}
+warn "spawned $sslh_pid\n";
+sleep 2;  # valgrind can be heavy -- wait 5 seconds
+
+
+for (1 .. $NUM_CNX) {
+    foreach my $p (keys %protocols) {
+        if (!fork) {
+            warn "starting $p\n";
+            &{$protocols{$p}->{client}};
+            exit;
+        }
+        # Give a little time so we don't overrun the
+        # listen(2) backlog.
+        select undef, undef, undef, $start_time_delay;
+    }
+}
+
+wait;
+
+
+`killall echosrv`;
+

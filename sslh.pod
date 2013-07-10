@@ -6,15 +6,16 @@
 
 =head1 SYNOPSIS
 
-sslh [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-o> I<target address for OpenVPN>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
-B<sslh> accepts HTTPS, SSH and OpenVPN connections on the
-same port. This makes it possible to connect to an SSH
-server or an OpenVPN on port 443 (e.g. from inside a
-corporate firewall, which almost never block port 443) while
-still serving HTTPS on that port. 
+B<sslh> accepts HTTPS, SSH, OpenVPN, tinc and XMPP connections
+on the same port. This makes it possible to connect to any
+of these servers on port 443 (e.g. from inside a corporate
+firewall, which almost never block port 443) while still
+serving HTTPS on that port. 
+
 
 The idea is to have B<sslh> listen to the external 443 port,
 accept the incoming connections, work out what type of
@@ -27,7 +28,9 @@ The protocol detection is made based on the first bytes sent
 by the client: SSH connections start by identifying each
 other's versions using clear text "SSH-2.0" strings (or
 equivalent version strings). This is defined in RFC4253,
-4.2. Meanwhile, OpenVPN clients start with 0x00 0x0D 0x38.
+4.2. Meanwhile, OpenVPN clients start with 0x00 0x0D 0x38,
+tinc clients start with "0 ", and XMPP client start with a
+packet containing "jabber".
 
 Additionally, two kind of SSH clients exist: the client
 waits for the server to send its version string ("Shy"
@@ -89,6 +92,11 @@ typically I<localhost:22>.
 
 Interface and port on which to forward OpenVPN connections,
 typically I<localhost:1194>.
+
+=item B<--xmpp> I<target address>
+
+Interface and port on which to forward XMPP connections,
+typically I<localhost:5222>.
 
 =item B<--tinc> I<target address>
 

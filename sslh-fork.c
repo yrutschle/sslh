@@ -1,7 +1,7 @@
 /*
    Reimplementation of sslh in C
 
-# Copyright (C) 2007-2008  Yves Rutschle
+# Copyright (C) 2007-2011  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -68,10 +68,9 @@ void start_shoveler(int in_socket)
 {
    fd_set fds;
    struct timeval tv;
-   struct sockaddr_storage *saddr;
+   struct addrinfo *saddr;
    int res;
    int out_socket;
-   char *target;
    struct connection cnx;
    T_PROTO_ID prot;
 
@@ -92,22 +91,18 @@ void start_shoveler(int in_socket)
        prot = probe_client_protocol(&cnx);
    } else {
        /* Timed out: it's necessarily SSH */
-       prot = PROT_SSH;
+       prot = 0;
    }
 
    saddr = &protocols[prot].saddr;
-   target = protocols[prot].description;
    if (protocols[prot].service && 
        check_access_rights(in_socket, protocols[prot].service)) {
        exit(0);
    }
 
    /* Connect the target socket */
-   out_socket = socket(saddr->ss_family, SOCK_STREAM, 0);
-   res = connect(out_socket, (struct sockaddr*)saddr, sizeof(addr_ssl));
-   CHECK_RES_DIE(res, "connect");
-   if (verbose)
-      fprintf(stderr, "connected to something\n");
+   out_socket = connect_addr(saddr, protocols[prot].description);
+   CHECK_RES_DIE(out_socket, "connect");
 
    cnx.q[1].fd = out_socket;
 
@@ -126,12 +121,31 @@ void start_shoveler(int in_socket)
    exit(0);
 }
 
-void main_loop(int *listen_sockets, int num_addr_listen)
-{
-    int in_socket, i;
+static int *listener_pid;
+static int listener_pid_number = 0;
 
+void stop_listeners(int sig)
+{
+    int i;
+
+    for (i = 0; i < listener_pid_number; i++) {
+        kill(listener_pid[i], sig);
+    }
+}
+
+void main_loop(int listen_sockets[], int num_addr_listen)
+{
+    int in_socket, i, res;
+    struct sigaction action;
+
+    listener_pid = malloc(listener_pid_number * sizeof(listener_pid[0]));
+
+    /* Start one process for each listening address */
     for (i = 0; i < num_addr_listen; i++) {
-        if (!fork()) {
+        if (!(listener_pid[i] = fork())) {
+
+            /* Listening process just accepts a connection, forks, and goes
+             * back to listening */
             while (1)
             {
                 in_socket = accept(listen_sockets[i], 0, 0);
@@ -147,6 +161,17 @@ void main_loop(int *listen_sockets, int num_addr_listen)
             }
         }
     }
+
+    /* Set SIGTERM to "stop_listeners" which further kills all listener
+     * processes. Note this won't kill processes that listeners forked, which
+     * means active connections remain active. */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = stop_listeners;
+    res = sigaction(SIGTERM, &action, NULL);
+    CHECK_RES_DIE(res, "sigaction");
+
+    listener_pid_number = num_addr_listen;
+    wait(NULL);
 }
 
 /* The actual main is in common.c: it's the same for both version of

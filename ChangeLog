@@ -1,4 +1,26 @@
+v1.10:
+	Fixed calls referring to sockaddr length so they work
+	with FreeBSD.
+
+	Try target addresses in turn until one works if
+	there are several (e.g. "localhost:22" resolves to
+	an IPv6 address and an IPv4 address and sshd does
+	not listen on IPv6).
+
+	Fixed sslh-fork so killing the head process kills
+	the listener processes.
+
+	Heavily cleaned up test suite. Added stress test
+	t_load script. Added coverage (requires lcov).
+
+	Support for XMPP (Arnaud Gendre).
+
+	Updated README.MacOSX (Aaron Madlon-Kay).
+
 v1.9: 02AUG2011
+	WARNING: This version does not work with FreeBSD and
+	derivatives!
+
 	WARNING: Options changed, you'll need to update your
 	start-up scripts! Log format changed, you'll need to
 	update log processing scripts!
