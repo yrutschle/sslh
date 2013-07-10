@@ -18,44 +18,9 @@
 # The full text for the General Public License is here:
 # http://www.gnu.org/licenses/gpl.html
 
-Comments? questions? sslh@rutschle.net
-
-Compilation instructions:
-
-Solaris:
-  cc -o sslh sslh.c -lresolv -lsocket -lnsl
-
-LynxOS:
-  gcc -o tcproxy tcproxy.c -lnetinet
-
-Linux:
-  cc -o sslh sslh.c -lnet
-
-HISTORY
-
-v1.3: 14MAY2008
-        Added parsing for local interface to listen on
-        Changed default SSL connexion to port 442 (443 doesn't make
-        sense as a default as we're already listening on 443)
-        Syslog incoming connexions
-
-v1.2: 12MAY2008
-        Fixed compilation warning for AMD64 (Thx Daniel Lange)
-
-v1.1: 21MAY2007
-        Making sslhc more like a real daemon:
-        * If $PIDFILE is defined, write first PID to it upon startup
-        * Fork at startup (detach from terminal)
-        (thanks to http://www.enderunix.org/docs/eng/daemon.php -- good checklist)
-        * Less memory usage (?)
-
-v1.0: 
-        * Basic functionality: privilege dropping, target hostnames and ports
-        configurable.
-
 */
 
-#define VERSION "1.3"
+#define VERSION "1.5"
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -72,6 +37,12 @@ v1.0:
 #include <pwd.h>
 #include <syslog.h>
 
+#ifdef LIBWRAP
+#include <tcpd.h>
+int allow_severity =0, deny_severity = 0;
+#endif
+
+
 #define CHECK_RES_DIE(res, str) \
 if (res == -1) {    \
    perror(str);     \
@@ -86,8 +57,8 @@ if (res == -1) {    \
 "\t\t-s [sshhost:]port -l [sslhost:]port [-v]\n\n" \
 "-v: verbose\n" \
 "-p: address and port to listen on. default: 0.0.0.0:443\n" \
-"-s: SSH address: where to connect an SSH connexion. default: localhost:22\n" \
-"-l: SSL address: where to connect an SSL connexion.\n" \
+"-s: SSH address: where to connect an SSH connection. default: localhost:22\n" \
+"-l: SSL address: where to connect an SSL connection.\n" \
 ""
 
 int verbose = 0; /* That's really quite global */
@@ -227,7 +198,7 @@ void resolve_name(struct sockaddr *sock, char* fullname) {
 }
 
 /* syslogs who connected to where */
-void log_connexion(int socket, char* target)
+void log_connection(int socket, char* target)
 {
     struct sockaddr peeraddr;
     socklen_t size = sizeof(peeraddr);
@@ -237,7 +208,7 @@ void log_connexion(int socket, char* target)
     res = getpeername(socket, &peeraddr, &size);
     CHECK_RES_DIE(res, "getpeername");
 
-    syslog(LOG_INFO, "connexion from %s forwarded to %s\n", 
+    syslog(LOG_INFO, "connection from %s forwarded to %s\n", 
            sprintaddr(buf, sizeof(buf), &peeraddr), target);
 
 }
@@ -251,6 +222,36 @@ int timeout = 2;
 struct sockaddr addr_listen;
 struct sockaddr addr_ssl, addr_ssh;
 
+/* libwrap (tcpd): check the ssh connection is legal. This is necessary because
+ * the actual sshd will only see a connection coming from localhost and can't
+ * apply the rules itself.
+ */
+void check_access_rights(int in_socket)
+{
+#ifdef LIBWRAP
+    struct sockaddr peeraddr;
+    socklen_t size = sizeof(peeraddr);
+    char addr_str[1024];
+    struct hostent *host;
+    struct in_addr addr;
+    int res;
+
+    res = getpeername(in_socket, &peeraddr, &size);
+    CHECK_RES_DIE(res, "getpeername");
+    inet_ntop(AF_INET, &((struct sockaddr_in*)&peeraddr)->sin_addr, addr_str, sizeof(addr_str));
+
+    addr.s_addr = inet_addr(addr_str);
+    host = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET);
+
+    if (!hosts_ctl("sshd", (host ? host->h_name : STRING_UNKNOWN), addr_str, STRING_UNKNOWN)) {
+        if (verbose)
+            fprintf(stderr, "access denied\n");
+        log_connection(in_socket, "access denied");
+        close(in_socket);
+        exit(0);
+    }
+#endif
+}
 
 /* Child process that finds out what to connect to and proxies 
  */
@@ -280,9 +281,12 @@ void start_shoveler(int in_socket)
       /* The client hasn't written anything and we timed out: connect to SSH */
       saddr = &addr_ssh;
       target = "SSH";
+
+      /* do hosts_access check if built with libwrap support */
+      check_access_rights(in_socket);
    }
 
-   log_connexion(in_socket, target);
+   log_connection(in_socket, target);
 
    /* Connect the target socket */
    out_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -442,7 +446,7 @@ int main(int argc, char *argv[])
    res = setsid();
    CHECK_RES_DIE(res, "setsid: already process leader");
 
-   /* Open syslog connexion */
+   /* Open syslog connection */
    openlog(argv[0], LOG_CONS, LOG_AUTH);
 
    /* Main server loop: accept connections, find what they are, fork shovelers */

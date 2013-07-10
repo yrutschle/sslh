@@ -1,0 +1,62 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:		sslh
+# Default-Start:	2 3 4 5
+# Default-Stop:		1
+# Short-Description:	sslh proxy ssl & ssh connections
+### END INIT INFO
+
+set -e
+tag=sslh
+facility=user.info
+
+# /etc/init.d/sslh: start and stop the sslh proxy daemon
+
+# Defaults -- can be overridden in /etc/default/sslh
+PIDFILE=/var/run/sslh.pid
+LISTEN=thelonious:443
+SSH=localhost:22
+SSL=localhost:443
+
+if test -f /etc/default/sslh; then
+    . /etc/default/sslh
+    export PIDFILE=${PIDFILE}
+fi
+
+DAEMON=/usr/local/sbin/sslh 
+
+start()
+{
+        echo "Start services: sslh"
+        $DAEMON -u nobody -p ${LISTEN} -s ${SSH} -l ${SSL}
+        logger -t ${tag} -p ${facility} -i 'Started sslh'
+}
+
+stop()
+{
+        echo "Stop services: sslh"
+	killall $DAEMON
+        rm ${PIDFILE}
+      	logger -t ${tag} -p ${facility} -i 'Stopped sslh'
+}
+
+
+case "$1" in
+	  start)
+		    start
+		    ;;
+	  stop)
+		    stop
+		    ;;
+    restart)
+		    stop
+		    sleep 5
+		    start
+		    ;;
+	  *)
+		    echo "Usage: /etc/init.d/sslh {start|stop|restart}" >&2
+		    ;;
+esac
+
+exit 0
