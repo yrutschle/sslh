@@ -10,7 +10,24 @@ inside a corporate firewall, which almost never block port
 
 ==== Compile and install ====
 
-If you're lucky, the Makefile will work for you:
+sslh uses libconfig (http://www.hyperrealm.com/libconfig/)
+and libwrap.
+
+For Debian, these are contained in packages libwrap0-dev and
+libconfig8-dev.  
+
+For OpenSUSE, these are contained in packages libconfig9 and
+libconfig-dev in repository
+http://download.opensuse.org/repositories/multimedia:/libs/openSUSE_12.1/
+
+For Fedora, this package should work:
+https://admin.fedoraproject.org/pkgdb/acls/name/libconfig
+(feedback from Fedorans appreciated).
+
+If you can't find libconfig, or just don't want a
+configuration file, set 'USELIBCONFIG=' in the Makefile.
+
+After this, the Makefile should work:
 
 make install
 

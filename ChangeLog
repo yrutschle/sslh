@@ -1,3 +1,14 @@
+v1.13: 18MAY2012
+	Write PID file before dropping privileges.
+
+	Added --background, which overrides 'foreground'
+	configuration file setting.
+
+	Added example systemd service file from Archlinux in
+	scripts/
+	https://projects.archlinux.org/svntogit/community.git/tree/trunk/sslh.service?h=packages/sslh
+	(Sébastien Luttringer)
+
 v1.12: 08MAY2012
 	Added support for configuration file.
 

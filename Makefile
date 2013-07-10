@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="v1.12"
+VERSION="v1.13b"
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
 COV_TEST= 	# Perform test coverage?
@@ -73,7 +73,7 @@ clean:
 	rm -f sslh-fork sslh-select echosrv $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info 
 
 tags:
-	ctags -T *.[ch]
+	ctags --globals -T *.[ch]
 
 test:
 	./t

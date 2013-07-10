@@ -100,7 +100,7 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 int defer_write(struct queue *q, void* data, int data_size);
 int flush_defered(struct queue *q);
 
-extern int probing_timeout, verbose, inetd, foreground, numeric;
+extern int probing_timeout, verbose, inetd, foreground, background, numeric;
 extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;

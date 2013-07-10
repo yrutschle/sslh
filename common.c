@@ -24,6 +24,7 @@ int verbose = 0;
 int probing_timeout = 2;
 int inetd = 0;
 int foreground = 0;
+int background = 0;
 int numeric = 0;
 const char *user_name, *pid_file, *rule_filename;
 

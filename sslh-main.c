@@ -1,5 +1,6 @@
 /*
-# main: processing of config file, command line options and start the main loop.
+# main: processing of config file, command line options and start the main
+# loop.
 #
 # Copyright (C) 2007-2012  Yves Rutschle
 # 
@@ -51,6 +52,7 @@ const char* USAGE_STRING =
 static struct option const_options[] = {
     { "inetd",      no_argument,            &inetd,         1 },
     { "foreground", no_argument,            &foreground,    1 },
+    { "background", no_argument,            &background,    1 },
     { "numeric",    no_argument,            &numeric,       1 },
     { "verbose",    no_argument,            &verbose,       1 },
     { "user",       required_argument,      0,              'u' },
@@ -428,6 +430,10 @@ next_arg:
         exit(1);
     }
 
+    /* Did command-line override foreground setting? */
+    if (background)
+        foreground = 0;
+
 }
 
 int main(int argc, char *argv[])
@@ -471,11 +477,11 @@ int main(int argc, char *argv[])
 
    setup_signals();
 
-   if (user_name)
-       drop_privileges(user_name);
-
    if (pid_file)
        write_pid_file(pid_file);
+
+   if (user_name)
+       drop_privileges(user_name);
 
    /* Open syslog connection */
    setup_syslog(argv[0]);

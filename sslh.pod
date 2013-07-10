@@ -165,6 +165,13 @@ Runs in foreground. The server will not fork and will remain connected
 to the terminal. Messages normally sent to B<syslog> will also be sent
 to I<stderr>.
 
+=item B<--background>
+
+Runs in background. This overrides B<foreground> if set in
+the configuration file (or on the command line, but there is
+no point setting both on the command line unless you have a
+personality disorder).
+
 =back
 
 =head1 FILES
