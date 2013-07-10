@@ -5,8 +5,11 @@
 #               sslh - a daemon switching incoming connection between SSH and SSL/HTTPS servers
 #
 # Author: Andre Krajnik akrajnik@gmail.com
+# 2010-03-20
+#
 #
 # chkconfig: 2345 13 87
+#
 # description: sslh - a daemon switching incoming connection between SSH and SSL/HTTPS servers
 
 # Source function library.
@@ -14,15 +17,14 @@
 
 # ./sslh -p  0.0.0.0:8443 -l 127.0.0.1:443 -s 127.0.0.1:22
 
-SSLH='/usr/local/sbin/sslh'
-PIDFILE='/var/run/sslh'
+SSLH="/usr/local/sbin/sslh"
+PIDFILE="/var/run/sslh"
 
-OPTIONS='-p  0.0.0.0:8443 -l 127.0.0.1:443 -s 127.0.0.1:22 -P $PIDFILE'
+OPTIONS="-p  0.0.0.0:8443 -l 127.0.0.1:443 -s 127.0.0.1:22"
 
 if [ -f /etc/sysconfig/sslh ]; then
         . /etc/sysconfig/sslh
 fi
-
 
 start() {
         echo -n "Starting SSL-SSH-Switch: "
@@ -30,12 +32,7 @@ start() {
                 PID=`cat $PIDFILE`
                 echo sslh already running: $PID
                 exit 2;
-        elif [ -f $PIDFILE ]; then
-                PID=`cat $PIDFILE`
-                echo sslh already running: $PID
-                exit 2;
         else
-                cd $SLAPD_DIR
                 daemon  $SSLH $OPTIONS
                 RETVAL=$?
                 echo
@@ -74,4 +71,6 @@ case "$1" in
         ;;
 esac
 exit $?
+
+
 

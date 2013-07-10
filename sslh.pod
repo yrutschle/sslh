@@ -6,15 +6,15 @@
 
 =head1 SYNOPSIS
 
-sslh [ B<-t> I<num> ] [B<-p> I<listening address>] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V]
+sslh [ B<-t> I<num> ] [B<-p> I<listening address>] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-o> I<target address for OpenVPN>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f]
 
 =head1 DESCRIPTION
 
-B<sslh> lets one accept both HTTPS and SSH connections on
-the same port. It makes it possible to connect to an SSH
-server on port 443 (e.g. from inside a corporate firewall,
-which almost never block port 443) while still serving HTTPS
-on that port. 
+B<sslh> accepts HTTPS, SSH and OpenVPN connections on the
+same port. This makes it possible to connect to an SSH
+server or an OpenVPN on port 443 (e.g. from inside a
+corporate firewall, which almost never block port 443) while
+still serving HTTPS on that port. 
 
 The idea is to have B<sslh> listen to the external 443 port,
 accept the incoming connections, work out what type of
@@ -23,14 +23,24 @@ server.
 
 =head2 Protocol detection
 
-The protocol detection is made based on a small difference
-between SSL and SSH: an SSL client connecting to a server
-speaks first, whereas an SSH client expects the SSH server
-to speak first (announcing itself with a banner). B<sslh>
-waits for some time for the incoming connection to send data.
-If it does before the timeout occurs, it is supposed to be
-an SSL connection. Otherwise, it is supposed to be an SSH
-connection.
+The protocol detection is made based on the first bytes sent
+by the client: SSH connections start by identifying each
+other's versions using clear text "SSH-2.0" strings (or
+equivalent version strings). This is defined in RFC4253,
+4.2. Meanwhile, OpenVPN clients start with 0x00 0x0D 0x38.
+
+Additionally, two kind of SSH clients exist: the client
+waits for the server to send its version string ("Shy"
+client, which is the case of OpenSSH and Putty), or the
+client sends its version first ("Bold" client, which is the
+case of Bitvise Tunnelier and ConnectBot). 
+
+B<sslh> waits for some time for the incoming connection to
+send data. If it stays quiet after the timeout period, it is
+assumed to be a shy SSH client, and is connected to the SSH
+server. Otherwise, B<sslh> reads the first packet the client
+provides, and connects it to the SSH server if it starts
+with "SSH-", or connects it to the SSL server otherwise.
 
 =head2 Libwrap support
 
@@ -78,6 +88,13 @@ inside your network to just connect directly to B<httpd>.
 Interface and port on which to forward SSH connection,
 defaults to I<localhost:22>.
 
+=item B<-o> I<target address for OpenVPN>
+
+Interface and port on which to forward OpenVPN connections.
+This parameter is optional, and has no default. If not
+specified, incoming OpenVPN connections will not be detected
+as such and treated the same as SSL.
+
 =item B<-v>
 
 Increase verboseness.
@@ -100,7 +117,13 @@ server. Defaults to I</var/run/sslh.pid>.
 =item B<-i>
 
 Runs as an I<inetd> server. Options B<-P> (PID file), B<-p>
-(listen address), B<-U> (user) are ignored.
+(listen address), B<-u> (user) are ignored.
+
+=item B<-f>
+
+Runs in foreground. The server will not fork and will remain connected
+to the terminal. Messages normally sent to B<syslog> will also be sent
+to I<stderr>.
 
 =back
 

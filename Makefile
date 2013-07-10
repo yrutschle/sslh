@@ -1,7 +1,7 @@
 # Configuration
 
-VERSION="v1.7a"
-USELIBWRAP=1	# Use libwrap?
+VERSION="v1.8"
+USELIBWRAP=	# Use libwrap?
 PREFIX=/usr/local
 
 MAN=sslh.8.gz	# man page name
@@ -10,10 +10,11 @@ MAN=sslh.8.gz	# man page name
 # itself
 
 CC = gcc
-CFLAGS=-Wall
+CFLAGS=-Wall -g
 
 #LIBS=-lnet
 LIBS=
+OBJS=common.o
 
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
@@ -22,16 +23,27 @@ endif
 
 all: sslh $(MAN)
 
-sslh: sslh.c Makefile
-	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh sslh.c $(LIBS)
-	strip sslh
+.c.o: *.h
+	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -c $<
+
+
+sslh: $(OBJS) sslh-fork sslh-select
+
+sslh-fork: $(OBJS) sslh-fork.o Makefile
+	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
+	strip sslh-fork
+
+sslh-select: $(OBJS) sslh-select.o Makefile
+	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-select sslh-select.o $(OBJS) $(LIBS)
+	strip sslh-select
+
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
 
 # generic install: install binary and man page
 install: sslh $(MAN)
-	install -D sslh $(PREFIX)/sbin/sslh
+	install -D sslh-fork $(PREFIX)/sbin/sslh
 	install -D -m 0644 $(MAN) $(PREFIX)/share/man/man8/$(MAN)
 
 # "extended" install for Debian: install startup script
@@ -46,4 +58,11 @@ uninstall:
 	update-rc.d sslh remove
 
 clean:
-	rm -f sslh $(MAN)
+	rm -f sslh-fork sslh-select $(MAN) *.o
+
+tags:
+	ctags -T *.[ch]
+
+test:
+	./t
+

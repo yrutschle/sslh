@@ -1,9 +1,10 @@
 ===== sslh -- A ssl/ssh multiplexer. =====
 
-sslh lets one accept both HTTPS and SSH connections on the
-same port. It makes it possible to connect to an SSH server
-on port 443 (e.g. from inside a corporate firewall) while
-still serving HTTPS on that port. 
+sslh accepts HTTPS, SSH and OpenVPN connections on the same
+port. This makes it possible to connect to an SSH server or
+an OpenVPN on port 443 (e.g. from inside a corporate
+firewall, which almost never block port 443) while still
+serving HTTPS on that port. 
 
 ==== Compile and install ====
 
@@ -11,32 +12,31 @@ If you're lucky, the Makefile will work for you:
 
 make install
 
-(see below for configuration hints)
+The Makefile produces two different executables: sslh-fork
+and sslh-select. 
 
+sslh-fork forks a new process for each incoming connection.
+It is well-tested and very reliable, but incurs the overhead
+of many processes.  sslh-select uses only one thread, which
+monitors all connections at once. It is more recent and less
+tested, but only incurs a 16 byte overhead per connection.
+Also, if it stops, you'll lose all connections, which means
+you can't upgrade it remotely.
 
-Otherwise:
+If you are going to use sslh for a "small" setup (less than
+a dozen ssh connections and a low-traffic https server) then
+sslh-fork is probably more suited for you. If you are going
+to use sslh on a "medium" setup (a few thousand ssh
+connections, and another few thousand sslh connections),
+sslh-select will be better. If you have a very large site
+(tens of thousands of connections), you'll need a vapourware
+version that would use libevent or something like that.
 
-Compilation instructions (the binary produced won't contain
-the version number, which is stored only in the Makefile)
-
-Solaris:
-  cc -o sslh sslh.c -lresolv -lsocket -lnsl
-
-LynxOS:
-  gcc -o tcproxy tcproxy.c -lnetinet
-
-Linux:
-  cc -o sslh sslh.c -lnet
-or:
-  cc -o sslh sslh.c
-
-To compile with libwrap support:
-  cc -o sslh -DLIBWRAP sslh.c -lwrap
 
 To install:
 
 make
-cp sslh /usr/local/sbin
+cp sslh-fork /usr/local/sbin/sslh
 cp scripts/etc.default.sslh /etc/default/sslh
 
 For Debian:
@@ -79,12 +79,47 @@ client.
 
 ==== OpenVPN support ====
 
-OpenVPN clients reportedly take more than one second between
+OpenVPN clients connecting to OpenVPN running with
+-port-share reportedly take more than one second between
 the time the TCP connexion is established and the time they
 send the first data packet. This results in sslh with
 default settings timing out and assuming an SSH connexion.
 To support OpenVPN connexions reliably, it is necessary to
 increase sslh's timeout to 5 seconds.
+
+Instead of using OpenVPN's port sharing, it is more reliable
+to use sslh's -o option to get sslh to do the port sharing.
+
+==== Using proxytunnel with sslh ====
+
+If you are connecting through a proxy that checks that the
+outgoing connection really is SSL and rejects SSH, you can
+encapsulate all your traffic in SSL using proxytunnel (this
+should work with corkscrew as well). On the server side you
+receive the traffic with stunnel to decapsulate SSL, then
+pipe through sslh to switch HTTP on one side and SSL on the
+other.
+
+In that case, you end up with something like this:
+
+ssh -> proxytunnel -e --------ssh/ssl------> stunnel ---ssh---> sslh --> sshd
+
+navigateur --------http/ssl------> stunnel ---http---> sslh --> http:80
+
+Configuration goes like this:
+
+On the server side, using stunnel3:
+stunnel -f -p mycert.pem  -d thelonious:443 -l /usr/local/sbin/sslh -- sslh -i  -l localhost:80 -s localhost:22
+
+stunnel options: -f for foreground/debugging, -p specifies
+the key + certificate, -d specifies which interface and port
+we're listening to for incoming connexions, -l summons sslh
+in inetd mode.
+
+sslh options: -i for inetd mode, -l to forward SSL
+connexions (in fact normal HTTP at that stage) to port 80,
+and SSH connexions to port 22. This works because sslh
+considers that anything that is not SSH is SSL.
 
 ==== IP_TPROXY support ====
 
@@ -112,4 +147,12 @@ when/if the feature finds its way into the main kernel and
 it becomes usuable by non-root processes.
 
 
-Comments? questions? sslh@rutschle.net
+==== Comments? Questions? ====
+
+You can subscribe to the sslh mailing list here:
+http://rutschle.net/cgi-bin/mailman/listinfo/sslh
+
+This mailing list should be used for discussion, feature
+requests, and will be the prefered channel for
+announcements.
+

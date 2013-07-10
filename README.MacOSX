@@ -1,0 +1,54 @@
+
+sslh is available for Mac OS X via MacPorts. If you have
+MacPorts installed on your system you can install sslh by
+executing the following in the Terminal:
+
+port install sslh
+
+Also, the following is a helpful launchd configuration that
+covers the most common use case of sslh. Save the following
+into a text file, e.g.
+/Library/LaunchDaemons/net.rutschle.sslh.plist, then load it
+with launchctl or simply reboot.
+
+----BEGIN FILE----
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>Disabled</key>
+        <false/>
+        <key>KeepAlive</key>
+        <true/>
+        <key>Label</key>
+        <string>net.rutschle.sslh</string>
+        <key>ProgramArguments</key>
+        <array>
+                <string>/opt/local/sbin/sslh</string>
+                <string>-f</string>
+                <string>-v</string>
+                <string>-u</string>
+                <string>nobody</string>
+                <string>-p</string>
+                <string>0.0.0.0:443</string>
+                <string>-s</string>
+                <string>localhost:22</string>
+                <string>-l</string>
+                <string>localhost:443</string>
+        </array>
+        <key>QueueDirectories</key>
+        <array/>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>StandardErrorPath</key>
+        <string>/Library/Logs/sslh.log</string>
+        <key>StandardOutPath</key>
+        <string>/Library/Logs/sslh.log</string>
+        <key>WatchPaths</key>
+        <array/>
+</dict>
+</plist>
+----END FILE----
+
+

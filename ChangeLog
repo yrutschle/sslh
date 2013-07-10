@@ -1,3 +1,33 @@
+v1.8:
+	Changed log format to make it possible to link
+	connections to subsequent logs from other services.
+
+	Updated CentOS init.d script (Andre Krajnik).
+
+	Fixed zombie issue with OpenBSD (The SA_NOCLDWAIT flag is not
+	propagated to the child process, so we set up signals after
+	the fork.) (François FRITZ)
+
+	Added -o "OpenVPN" and OpenVPN probing and support.
+
+	Added single-threaded, select(2)-based version.
+
+	Added support for "Bold" SSH clients (clients that speak first)
+	Thanks to Guillaume Ricaud for spotting a regression
+	bug.
+
+	Added -f "foreground" option.
+
+	Added test suite. (only tests connexions. No test for libwrap,
+	setsid, setuid and so on) and corresponding 'make
+	test' target.
+
+	Added README.MacOSX (thanks Aaron Madlon-Kay)
+
+	Documented use with proxytunnel and corkscrew in
+	README.
+
+	
 v1.7: 01FEB2010
 	Added CentOS init.d script (Andre Krajnik).
 
