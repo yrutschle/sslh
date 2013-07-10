@@ -38,7 +38,6 @@ stop()
 {
         echo "Stop services: sslh"
 	killall $DAEMON
-        rm ${PIDFILE}
       	logger -t ${tag} -p ${facility} -i 'Stopped sslh'
 }
 

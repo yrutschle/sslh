@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="v1.6i"
+VERSION="v1.7a"
 USELIBWRAP=1	# Use libwrap?
 PREFIX=/usr/local
 

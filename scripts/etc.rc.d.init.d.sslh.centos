@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+#       /etc/rc.d/init.d/sslh
+# sslh          This shell script takes care of starting and stopping
+#               sslh - a daemon switching incoming connection between SSH and SSL/HTTPS servers
+#
+# Author: Andre Krajnik akrajnik@gmail.com
+#
+# chkconfig: 2345 13 87
+# description: sslh - a daemon switching incoming connection between SSH and SSL/HTTPS servers
+
+# Source function library.
+. /etc/init.d/functions
+
+# ./sslh -p  0.0.0.0:8443 -l 127.0.0.1:443 -s 127.0.0.1:22
+
+SSLH='/usr/local/sbin/sslh'
+PIDFILE='/var/run/sslh'
+
+OPTIONS='-p  0.0.0.0:8443 -l 127.0.0.1:443 -s 127.0.0.1:22 -P $PIDFILE'
+
+if [ -f /etc/sysconfig/sslh ]; then
+        . /etc/sysconfig/sslh
+fi
+
+
+start() {
+        echo -n "Starting SSL-SSH-Switch: "
+        if [ -f $PIDFILE ]; then
+                PID=`cat $PIDFILE`
+                echo sslh already running: $PID
+                exit 2;
+        elif [ -f $PIDFILE ]; then
+                PID=`cat $PIDFILE`
+                echo sslh already running: $PID
+                exit 2;
+        else
+                cd $SLAPD_DIR
+                daemon  $SSLH $OPTIONS
+                RETVAL=$?
+                echo
+                [ $RETVAL -eq 0 ] && touch $PIDFILE
+                return $RETVAL
+        fi
+
+}
+
+stop() {
+        echo -n "Shutting down SSL-SSH-Switch: "
+        echo
+        killproc sslh
+        echo
+        rm -f $PIDFILE
+        return 0
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status sslh
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage:  {start|stop|status|restart}"
+        exit 1
+        ;;
+esac
+exit $?
+

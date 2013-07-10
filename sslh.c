@@ -42,6 +42,9 @@
 int allow_severity =0, deny_severity = 0;
 #endif
 
+#ifndef VERSION
+#define VERSION "v?"
+#endif
 
 #define CHECK_RES_DIE(res, str) \
 if (res == -1) {    \
@@ -53,13 +56,14 @@ if (res == -1) {    \
 "sslh " VERSION "\n" \
 "usage:\n" \
 "\tsslh [-t <timeout>] -u <username> -p [listenaddr:]<listenport> \n" \
-"\t\t-s [sshhost:]port -l [sslhost:]port [-P pidfile] [-v] [-V]\n\n" \
+"\t\t-s [sshhost:]port -l [sslhost:]port [-P pidfile] [-v] [-i] [-V]\n\n" \
 "-v: verbose\n" \
 "-V: version\n" \
 "-p: address and port to listen on. default: 0.0.0.0:443\n" \
 "-s: SSH address: where to connect an SSH connection. default: localhost:22\n" \
 "-l: SSL address: where to connect an SSL connection.\n" \
-"-P: PID file. Default: /var/run/sslh.pid\n" \
+"-P: PID file. Default: /var/run/sslh.pid.\n" \
+"-i: Run as a inetd service.\n" \
 ""
 
 int verbose = 0; /* That's really quite global */
@@ -351,7 +355,7 @@ void drop_privileges(char* user_name)
     CHECK_RES_DIE(res, "setuid");
 }
 
-/* Writes my PID if $PIDFILE is defined */
+/* Writes my PID */
 void write_pid_file(char* pidfile)
 {
     FILE *f;
@@ -392,15 +396,16 @@ int main(int argc, char *argv[])
    /* Init defaults */
    char *user_name = "nobody";
    char listen_str[] = "0.0.0.0:443";
-   char ssl_str[] = "localhost:442";
+   char ssl_str[] = "localhost:443";
    char ssh_str[] = "localhost:22";
    char *pid_file = "/var/run/sslh.pid";
+   char inetd = 0;
 
    resolve_name(&addr_listen, listen_str);
    resolve_name(&addr_ssl, ssl_str);
    resolve_name(&addr_ssh, ssh_str);
 
-   while ((c = getopt(argc, argv, "t:l:s:p:P:vVu:")) != EOF) {
+   while ((c = getopt(argc, argv, "t:l:s:p:P:ivVu:")) != EOF) {
       switch (c) {
 
               case 't':
@@ -417,6 +422,10 @@ int main(int argc, char *argv[])
 
               case 's':
                       resolve_name(&addr_ssh, optarg);
+                      break;
+
+              case 'i':
+                      inetd = 1;
                       break;
 
               case 'v':
@@ -439,6 +448,13 @@ int main(int argc, char *argv[])
                       fprintf(stderr, USAGE_STRING);
                       exit(2);
       }
+   }
+
+   if(inetd)
+   {
+       verbose = 0;
+       start_shoveler(0);
+       exit(0);
    }
 
    if (verbose)
@@ -469,6 +485,7 @@ int main(int argc, char *argv[])
 
       if (!fork())
       {
+         close(listen_socket);
          start_shoveler(in_socket);
          exit(0);
       }

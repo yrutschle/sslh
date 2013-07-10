@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [ B<-t> I<num> ] [B<-p> I<listening address>] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-V]
+sslh [ B<-t> I<num> ] [B<-p> I<listening address>] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V]
 
 =head1 DESCRIPTION
 
@@ -66,7 +66,7 @@ available interfaces).
 Interface and port on which to forward SSL connection,
 typically I<localhost:443>.
 
-Defaults to I<localhost:442> (this assumes you would
+Defaults to I<localhost:443> (this assumes you would
 configure your B<httpd> process to listen to port 443).
 
 Note that you can set B<sslh> to listen on I<ext_ip:443> and
@@ -97,6 +97,11 @@ run under its own UID).
 Specifies the file in which to write the PID of the main
 server. Defaults to I</var/run/sslh.pid>.
 
+=item B<-i>
+
+Runs as an I<inetd> server. Options B<-P> (PID file), B<-p>
+(listen address), B<-U> (user) are ignored.
+
 =back
 
 =head1 FILES
@@ -110,7 +115,7 @@ B<restart> are supported.
 
 =item F</etc/default/sslh>
 
-Server configuration. These are environement variables
+Server configuration. These are environment variables
 loaded by the start-up script and passed to B<sslh> as
 command-line arguments. Refer to the OPTIONS section for a
 detailed explanation of the variables used by B<sslh>.

@@ -1,0 +1,65 @@
+v1.7: 01FEB2010
+	Added CentOS init.d script (Andre Krajnik).
+
+	Fixed default ssl address inconsistancy, now
+	defaults to "localhost:443" and fixed documentation
+	accordingly (pointed by Markus Schalke).
+
+	Children no longer bind to the listen socket, so
+	parent server can be stopped without killing an
+	active child (pointed by Matthias Buecher).
+
+	Inetd support (Dima Barsky).
+
+v1.6: 25APR2009
+	Added -V, version option.
+
+	Install target directory configurable in Makefile
+
+	Changed syslog prefix in auth.log to "sslh[%pid]"
+
+	Man page
+
+	new 'make install' and 'make install-debian' targets
+
+	PID file now specified using -P command line option
+
+	Actually fixed zombie generation (the v1.5 patch got
+	lost, doh!)
+
+
+v1.5: 10DEC2008
+	Fixed zombie generation.
+
+	Added support scripts (), Makefile.
+
+	Changed all 'connexions' to 'connections' to please
+	pesky users. Damn users.
+
+v1.4: 13JUL2008
+	Added libwrap support for ssh service (Christian Weinberger)
+	Only SSH is libwraped, not SSL.
+
+v1.3: 14MAY2008
+	Added parsing for local interface to listen on
+
+	Changed default SSL connection to port 442 (443 doesn't make
+	sense as a default as we're already listening on 443)
+
+	Syslog incoming connections
+
+v1.2: 12MAY2008
+	Fixed compilation warning for AMD64 (Thx Daniel Lange)
+
+v1.1: 21MAY2007
+	Making sslhc more like a real daemon:
+	* If $PIDFILE is defined, write first PID to it upon startup
+	* Fork at startup (detach from terminal)
+	(thanks to http://www.enderunix.org/docs/eng/daemon.php -- good checklist)
+	* Less memory usage (?)
+
+v1.0: 
+	Basic functionality: privilege dropping, target hostnames and ports
+	configurable.
+
+
