@@ -1,3 +1,18 @@
+v1.12: 08MAY2012
+	Added support for configuration file.
+
+	New protocol probes can be defined using regular
+	expressions that match the first packet sent by the
+	client.
+
+	sslh now connects timed out connections to the first
+	configured protocol instead of 'ssh' (just make sure
+	ssh is the first defined protocol).
+
+	sslh now tries protocols in the order in which they
+	are defined (just make sure sslh is the last defined
+	protocol).
+
 v1.11: 21APR2012
 	WARNING: defaults have been removed for --user and
 	--pidfile options, update your start-up scripts!

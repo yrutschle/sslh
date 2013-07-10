@@ -5,23 +5,7 @@
  **/
 
 #define _GNU_SOURCE
-#include <sys/types.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdarg.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <pwd.h>
-#include <syslog.h>
-#include <libgen.h>
-#include <getopt.h>
 
 #include "common.h"
 
@@ -30,34 +14,6 @@
 #ifndef SA_NOCLDWAIT
 #define SA_NOCLDWAIT 0
 #endif
-
-int is_ssh_protocol(const char *p, int len);
-int is_openvpn_protocol(const char *p, int len);
-int is_tinc_protocol(const char *p, int len);
-int is_xmpp_protocol(const char *p, int len);
-int is_http_protocol(const char *p, int len);
-int is_true(const char *p, int len) { return 1; }
-
-/* Table of all the protocols we know how to connect to.
- *
- * The first protocol in the table is where we connect in case of timeout
- * (client didn't speak: typically this is SSH.)
- *
- * The last protocol in the table is where we connect if client spoke but we
- * couldn't probe what it's saying.
- */
-struct proto protocols[] = {
-    /* affected  description   service  saddr   probe  */
-    { 0,         "ssh",        "sshd",  {0},   is_ssh_protocol },
-    { 0,         "openvpn",     NULL,   {0},   is_openvpn_protocol },
-    { 0,         "tinc",        NULL,   {0},   is_tinc_protocol },
-    { 0,         "xmpp",        NULL,   {0},   is_xmpp_protocol },
-    { 0,         "http",        NULL,   {0},   is_http_protocol },
-    /* probe for SSL always successes: it's the default, and must be tried last
-     **/
-    { 0,        "ssl",          NULL,   {0},   is_true }
-};
-int num_known_protocols = ARRAY_SIZE(protocols);
 
 /* 
  * Settings that depend on the command line.  They're set in main(), but also
@@ -69,7 +25,7 @@ int probing_timeout = 2;
 int inetd = 0;
 int foreground = 0;
 int numeric = 0;
-char *user_name, *pid_file;
+const char *user_name, *pid_file, *rule_filename;
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
@@ -141,7 +97,7 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
 
 /* Connect to first address that works and returns a file descriptor, or -1 if
  * none work. cnx_name points to the name of the service (for logging) */
-int connect_addr(struct addrinfo *addr, char* cnx_name)
+int connect_addr(struct addrinfo *addr, const char* cnx_name)
 {
     struct addrinfo *a;
     char buf[NI_MAXHOST];
@@ -291,123 +247,6 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
    return size_w;
 }
 
-/* If the client wrote something first, read it and check if it's a SSH banner.
- * Data is left in appropriate defered write buffer.
- */
-int is_ssh_protocol(const char *p, int len)
-{
-    if (!strncmp(p, "SSH-", 4)) {
-        return 1;
-    }
-    return 0;
-}
-
-/* Is the buffer the beginning of an OpenVPN connection?
- * (code lifted from OpenVPN port-share option)
- */
-int is_openvpn_protocol (const char*p,int len)
-{
-#define P_OPCODE_SHIFT                 3
-#define P_CONTROL_HARD_RESET_CLIENT_V2 7
-    if (len >= 3)
-    {
-        return p[0] == 0
-            && p[1] >= 14
-            && p[2] == (P_CONTROL_HARD_RESET_CLIENT_V2<<P_OPCODE_SHIFT);
-    }
-    else if (len >= 2)
-    {
-        return p[0] == 0 && p[1] >= 14;
-    }
-    else
-        return 0;
-}
-
-/* Is the buffer the beginning of a tinc connections?
- * (protocol is undocumented, but starts with "0 " in 1.0.15)
- * */
-int is_tinc_protocol( const char *p, int len)
-{
-    return !strncmp(p, "0 ", 2);
-}
-
-/* Is the buffer the beginning of a jabber (XMPP) connections?
- * (Protocol is documented (http://tools.ietf.org/html/rfc6120) but for lazy
- * clients, just checking first frame containing "jabber" in xml entity)
- * */
-int is_xmpp_protocol( const char *p, int len)
-{
-    return strstr(p, "jabber") ? 1 : 0;
-}
-
-int probe_http_method(const char *p, const char *opt)
-{
-    return !strncmp(p, opt, strlen(opt)-1);
-}
-
-/* Is the buffer the beginnin of an HTTP connection?  */
-int is_http_protocol(const char *p, int len)
-{
-    /* If it's got HTTP in the request (HTTP/1.1) then it's HTTP */
-    if (strstr(p, "HTTP"))
-        return 1;
-
-    /* Otherwise it could be HTTP/1.0 without version: check if it's got an
-     * HTTP method (RFC2616 5.1.1) */
-    probe_http_method(p, "OPTIONS");
-    probe_http_method(p, "GET");
-    probe_http_method(p, "HEAD");
-    probe_http_method(p, "POST");
-    probe_http_method(p, "PUT");
-    probe_http_method(p, "DELETE");
-    probe_http_method(p, "TRACE");
-    probe_http_method(p, "CONNECT");
-
-    return 0;
-}
-
-
-/* 
- * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. Then leave the data on the defered
- * write buffer of the connection and returns the protocol index in the
- * protocols[] array *
- */
-T_PROTO_ID probe_client_protocol(struct connection *cnx)
-{
-    char buffer[BUFSIZ];
-    int n, i;
-
-    n = read(cnx->q[0].fd, buffer, sizeof(buffer));
-    /* It's possible that read() returns an error, e.g. if the client
-     * disconnected between the previous call to select() and now. If that
-     * happens, we just connect to the default protocol so the caller of this
-     * function does not have to deal with a specific  failure condition (the
-     * connection will just fail later normally). */
-    if (n > 0) {
-        defer_write(&cnx->q[1], buffer, n);
-
-        for (i = 0; i < ARRAY_SIZE(protocols); i++) {
-            if (protocols[i].affected) {
-                if (protocols[i].probe(buffer, n)) {
-                    return i;
-                }
-            }
-        }
-    }
-
-    /* If none worked, return the first one affected (that's completely
-     * arbitrary) */
-    for (i = 0; i < ARRAY_SIZE(protocols); i++)
-        if (protocols[i].affected)
-            return i;
-
-    /* At this stage... nothing is affected. This shouldn't happen as we check
-     * at least one target exists when we parse the commnand line */
-    fprintf(stderr, "FATAL: No protocol affected. This should not happen.\n");
-    exit(1);
-}
-
 /* returns a string that prints the IP and port of the sockaddr */
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 {
@@ -439,13 +278,30 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
    return buf;
 }
 
+/* Turns a hostname and port (or service) into a list of struct addrinfo 
+ * returns 0 on success, -1 otherwise and logs error
+ **/
+int resolve_split_name(struct addrinfo **out, const char* host, const char* serv)
+{
+   struct addrinfo hint;
+   int res;
+
+   memset(&hint, 0, sizeof(hint));
+   hint.ai_family = PF_UNSPEC;
+   hint.ai_socktype = SOCK_STREAM;
+
+   res = getaddrinfo(host, serv, &hint, out);
+   if (res)
+      log_message(LOG_ERR, "%s `%s:%s'\n", gai_strerror(res), host, serv);
+   return res;
+}
+
 /* turns a "hostname:port" string into a list of struct addrinfo;
 out: list of newly allocated addrinfo (see getaddrinfo(3)); freeaddrinfo(3) when done
 fullname: input string -- it gets clobbered
 */
 void resolve_name(struct addrinfo **out, char* fullname)
 {
-   struct addrinfo hint;
    char *serv, *host;
    int res;
 
@@ -453,7 +309,7 @@ void resolve_name(struct addrinfo **out, char* fullname)
 
    if (!sep) /* No separator: parameter is just a port */
    {
-      fprintf(stderr, "names must be fully specified as hostname:port\n");
+      fprintf(stderr, "%s: names must be fully specified as hostname:port\n", fullname);
       exit(1);
    }
 
@@ -461,11 +317,7 @@ void resolve_name(struct addrinfo **out, char* fullname)
    serv = sep+1;
    *sep = 0;
 
-   memset(&hint, 0, sizeof(hint));
-   hint.ai_family = PF_UNSPEC;
-   hint.ai_socktype = SOCK_STREAM;
-
-   res = getaddrinfo(host, serv, &hint, out);
+   res = resolve_split_name(out, host, serv);
    if (res) {
       fprintf(stderr, "%s `%s'\n", gai_strerror(res), fullname);
       if (res == EAI_SERVICE)
@@ -533,7 +385,7 @@ void log_connection(struct connection *cnx)
  *
  * Returns -1 if access is denied, 0 otherwise
  */
-int check_access_rights(int in_socket, char* service)
+int check_access_rights(int in_socket, const char* service)
 {
 #ifdef LIBWRAP
     struct sockaddr peeraddr;
@@ -572,7 +424,6 @@ int check_access_rights(int in_socket, char* service)
     return 0;
 }
 
-
 void setup_signals(void)
 {
     int res;
@@ -586,18 +437,23 @@ void setup_signals(void)
     res = sigaction(SIGCHLD, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
 
-
     /* Set SIGTERM to exit. For some reason if it's not set explicitely,
      * coverage information is lost when killing the process */
     memset(&action, 0, sizeof(action));
     action.sa_handler = exit;
     res = sigaction(SIGTERM, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
+
+    /* Ignore SIGPIPE . */
+    action.sa_handler = SIG_IGN;
+    res = sigaction(SIGPIPE, &action, NULL);
+    CHECK_RES_DIE(res, "sigaction");
+
 }
 
 /* Open syslog connection with appropriate banner; 
  * banner is made up of basename(bin_name)+"[pid]" */
-void setup_syslog(char* bin_name) {
+void setup_syslog(const char* bin_name) {
     char *name1, *name2;
 
     name1 = strdup(bin_name);
@@ -610,7 +466,7 @@ void setup_syslog(char* bin_name) {
 }
 
 /* We don't want to run as root -- drop priviledges if required */
-void drop_privileges(char* user_name)
+void drop_privileges(const char* user_name)
 {
     int res;
     struct passwd *pw = getpwnam(user_name);
@@ -628,7 +484,7 @@ void drop_privileges(char* user_name)
 }
 
 /* Writes my PID */
-void write_pid_file(char* pidfile)
+void write_pid_file(const char* pidfile)
 {
     FILE *f;
 
@@ -640,47 +496,5 @@ void write_pid_file(char* pidfile)
 
     fprintf(f, "%d\n", getpid());
     fclose(f);
-}
-
-void printsettings(void)
-{
-    char buf[NI_MAXHOST];
-    struct addrinfo *a;
-    int i;
-    
-    for (i = 0; i < ARRAY_SIZE(protocols); i++) {
-        if (protocols[i].affected)
-            fprintf(stderr,
-                    "%s addr: %s. libwrap service: %s family %d %d\n", 
-                    protocols[i].description, 
-                    sprintaddr(buf, sizeof(buf), &protocols[i].saddr), 
-                    protocols[i].service,
-                    protocols[i].saddr.ai_family,
-                    protocols[i].saddr.ai_addr->sa_family);
-    }
-    fprintf(stderr, "listening on:\n");
-    for (a = addr_listen; a; a = a->ai_next) {
-        fprintf(stderr, "\t%s\n", sprintaddr(buf, sizeof(buf), a));
-    }
-    fprintf(stderr, "timeout to ssh: %d\n", probing_timeout);
-}
-
-/* Adds protocols to the list of options, so command-line parsing uses the
- * protocol definition array 
- * options: array of options to add to; must be big enough
- * n_opts: number of options in *options before calling (i.e. where to append)
- * prot: array of protocols
- * n_prots: number of protocols in *prot
- * */
-void append_protocols(struct option *options, int n_opts, struct proto *prot, int n_prots)
-{
-    int o, p;
-
-    for (o = n_opts, p = 0; p < n_prots; o++, p++) {
-        options[o].name = prot[p].description;
-        options[o].has_arg = required_argument;
-        options[o].flag = 0;
-        options[o].val = p + PROT_SHIFT;
-    }
 }
 

@@ -1,5 +1,5 @@
 /*
-   sslh: a SSL/SSH multiplexer
+   sslh-select: mono-processus server
 
 # Copyright (C) 2007-2010  Yves Rutschle
 # 
@@ -23,6 +23,7 @@
 #define __LINUX__
 
 #include "common.h"
+#include "probe.h"
 
 const char* server_type = "sslh-select";
 
@@ -116,7 +117,7 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
 int connect_queue(struct connection *cnx, struct addrinfo *addr, 
-                  char* cnx_name,
+                  const char* cnx_name,
                   fd_set *fds_r, fd_set *fds_w)
 {
     struct queue *q = &cnx->q[1];
@@ -196,7 +197,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     struct timeval tv;
     int max_fd, in_socket, i, j, res;
     struct connection *cnx;
-    T_PROTO_ID prot;
+    struct proto *prot;
     int num_cnx;  /* Number of connections in *cnx */
     int num_probing = 0; /* Number of connections currently probing 
                           * We use this to know if we need to time out of
@@ -237,7 +238,8 @@ void main_loop(int listen_sockets[], int num_addr_listen)
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i], &readfds)) {
                 in_socket = accept_new_connection(listen_sockets[i], &cnx, &num_cnx);
-                num_probing++;
+                if (in_socket != -1)
+                    num_probing++;
 
                 if (in_socket > 0) {
                     FD_SET(in_socket, &fds_r);
@@ -293,20 +295,20 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                         /* If timed out it's SSH, otherwise the client sent
                          * data so probe the protocol */
                         if ((cnx[i].probe_timeout < time(NULL))) {
-                            prot = 0;
+                            prot = timeout_protocol();
                         } else {
                             prot = probe_client_protocol(&cnx[i]);
                         }
 
                         /* libwrap check if required for this protocol */
-                        if (protocols[prot].service && 
-                            check_access_rights(in_socket, protocols[prot].service)) {
+                        if (prot->service && 
+                            check_access_rights(in_socket, prot->service)) {
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;
                         } else {
                             res = connect_queue(&cnx[i], 
-                                                &protocols[prot].saddr, 
-                                                protocols[prot].description, 
+                                                prot->saddr, 
+                                                prot->description, 
                                                 &fds_r, &fds_w);
                         }
 

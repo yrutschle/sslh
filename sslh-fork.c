@@ -1,7 +1,7 @@
 /*
-   Reimplementation of sslh in C
+   sslh-fork: forking server
 
-# Copyright (C) 2007-2011  Yves Rutschle
+# Copyright (C) 2007-2012  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -21,6 +21,7 @@
 */
 
 #include "common.h"
+#include "probe.h"
 
 const char* server_type = "sslh-fork";
 
@@ -72,7 +73,7 @@ void start_shoveler(int in_socket)
    int res;
    int out_socket;
    struct connection cnx;
-   T_PROTO_ID prot;
+   struct proto *prot;
 
    init_cnx(&cnx);
 
@@ -91,17 +92,17 @@ void start_shoveler(int in_socket)
        prot = probe_client_protocol(&cnx);
    } else {
        /* Timed out: it's necessarily SSH */
-       prot = 0;
+       prot = timeout_protocol();
    }
 
-   saddr = &protocols[prot].saddr;
-   if (protocols[prot].service && 
-       check_access_rights(in_socket, protocols[prot].service)) {
+   saddr = prot->saddr;
+   if (prot->service && 
+       check_access_rights(in_socket, prot->service)) {
        exit(0);
    }
 
    /* Connect the target socket */
-   out_socket = connect_addr(saddr, protocols[prot].description);
+   out_socket = connect_addr(saddr, prot->description);
    CHECK_RES_DIE(out_socket, "connect");
 
    cnx.q[1].fd = out_socket;

@@ -1,6 +1,7 @@
 # Configuration
 
-VERSION="v1.11"
+VERSION="v1.12"
+USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
 COV_TEST= 	# Perform test coverage?
 PREFIX=/usr/local
@@ -17,13 +18,17 @@ endif
 CC = gcc
 CFLAGS=-Wall -g $(CFLAGS_COV)
 
-#LIBS=-lnet
 LIBS=
-OBJS=common.o sslh-main.o
+OBJS=common.o sslh-main.o probe.o
 
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
 	CFLAGS:=$(CFLAGS) -DLIBWRAP
+endif
+
+ifneq ($(strip $(USELIBCONFIG)),)
+	LIBS:=$(LIBS) -lconfig
+	CFLAGS:=$(CFLAGS) -DLIBCONFIG
 endif
 
 all: sslh $(MAN) echosrv

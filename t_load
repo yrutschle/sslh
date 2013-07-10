@@ -27,7 +27,7 @@ my $NUM_CNX = 30;
 # you start 200 processes in under a second, things go wrong
 # and it's not sslh's fault (typically the echosrv won't be
 # forking fast enough).
-my $start_time_delay = 0.5;
+my $start_time_delay = 1;
 
 # If you test 4 protocols, you'll start $NUM_CNX * 4 clients
 # (e.g. 40), starting one every $start_time_delay seconds.

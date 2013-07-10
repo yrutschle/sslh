@@ -6,13 +6,14 @@
 
 =head1 SYNOPSIS
 
-sslh [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [B<-F> I<config file>] [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
-B<sslh> accepts HTTP, HTTPS, SSH, OpenVPN, tinc and XMPP
-connections on the same port. This makes it possible to
-connect to any of these servers on port 443 (e.g. from
+B<sslh> accepts connections in HTTP, HTTPS, SSH, OpenVPN,
+tinc, XMPP, or any other protocol that can be tested using a
+regular expression, on the same port. This makes it possible
+to connect to any of these servers on port 443 (e.g. from
 inside a corporate firewall, which almost never block port
 443) while still serving HTTPS on that port. 
 
@@ -38,12 +39,11 @@ client, which is the case of OpenSSH and Putty), or the
 client sends its version first ("Bold" client, which is the
 case of Bitvise Tunnelier and ConnectBot). 
 
-B<sslh> waits for some time for the incoming connection to
-send data. If it stays quiet after the timeout period, it is
-assumed to be a shy SSH client, and is connected to the SSH
-server. Otherwise, B<sslh> reads the first packet the client
-provides, and connects it to the SSH server if it starts
-with "SSH-", or connects it to the SSL server otherwise.
+If the client stays quiet after the timeout period, B<sslh>
+will connect to the first protocol defined (in the
+configuration file, or on the command line), so SSH should
+be defined first in B<sslh> configuration to accomodate for
+shy SSH clients.
 
 =head2 Libwrap support
 
@@ -56,13 +56,37 @@ B<libwrap> or B<tcpd>. For this reason, B<sslh> can be
 compiled to check SSH accesses against SSH access lists as
 defined in F</etc/hosts.allow> and F</etc/hosts.deny>.
 
+=head2 Configuration file
+
+A configuration file can be supplied to B<sslh>. Command
+line arguments override file settings. B<sslh> uses
+B<libconfig> to parse the configuration file, so the general
+file format is indicated in
+L<http://www.hyperrealm.com/libconfig/libconfig_manual.html>.
+Please refer to the example configuration file provided with
+B<sslh> for the specific format (Options have the same names
+as on the command line, except for the list of listen ports
+and the list of protocols).
+
+The configuration file makes it possible to specify
+protocols using regular expressions: a list of regular
+expressions is given as the I<probe> parameter, and if the
+first packet received from the client matches any of these
+expressions, B<sslh> connects to that protocol.
+
+Alternatively, the I<probe> parameter can be set to
+"builtin", to use the compiled probes which are much faster
+than regular expressions.
+
+
 =head1 OPTIONS
 
 =over 4
 
 =item B<-t> I<num>, B<--timeout> I<num>
 
-Timeout before a connection is considered to be SSH. Default
+Timeout before forwarding the connection to the first
+configured protocol (which should usually be SSH). Default
 is 2s.
 
 =item B<-p> I<listening address>, B<--listen> I<listening address>
@@ -125,7 +149,7 @@ Prints B<sslh> version.
 
 Requires to run under the specified username. 
 
-=item B<-P> I<pidfile>, B<--pid-file> I<pidfile>
+=item B<-P> I<pidfile>, B<--pidfile> I<pidfile>
 
 Specifies a file in which to write the PID of the main
 server.
@@ -165,7 +189,7 @@ detailed explanation of the variables used by B<sslh>.
 
 Last version available from
 L<http://www.rutschle.net/tech/sslh>, and can be tracked
-from L<http://freshmeat.net/projects/sslh/>.
+from L<http://freecode.com/projects/sslh>.
 
 =head1 AUTHOR
 

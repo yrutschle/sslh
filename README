@@ -1,16 +1,29 @@
 ===== sslh -- A ssl/ssh multiplexer. =====
 
-sslh accepts HTTP, HTTPS, SSH, OpenVPN, tinc and XMPP
-connections on the same port. This makes it possible to
-connect to any of these servers on port 443 (e.g. from
+sslh accepts connections in HTTP, HTTPS, SSH, OpenVPN,
+tinc, XMPP, or any other protocol that can be tested using a
+regular expression, on the same port. This makes it possible
+to connect to any of these servers on port 443 (e.g. from
 inside a corporate firewall, which almost never block port
 443) while still serving HTTPS on that port. 
+
 
 ==== Compile and install ====
 
 If you're lucky, the Makefile will work for you:
 
 make install
+
+There are a couple of configuration options at the beginning
+of the Makefile: 
+
+    USELIBWRAP compiles support for host access control (see
+    hosts_access(3)), you will need libwrap headers and
+    library to compile (libwrap0-dev in Debian).
+
+    USELIBCONFIG compiles support for the configuration
+    file. You will need libconfig headers to compile
+    (libconfig8-dev in Debian).
 
 The Makefile produces two different executables: sslh-fork
 and sslh-select. 
