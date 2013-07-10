@@ -1,0 +1,128 @@
+# I'm just not gonna write troff :-)
+
+=head1 NAME
+
+ sslh - ssl/ssh multiplexer
+
+=head1 SYNOPSIS
+
+sslh [ B<-t> I<num> ] [B<-p> I<listening address>] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-V]
+
+=head1 DESCRIPTION
+
+B<sslh> lets one accept both HTTPS and SSH connections on
+the same port. It makes it possible to connect to an SSH
+server on port 443 (e.g. from inside a corporate firewall,
+which almost never block port 443) while still serving HTTPS
+on that port. 
+
+The idea is to have B<sslh> listen to the external 443 port,
+accept the incoming connections, work out what type of
+connection it is, and then fordward to the appropriate
+server.
+
+=head2 Protocol detection
+
+The protocol detection is made based on a small difference
+between SSL and SSH: an SSL client connecting to a server
+speaks first, whereas an SSH client expects the SSH server
+to speak first (announcing itself with a banner). B<sslh>
+waits for some time for the incoming connection to send data.
+If it does before the timeout occurs, it is supposed to be
+an SSL connection. Otherwise, it is supposed to be an SSH
+connection.
+
+=head2 Libwrap support
+
+One drawback of B<sslh> is that the B<ssh> and B<httpd>
+servers do not see the original IP address of the client
+anymore, as the connection is forwarded through B<sslh>.
+B<sslh> provides enough logging to circumvent that problem.
+However it is common to limit access to B<ssh> using
+B<libwrap> or B<tcpd>. For this reason, B<sslh> can be
+compiled to check SSH accesses against SSH access lists as
+defined in F</etc/hosts.allow> and F</etc/hosts.deny>.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-t> I<num>
+
+Timeout before a connection is considered to be SSH. Default
+is 2s.
+
+=item B<-p> I<listening address>
+
+Interface and port on which to listen, e.g. I<foobar:443>,
+where I<foobar> is the name of an interface (typically the
+IP address on which the Internet connection ends up).
+
+Defaults to I<0.0.0.0:443> (listen to port 443 on all
+available interfaces).
+
+=item B<-l> I<target address for SSL>
+
+Interface and port on which to forward SSL connection,
+typically I<localhost:443>.
+
+Defaults to I<localhost:442> (this assumes you would
+configure your B<httpd> process to listen to port 443).
+
+Note that you can set B<sslh> to listen on I<ext_ip:443> and
+B<httpd> to listen on I<localhost:443>: this allows clients
+inside your network to just connect directly to B<httpd>.
+
+=item B<-s> I<target address for SSH>
+
+Interface and port on which to forward SSH connection,
+defaults to I<localhost:22>.
+
+=item B<-v>
+
+Increase verboseness.
+
+=item B<-V>
+
+Prints B<sslh> version.
+
+=item B<-u> I<username>
+
+Requires to run under the specified username. Defaults to
+I<nobody> (which is not perfect -- ideally B<sslh> should
+run under its own UID).
+
+=item B<-P> I<pidfile>
+
+Specifies the file in which to write the PID of the main
+server. Defaults to I</var/run/sslh.pid>.
+
+=back
+
+=head1 FILES
+
+=over 4
+
+=item F</etc/init.d/sslh>
+
+Start-up script. The standard actions B<start>, B<stop> and
+B<restart> are supported.
+
+=item F</etc/default/sslh>
+
+Server configuration. These are environement variables
+loaded by the start-up script and passed to B<sslh> as
+command-line arguments. Refer to the OPTIONS section for a
+detailed explanation of the variables used by B<sslh>.
+
+=back
+
+=head1 SEE ALSO
+
+Last version available from
+L<http://www.rutschle.net/tech/sslh>, and can be tracked
+from L<http://freshmeat.net/projects/sslh/>.
+
+=head1 AUTHOR
+
+Written by Yves Rutschle

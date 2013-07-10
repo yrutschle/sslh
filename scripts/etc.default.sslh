@@ -1,4 +1,3 @@
-PIDFILE=/var/run/sslh.pid
 LISTEN=ifname:443
 SSH=localhost:22
 SSL=localhost:443

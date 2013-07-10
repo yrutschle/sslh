@@ -14,17 +14,18 @@ facility=user.info
 # /etc/init.d/sslh: start and stop the sslh proxy daemon
 
 # Defaults -- can be overridden in /etc/default/sslh
-PIDFILE=/var/run/sslh.pid
 LISTEN=thelonious:443
 SSH=localhost:22
 SSL=localhost:443
 
 if test -f /etc/default/sslh; then
     . /etc/default/sslh
-    export PIDFILE=${PIDFILE}
 fi
 
-DAEMON=/usr/local/sbin/sslh 
+# The prefix is normally filled by make install. If
+# installing by hand, fill it in yourself!
+PREFIX=
+DAEMON=$PREFIX/sbin/sslh 
 
 start()
 {

@@ -20,8 +20,7 @@
 
 */
 
-#define VERSION "1.5"
-
+#define _GNU_SOURCE
 #include <sys/types.h>
 #include <fcntl.h>
 #include <string.h>
@@ -36,6 +35,7 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <syslog.h>
+#include <libgen.h>
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -50,15 +50,16 @@ if (res == -1) {    \
 }
 
 #define USAGE_STRING \
-"sslh v" VERSION "\n" \
+"sslh " VERSION "\n" \
 "usage:\n" \
-"\texport PIDFILE=/var/run/sslhc.pid\n" \
 "\tsslh [-t <timeout>] -u <username> -p [listenaddr:]<listenport> \n" \
-"\t\t-s [sshhost:]port -l [sslhost:]port [-v]\n\n" \
+"\t\t-s [sshhost:]port -l [sslhost:]port [-P pidfile] [-v] [-V]\n\n" \
 "-v: verbose\n" \
+"-V: version\n" \
 "-p: address and port to listen on. default: 0.0.0.0:443\n" \
 "-s: SSH address: where to connect an SSH connection. default: localhost:22\n" \
 "-l: SSL address: where to connect an SSL connection.\n" \
+"-P: PID file. Default: /var/run/sslh.pid\n" \
 ""
 
 int verbose = 0; /* That's really quite global */
@@ -188,7 +189,7 @@ void resolve_name(struct sockaddr *sock, char* fullname) {
 
    res = getaddrinfo(host, serv, &hint, &addr);
    if (res) {
-      fprintf(stderr, "%s\n", gai_strerror(res));
+      fprintf(stderr, "%s `%s'\n", gai_strerror(res), fullname);
       if (res == EAI_SERVICE)
          fprintf(stderr, "(Check you have specified all ports)\n");
       exit(1);
@@ -306,25 +307,31 @@ void start_shoveler(int in_socket)
    exit(0);
 }
 
-/* SIGCHLD handling:
- * we need to reap our children
- */
-void child_handler(int signo)
-{
-    signal(SIGCHLD, &child_handler);
-    wait(NULL);
-}
 void setup_signals(void)
 {
-    void* res;
+    int res;
+    struct sigaction action;
 
-    res = signal(SIGCHLD, &child_handler);
-    if (res == SIG_ERR) {
-        perror("signal");
-        exit(1);
-    }
+    /* Request no SIGCHLD is sent upon termination of
+     * the children */
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = NULL;
+    action.sa_flags = SA_NOCLDWAIT;
+    res = sigaction(SIGCHLD, &action, NULL);
+    CHECK_RES_DIE(res, "sigaction");
 }
 
+/* Open syslog connection with appropriate banner; 
+ * banner is made up of basename(bin_name)+"[pid]" */
+void setup_syslog(char* bin_name) {
+    char *name1, *name2;
+
+    name1 = strdup(bin_name);
+    asprintf(&name2, "%s[%d]", basename(name1), getpid());
+    openlog(name2, LOG_CONS, LOG_AUTH);
+    free(name1); 
+    /* Don't free name2, as openlog(3) uses it (at least in glibc) */
+}
 
 /* We don't want to run as root -- drop priviledges if required */
 void drop_privileges(char* user_name)
@@ -345,13 +352,9 @@ void drop_privileges(char* user_name)
 }
 
 /* Writes my PID if $PIDFILE is defined */
-void write_pid_file(void)
+void write_pid_file(char* pidfile)
 {
-    char *pidfile = getenv("PIDFILE");
     FILE *f;
-
-    if (!pidfile)
-        return;
 
     f = fopen(pidfile, "w");
     if (!f) {
@@ -391,12 +394,13 @@ int main(int argc, char *argv[])
    char listen_str[] = "0.0.0.0:443";
    char ssl_str[] = "localhost:442";
    char ssh_str[] = "localhost:22";
+   char *pid_file = "/var/run/sslh.pid";
 
    resolve_name(&addr_listen, listen_str);
    resolve_name(&addr_ssl, ssl_str);
    resolve_name(&addr_ssh, ssh_str);
 
-   while ((c = getopt(argc, argv, "t:l:s:p:vu:")) != EOF) {
+   while ((c = getopt(argc, argv, "t:l:s:p:P:vVu:")) != EOF) {
       switch (c) {
 
               case 't':
@@ -419,8 +423,16 @@ int main(int argc, char *argv[])
                       verbose += 1;
                       break;
 
+              case 'V':
+                      printf("sslh %s\n", VERSION);
+                      exit(0);
+
               case 'u':
                       user_name = optarg;
+                      break;
+
+              case 'P':
+                      pid_file = optarg;
                       break;
 
               default:
@@ -438,7 +450,7 @@ int main(int argc, char *argv[])
 
    if (fork() > 0) exit(0); /* Detach */
 
-   write_pid_file();
+   write_pid_file(pid_file);
 
    drop_privileges(user_name);
 
@@ -447,7 +459,7 @@ int main(int argc, char *argv[])
    CHECK_RES_DIE(res, "setsid: already process leader");
 
    /* Open syslog connection */
-   openlog(argv[0], LOG_CONS, LOG_AUTH);
+   setup_syslog(argv[0]);
 
    /* Main server loop: accept connections, find what they are, fork shovelers */
    while (1)
