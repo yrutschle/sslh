@@ -104,22 +104,22 @@ In that case, you end up with something like this:
 
 ssh -> proxytunnel -e --------ssh/ssl------> stunnel ---ssh---> sslh --> sshd
 
-navigateur --------http/ssl------> stunnel ---http---> sslh --> http:80
+Web browser --------http/ssl------> stunnel ---http---> sslh --> http:80
 
 Configuration goes like this:
 
 On the server side, using stunnel3:
-stunnel -f -p mycert.pem  -d thelonious:443 -l /usr/local/sbin/sslh -- sslh -i  -l localhost:80 -s localhost:22
+stunnel -f -p mycert.pem  -d thelonious:443 -l /usr/local/sbin/sslh -- sslh -i  --ssl localhost:80 --ssh localhost:22
 
 stunnel options: -f for foreground/debugging, -p specifies
 the key + certificate, -d specifies which interface and port
 we're listening to for incoming connexions, -l summons sslh
 in inetd mode.
 
-sslh options: -i for inetd mode, -l to forward SSL
+sslh options: -i for inetd mode, --ssl to forward SSL
 connexions (in fact normal HTTP at that stage) to port 80,
 and SSH connexions to port 22. This works because sslh
-considers that anything that is not SSH is SSL.
+considers that any protocol it doesn't recognise is SSL.
 
 ==== IP_TPROXY support ====
 

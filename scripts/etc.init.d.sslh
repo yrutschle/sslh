@@ -30,7 +30,7 @@ DAEMON=$PREFIX/sbin/sslh
 start()
 {
         echo "Start services: sslh"
-        $DAEMON -u nobody -p ${LISTEN} -s ${SSH} -l ${SSL}
+        $DAEMON --user nobody --listen ${LISTEN} --ssh ${SSH} --ssl ${SSL}
         logger -t ${tag} -p ${facility} -i 'Started sslh'
 }
 

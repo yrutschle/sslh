@@ -21,6 +21,7 @@
 #include <pwd.h>
 #include <syslog.h>
 #include <libgen.h>
+#include <getopt.h>
 
 #include "common.h"
 
@@ -32,31 +33,34 @@
 
 int is_ssh_protocol(const char *p, int len);
 int is_openvpn_protocol(const char *p, int len);
+int is_tinc_protocol(const char *p, int len);
 int is_true(const char *p, int len) { return 1; }
 
 struct proto protocols[] = {
     /* affected  description   service  saddr   probe  */
-    { 0,         "SSH",        "sshd",  {0},   is_ssh_protocol },
-    { 0,         "OpenVPN",     NULL,   {0},   is_openvpn_protocol },
+    { 0,         "ssh",        "sshd",  {0},   is_ssh_protocol },
+    { 0,         "openvpn",     NULL,   {0},   is_openvpn_protocol },
+    { 0,         "tinc",        NULL,   {0},   is_tinc_protocol },
     /* probe for SSL always successes: it's the default, and must be tried last
      **/
-    { 0,        "SSL",          NULL,   {0},   is_true }
+    { 0,        "ssl",          NULL,   {0},   is_true }
 };
 
 
 const char* USAGE_STRING =
 "sslh " VERSION "\n" \
 "usage:\n" \
-"\tsslh  [-v] [-i] [-V] [-f]"
-"[-t <timeout>] -u <username> -p [listenaddr:]<listenport> \n" \
-"\t\t-s [sshhost:]port -l [sslhost:]port [-P pidfile]\n\n" \
+"\tsslh  [-v] [-i] [-V] [-f]\n"
+"\t[-t <timeout>] [-P <pidfile>] -u <username> -p <add> [-p <addr> ...] \n" \
+"\t[--ssh <addr>] [--ssl <addr>] [--openvpn <addr>] [--tinc <addr>]\n\n" \
 "-v: verbose\n" \
 "-V: version\n" \
 "-f: foreground\n" \
-"-p: address and port to listen on. default: 0.0.0.0:443\n" \
-"-s: SSH address: where to connect an SSH connection. default: localhost:22\n" \
-"-l: SSL address: where to connect an SSL connection.\n" \
-"-o: OpenVPN address: where to connect an OpenVPN connection.\n" \
+"-p: address and port to listen on. default: 0.0.0.0:443.\n    Can be used several times to bind to several addresses.\n" \
+"--ssh: SSH address: where to connect an SSH connection.\n" \
+"--ssl: SSL address: where to connect an SSL connection.\n" \
+"--openvpn: OpenVPN address: where to connect an OpenVPN connection.\n" \
+"--tinc: tinc address: where to connect a tinc connection.\n" \
 "-P: PID file. Default: /var/run/sslh.pid.\n" \
 "-i: Run as a inetd service.\n" \
 "";
@@ -71,8 +75,11 @@ int verbose = 0;
 int probing_timeout = 2;
 int inetd = 0;
 int foreground = 0;
-struct sockaddr addr_listen;
+int numeric = 0;
 char *user_name, *pid_file;
+
+struct sockaddr_storage *addr_listen = NULL; /* what addresses do we listen to? */
+int num_addr_listen = 0; /* How many addresses do we listen to? */
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -80,29 +87,47 @@ int allow_severity =0, deny_severity = 0;
 #endif
 
 
+/* check result and die, printing the offending address and error */
+void check_res_dumpdie(int res, struct sockaddr_storage *sock, char* syscall)
+{
+    char buf[64];
 
-/* Starts a listening socket on specified address.
+    if (res == -1) {
+        fprintf(stderr, "%s:%s: %s\n", 
+                sprintaddr(buf, sizeof(buf), sock), 
+                syscall, 
+                strerror(errno));
+        exit(1);
+    }
+}
+
+/* Starts listening sockets on specified addresses.
+ * IN: addr[], num_addr
+ * OUT: sockfd[]
+ * Bound file descriptors are returned in alread-allocated *sockfd pointer
    Returns file descriptor
    */
-int start_listen_socket(struct sockaddr *addr)
+void start_listen_sockets(int sockfd[], struct sockaddr_storage addr[], int num_addr)
 {
-   struct sockaddr_in *saddr = (struct sockaddr_in*)addr;
-   int sockfd, res, reuse;
+   struct sockaddr_storage *saddr;
+   int i, res, reuse;
 
-   sockfd = socket(AF_INET, SOCK_STREAM, 0);
-   CHECK_RES_DIE(sockfd, "socket");
+   for (i = 0; i < num_addr; i++) {
+       saddr = &addr[i];
 
-   reuse = 1;
-   res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
-   CHECK_RES_DIE(res, "setsockopt");
+       sockfd[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
+       check_res_dumpdie(sockfd[i], saddr, "socket");
 
-   res = bind (sockfd, (struct sockaddr*)saddr, sizeof(*saddr));
-   CHECK_RES_DIE(res, "bind");
+       reuse = 1;
+       res = setsockopt(sockfd[i], SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
+       check_res_dumpdie(res, saddr, "setsockopt");
 
-   res = listen (sockfd, 50);
-   CHECK_RES_DIE(res, "listen");
+       res = bind (sockfd[i], (struct sockaddr*)saddr, sizeof(*saddr));
+       check_res_dumpdie(res, saddr, "bind");
 
-   return sockfd;
+       res = listen (sockfd[i], 50);
+       check_res_dumpdie(res, saddr, "listen");
+   }
 }
 
 /* Store some data to write to the queue later */
@@ -260,6 +285,13 @@ int is_openvpn_protocol (const char*p,int len)
         return 0;
 }
 
+/* Is the buffer the beginning of a tinc connections?
+ * (protocol is undocumented, but starts with "0 " in 1.0.15)
+ * */
+int is_tinc_protocol( const char *p, int len)
+{
+    return !strncmp(p, "0 ", len);
+}
 
 /* 
  * Read the beginning of data coming from the client connection and check if
@@ -290,17 +322,26 @@ T_PROTO_ID probe_client_protocol(struct connection *cnx)
         }
     }
 
-    /* If none worked, return the last one */
-    return ARRAY_SIZE(protocols) - 1;
+    /* If none worked, return the first one affected (that's completely
+     * arbitrary) */
+    for (i = 0; i < ARRAY_SIZE(protocols); i++)
+        if (protocols[i].affected)
+            return i;
+
+    /* At this stage... nothing is affected. This shouldn't happen as we check
+     * at least one target exists when we parse the commnand line */
+    fprintf(stderr, "FATAL: No protocol affected. This should not happen.\n");
+    exit(1);
 }
 
 /* returns a string that prints the IP and port of the sockaddr */
-char* sprintaddr(char* buf, size_t size, struct sockaddr* s)
+char* sprintaddr(char* buf, size_t size, struct sockaddr_storage* s)
 {
-   char addr_str[1024];
+   char host[NI_MAXHOST], serv[NI_MAXSERV];
 
-   inet_ntop(AF_INET, &((struct sockaddr_in*)s)->sin_addr, addr_str, sizeof(addr_str));
-   snprintf(buf, size, "%s:%d", addr_str, ntohs(((struct sockaddr_in*)s)->sin_port));
+   getnameinfo((struct sockaddr*)s, sizeof(*s), host, sizeof(host), serv, sizeof(serv), numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
+   snprintf(buf, size, "%s:%s", host, serv);
+
    return buf;
 }
 
@@ -308,28 +349,26 @@ char* sprintaddr(char* buf, size_t size, struct sockaddr* s)
 sock: socket address to which to copy the addr
 fullname: input string -- it gets clobbered
 */
-void resolve_name(struct sockaddr *sock, char* fullname)
+void resolve_name(struct sockaddr_storage *sock, char* fullname)
 {
    struct addrinfo *addr, hint;
    char *serv, *host;
    int res;
 
-   char *sep = strchr(fullname, ':');
+   char *sep = strrchr(fullname, ':');
 
    if (!sep) /* No separator: parameter is just a port */
    {
-      serv = fullname;
       fprintf(stderr, "names must be fully specified as hostname:port\n");
       exit(1);
    }
-   else {
-      host = fullname;
-      serv = sep+1;
-      *sep = 0;
-   }
+
+   host = fullname;
+   serv = sep+1;
+   *sep = 0;
 
    memset(&hint, 0, sizeof(hint));
-   hint.ai_family = PF_INET;
+   hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
 
    res = getaddrinfo(host, serv, &hint, &addr);
@@ -363,19 +402,40 @@ void log_message(int type, char* msg, ...)
 /* syslogs who connected to where */
 void log_connection(struct connection *cnx)
 {
-    struct sockaddr peeraddr, localaddr;
+    struct sockaddr_storage peeraddr; /* Who's connecting to sshd */
+    struct sockaddr_storage listenaddr; /* Where is it connecting to */
+    struct sockaddr_storage forwardfromaddr; /* Where is it forwarded from */
+    struct sockaddr_storage targetaddr; /* Where is it forwarded to */
     socklen_t size = sizeof(peeraddr);
-    char buf[64], buf2[64];
+#define MAX_NAMELENGTH (NI_MAXHOST + NI_MAXSERV + 1)
+    char buf[MAX_NAMELENGTH], buf2[MAX_NAMELENGTH], buf3[MAX_NAMELENGTH], buf4[MAX_NAMELENGTH];
     int res;
 
-    res = getpeername(cnx->q[0].fd, &peeraddr, &size);
+    memset(&peeraddr, 0, sizeof(peeraddr));
+    memset(&listenaddr, 0, sizeof(listenaddr));
+    memset(&forwardfromaddr, 0, sizeof(forwardfromaddr));
+    memset(&targetaddr, 0, sizeof(targetaddr));
+
+    res = getpeername(cnx->q[0].fd, (struct sockaddr*)&peeraddr, &size);
     if (res == -1) return; /* that should never happen, right? */
 
-    res = getpeername(cnx->q[1].fd, &localaddr, &size);
-    if (res == -1) return; /* that should never happen, right? */
+    size = sizeof(listenaddr);
+    res = getsockname(cnx->q[0].fd, (struct sockaddr*)&listenaddr, &size);
+    if (res == -1) return;
 
-    log_message(LOG_INFO, "connection from %s forwarded to %s\n", 
-           sprintaddr(buf, sizeof(buf), &peeraddr), sprintaddr(buf2, sizeof(buf2), &localaddr));
+    size = sizeof(targetaddr);
+    res = getpeername(cnx->q[1].fd, (struct sockaddr*)&targetaddr, &size);
+    if (res == -1) return;
+
+    size = sizeof(forwardfromaddr);
+    res = getsockname(cnx->q[1].fd, (struct sockaddr*)&forwardfromaddr, &size);
+    if (res == -1) return;
+
+    log_message(LOG_INFO, "connection from %s to %s forwarded from %s to %s\n", 
+           sprintaddr(buf, sizeof(buf), &peeraddr), 
+           sprintaddr(buf2, sizeof(buf2), &listenaddr),
+           sprintaddr(buf3, sizeof(buf3), &forwardfromaddr),
+           sprintaddr(buf4, sizeof(buf4), &targetaddr));
 
 }
 
@@ -386,27 +446,38 @@ void log_connection(struct connection *cnx)
  *
  * Returns -1 if access is denied, 0 otherwise
  */
-int check_access_rights(int in_socket, const char* service)
+int check_access_rights(int in_socket, char* service)
 {
 #ifdef LIBWRAP
     struct sockaddr peeraddr;
     socklen_t size = sizeof(peeraddr);
-    char addr_str[1024];
-    struct hostent *host;
-    struct in_addr addr;
+    char addr_str[NI_MAXHOST], host[NI_MAXHOST];
     int res;
 
     res = getpeername(in_socket, &peeraddr, &size);
     CHECK_RES_DIE(res, "getpeername");
-    inet_ntop(AF_INET, &((struct sockaddr_in*)&peeraddr)->sin_addr, addr_str, sizeof(addr_str));
 
-    addr.s_addr = inet_addr(addr_str);
-    host = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET);
+    /* extract peer address */
+    res = getnameinfo(&peeraddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);
+    if (res) {
+        if (verbose)
+            fprintf(stderr, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
+        strcpy(addr_str, STRING_UNKNOWN);
+    }
+    /* extract peer name */
+    strcpy(host, STRING_UNKNOWN);
+    if (!numeric) {
+        res = getnameinfo(&peeraddr, size, host, sizeof(host), NULL, 0, NI_NAMEREQD);
+        if (res) {
+            if (verbose)
+                fprintf(stderr, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
+        }
+    }
 
-    if (!hosts_ctl(service, (host ? host->h_name : STRING_UNKNOWN), addr_str, STRING_UNKNOWN)) {
+    if (!hosts_ctl(service, host, addr_str, STRING_UNKNOWN)) {
         if (verbose)
             fprintf(stderr, "access denied\n");
-        log_connection(in_socket, "access denied");
+        log_message(LOG_INFO, "connection from %s(%s): access denied", host, addr_str);
         close(in_socket);
         return -1;
     }
@@ -489,14 +560,62 @@ void printsettings(void)
                     sprintaddr(buf, sizeof(buf), &protocols[i].saddr), 
                     protocols[i].service);
     }
-    fprintf(stderr, "listening on %s\n", sprintaddr(buf, sizeof(buf), &addr_listen));
+    fprintf(stderr, "listening on:\n");
+    for (i = 0; i < num_addr_listen; i++) {
+        fprintf(stderr, "\t%s\n", sprintaddr(buf, sizeof(buf), &addr_listen[i]));
+    }
+    fprintf(stderr, "timeout to ssh: %d\n", probing_timeout);
+}
+
+/* Adds protocols to the list of options, so command-line parsing uses the
+ * protocol definition array 
+ * options: array of options to add to; must be big enough
+ * n_opts: number of options in *options before calling (i.e. where to append)
+ * prot: array of protocols
+ * n_prots: number of protocols in *prot
+ * */
+#define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
+void append_protocols(struct option *options, int n_opts, struct proto *prot, int n_prots)
+{
+    int o, p;
+
+    for (o = n_opts, p = 0; p < n_prots; o++, p++) {
+        options[o].name = prot[p].description;
+        options[o].has_arg = required_argument;
+        options[o].flag = 0;
+        options[o].val = p + PROT_SHIFT;
+    }
 }
 
 void parse_cmdline(int argc, char* argv[])
 {
-    int c;
+    int c, affected = 0;
+    struct option const_options[] = {
+        { "inetd",      no_argument,            &inetd,         1 },
+        { "foreground", no_argument,            &foreground,    1 },
+        { "verbose",    no_argument,            &verbose,       1 },
+        { "numeric",    no_argument,            &numeric,       1 },
+        { "user",       required_argument,      0,              'u' },
+        { "pidfile",   required_argument,       0,              'P' },
+        { "timeout",    required_argument,      0,              't' },
+        { "listen",     required_argument,      0,              'p' },
+    };
+    struct option all_options[ARRAY_SIZE(const_options) + ARRAY_SIZE(protocols) + 1];
 
-    while ((c = getopt(argc, argv, "t:l:s:o:p:P:ivfVu:")) != EOF) {
+    memset(all_options, 0, sizeof(all_options));
+    memcpy(all_options, const_options, sizeof(const_options));
+    append_protocols(all_options, ARRAY_SIZE(const_options), protocols, ARRAY_SIZE(protocols));
+
+    while ((c = getopt_long_only(argc, argv, "t:l:s:o:T:p:VP:", all_options, NULL)) != -1) {
+        if (c == 0) continue;
+
+        if (c >= PROT_SHIFT) {
+            affected++;
+            protocols[c - PROT_SHIFT].affected = 1;
+            resolve_name(&protocols[c - PROT_SHIFT].saddr, optarg);
+            continue;
+        }
+
         switch (c) {
 
         case 't':
@@ -504,34 +623,9 @@ void parse_cmdline(int argc, char* argv[])
             break;
 
         case 'p':
-            resolve_name(&addr_listen, optarg);
-            break;
-
-        case 'l':
-            protocols[PROT_SSL].affected = 1;
-            resolve_name(&protocols[PROT_SSL].saddr, optarg);
-            break;
-
-        case 's':
-            protocols[PROT_SSH].affected = 1;
-            resolve_name(&protocols[PROT_SSH].saddr, optarg);
-            break;
-
-        case 'o':
-            protocols[PROT_OPENVPN].affected = 1;
-            resolve_name(&protocols[PROT_OPENVPN].saddr, optarg);
-            break;
-
-        case 'i':
-            inetd = 1;
-            break;
-
-        case 'f':
-            foreground = 1;
-            break;
-
-        case 'v':
-            verbose += 1;
+            num_addr_listen++;
+            addr_listen = realloc(addr_listen, num_addr_listen * sizeof(addr_listen[0]));
+            resolve_name(&addr_listen[num_addr_listen - 1], optarg);
             break;
 
         case 'V':
@@ -551,6 +645,17 @@ void parse_cmdline(int argc, char* argv[])
             exit(2);
         }
     }
+
+    if (!affected) {
+        fprintf(stderr, "At least one target protocol must be specified.\n");
+        exit(2);
+    }
+
+    if (!num_addr_listen) {
+        fprintf(stderr, "No listening address specified; use at least one -p option\n");
+        exit(1);
+    }
+
 }
 
 int main(int argc, char *argv[])
@@ -560,21 +665,12 @@ int main(int argc, char *argv[])
    extern int optind;
    int res;
 
-   int listen_socket;
+   int *listen_sockets;
 
    /* Init defaults */
-   char listen_str[] = "0.0.0.0:443";
-   char ssl_str[] = "localhost:443";
-   char ssh_str[] = "localhost:22";
    pid_file = "/var/run/sslh.pid";
    user_name = "nobody";
    foreground = 0;
-
-   resolve_name(&addr_listen, listen_str);
-   protocols[PROT_SSL].affected = 1;
-   resolve_name(&protocols[PROT_SSL].saddr, ssl_str);
-   protocols[PROT_SSH].affected = 1;
-   resolve_name(&protocols[PROT_SSH].saddr, ssh_str);
 
    parse_cmdline(argc, argv);
 
@@ -588,7 +684,9 @@ int main(int argc, char *argv[])
    if (verbose)
        printsettings();
 
-   listen_socket = start_listen_socket(&addr_listen);
+   listen_sockets = malloc(num_addr_listen * sizeof(*listen_sockets));
+   start_listen_sockets(listen_sockets, addr_listen, num_addr_listen);
+   free(addr_listen);
 
    if (!foreground)
        if (fork() > 0) exit(0); /* Detach */
@@ -608,7 +706,7 @@ int main(int argc, char *argv[])
    /* Open syslog connection */
    setup_syslog(argv[0]);
 
-   main_loop(listen_socket);
+   main_loop(listen_sockets, num_addr_listen);
 
    return 0;
 }

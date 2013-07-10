@@ -1,4 +1,31 @@
-v1.8:
+v1.9: 02AUG2011
+	WARNING: Options changed, you'll need to update your
+	start-up scripts! Log format changed, you'll need to
+	update log processing scripts!
+
+	Now supports IPv6 throughout (both on listening and
+	forwarding)
+
+	Logs now contain IPv6 addresses, local forwarding
+	address, and resolves names (unless --numeric is
+	specified).
+
+	Introduced long options.
+
+	Options -l, -s and -o replaced by their long
+	counterparts.
+
+	Defaults for SSL and SSH options suppressed (it's 
+	legitimate to want to use sslh to mux OpenVPN and 
+	tinc while not caring about SSH nor SSL).
+
+	Bind to multiple addresses with multiple -p options.
+
+	Support for tinc VPN (experimental).
+
+	Numeric logging option.
+
+v1.8: 15JUL2011
 	Changed log format to make it possible to link
 	connections to subsequent logs from other services.
 

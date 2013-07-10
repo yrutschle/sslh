@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="v1.8"
+VERSION="v1.9"
 USELIBWRAP=	# Use libwrap?
 PREFIX=/usr/local
 
@@ -29,11 +29,11 @@ all: sslh $(MAN)
 
 sslh: $(OBJS) sslh-fork sslh-select
 
-sslh-fork: $(OBJS) sslh-fork.o Makefile
+sslh-fork: $(OBJS) sslh-fork.o Makefile common.h
 	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	strip sslh-fork
 
-sslh-select: $(OBJS) sslh-select.o Makefile
+sslh-select: $(OBJS) sslh-select.o Makefile common.h 
 	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	strip sslh-select
 

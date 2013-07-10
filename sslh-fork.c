@@ -68,7 +68,7 @@ void start_shoveler(int in_socket)
 {
    fd_set fds;
    struct timeval tv;
-   struct sockaddr *saddr;
+   struct sockaddr_storage *saddr;
    int res;
    int out_socket;
    char *target;
@@ -103,8 +103,8 @@ void start_shoveler(int in_socket)
    }
 
    /* Connect the target socket */
-   out_socket = socket(AF_INET, SOCK_STREAM, 0);
-   res = connect(out_socket, saddr, sizeof(addr_ssl));
+   out_socket = socket(saddr->ss_family, SOCK_STREAM, 0);
+   res = connect(out_socket, (struct sockaddr*)saddr, sizeof(addr_ssl));
    CHECK_RES_DIE(res, "connect");
    if (verbose)
       fprintf(stderr, "connected to something\n");
@@ -126,23 +126,27 @@ void start_shoveler(int in_socket)
    exit(0);
 }
 
-void main_loop(int listen_socket)
+void main_loop(int *listen_sockets, int num_addr_listen)
 {
-    int in_socket;
+    int in_socket, i;
 
-   while (1)
-   {
-      in_socket = accept(listen_socket, 0, 0);
-      if (verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
+    for (i = 0; i < num_addr_listen; i++) {
+        if (!fork()) {
+            while (1)
+            {
+                in_socket = accept(listen_sockets[i], 0, 0);
+                if (verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
-      if (!fork())
-      {
-         close(listen_socket);
-         start_shoveler(in_socket);
-         exit(0);
-      }
-      close(in_socket);
-   }
+                if (!fork())
+                {
+                    close(listen_sockets[i]);
+                    start_shoveler(in_socket);
+                    exit(0);
+                }
+                close(in_socket);
+            }
+        }
+    }
 }
 
 /* The actual main is in common.c: it's the same for both version of

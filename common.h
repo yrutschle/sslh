@@ -52,15 +52,16 @@ enum connection_state {
 typedef enum protocol_type {
     PROT_SSH,
     PROT_OPENVPN,
+    PROT_TINC,
     PROT_SSL,
 } T_PROTO_ID;
 
 /* For each protocol we need: */
 struct proto {
     int affected;       /* are we actually using it? */
-    char* description;  /* a string that says what it is (for logging) */
+    char* description;  /* a string that says what it is (for logging and command-line parsing) */
     char* service;      /* service name to do libwrap checks */
-    struct sockaddr saddr; /* where to switch that protocol */
+    struct sockaddr_storage saddr; /* where to switch that protocol */
     int (*probe)(const char*, int); /* function to probe that protocol */
 };
 
@@ -93,13 +94,13 @@ struct connection {
 
 /* common.c */
 void init_cnx(struct connection *cnx);
-int start_listen_socket(struct sockaddr *addr);
+void start_listen_sockets(int sockfd[], struct sockaddr_storage addr[], int num_addr);
 int fd2fd(struct queue *target, struct queue *from);
+char* sprintaddr(char* buf, size_t size, struct sockaddr_storage* s);
+void resolve_name(struct sockaddr_storage *sock, char* fullname) ;
 T_PROTO_ID probe_client_protocol(struct connection *cnx);
-char* sprintaddr(char* buf, size_t size, struct sockaddr* s);
-void resolve_name(struct sockaddr *sock, char* fullname) ;
 void log_connection(struct connection *cnx);
-int check_access_rights(int in_socket, const char* service);
+int check_access_rights(int in_socket, char* service);
 void setup_signals(void);
 void setup_syslog(char* bin_name);
 void drop_privileges(char* user_name);
@@ -114,7 +115,7 @@ int defer_write(struct queue *q, void* data, int data_size);
 int flush_defered(struct queue *q);
 
 extern int probing_timeout, verbose, inetd;
-extern struct sockaddr addr_listen, addr_ssl, addr_ssh, addr_openvpn;
+extern struct sockaddr_storage *addr_listen, addr_ssl, addr_ssh, addr_openvpn;
 extern const char* USAGE_STRING;
 extern char* user_name, *pid_file;
 extern const char* server_type;
@@ -122,6 +123,6 @@ extern const char* server_type;
 /* sslh-fork.c */
 void start_shoveler(int);
 
-void main_loop(int);
+void main_loop(int *listen_sockets, int num_addr_listen);
 
 

@@ -111,15 +111,15 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
 }
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-int connect_queue(struct connection *cnx, struct sockaddr *addr, 
+int connect_queue(struct connection *cnx, struct sockaddr_storage *addr, 
                   char* cnx_name,
                   fd_set *fds_r, fd_set *fds_w)
 {
     struct queue *q = &cnx->q[1];
     int res;
 
-    q->fd = socket(AF_INET, SOCK_STREAM, 0);
-    res = connect(q->fd, addr, sizeof(*addr));
+    q->fd = socket(addr->ss_family, SOCK_STREAM, 0);
+    res = connect(q->fd, (struct sockaddr*)addr, sizeof(*addr));
     log_connection(cnx);
     if (res == -1) {
         tidy_connection(cnx, fds_r, fds_w);
@@ -188,7 +188,7 @@ int is_fd_active(int fd, fd_set* set)
  * That way, each pair of file descriptor (read from one, write to the other)
  * is monitored either for read or for write, but never for both.
  */
-void main_loop(int listen_socket)
+void main_loop(int *listen_sockets, int num_addr_listen)
 {
     fd_set fds_r, fds_w;  /* reference fd sets (used to init the next 2) */
     fd_set readfds, writefds; /* working read and write fd sets */
@@ -203,10 +203,12 @@ void main_loop(int listen_socket)
 
     FD_ZERO(&fds_r);
     FD_ZERO(&fds_w);
-    FD_SET(listen_socket, &fds_r); 
-    max_fd = listen_socket + 1;
 
-    set_nonblock(listen_socket);
+    for (i = 0; i < num_addr_listen; i++) {
+        FD_SET(listen_sockets[i], &fds_r); 
+        set_nonblock(listen_sockets[i]);
+    }
+    max_fd = listen_sockets[num_addr_listen-1] + 1;
 
     cnx_num_alloc = getpagesize() / sizeof(struct connection);
 
@@ -231,16 +233,18 @@ void main_loop(int listen_socket)
 
 
         /* Check main socket for new connections */
-        if (FD_ISSET(listen_socket, &readfds)) {
-            in_socket = accept_new_connection(listen_socket, &cnx, &num_cnx);
-            num_probing++;
+        for (i = 0; i < num_addr_listen; i++) {
+            if (FD_ISSET(listen_sockets[i], &readfds)) {
+                in_socket = accept_new_connection(listen_sockets[i], &cnx, &num_cnx);
+                num_probing++;
 
-            if (in_socket > 0) {
-                FD_SET(in_socket, &fds_r);
-                if (in_socket >= max_fd)
-                    max_fd = in_socket + 1;;
+                if (in_socket > 0) {
+                    FD_SET(in_socket, &fds_r);
+                    if (in_socket >= max_fd)
+                        max_fd = in_socket + 1;;
+                }
+                FD_CLR(listen_sockets[i], &readfds);
             }
-            FD_CLR(listen_socket, &readfds);
         }
 
         /* Check all sockets for write activity */

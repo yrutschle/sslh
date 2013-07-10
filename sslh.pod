@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [ B<-t> I<num> ] [B<-p> I<listening address>] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-o> I<target address for OpenVPN>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f]
+sslh [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<-l> I<target address for SSL>] [B<-s> I<target address for SSH>] [B<-o> I<target address for OpenVPN>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
@@ -57,69 +57,79 @@ defined in F</etc/hosts.allow> and F</etc/hosts.deny>.
 
 =over 4
 
-=item B<-t> I<num>
+=item B<-t> I<num>, B<--timeout> I<num>
 
 Timeout before a connection is considered to be SSH. Default
 is 2s.
 
-=item B<-p> I<listening address>
+=item B<-p> I<listening address>, B<--listen> I<listening address>
 
 Interface and port on which to listen, e.g. I<foobar:443>,
 where I<foobar> is the name of an interface (typically the
 IP address on which the Internet connection ends up).
 
-Defaults to I<0.0.0.0:443> (listen to port 443 on all
-available interfaces).
+This can be specified several times to bind B<sslh> to
+several addresses.
 
-=item B<-l> I<target address for SSL>
+=item B<--ssl> I<target address>
 
 Interface and port on which to forward SSL connection,
 typically I<localhost:443>.
-
-Defaults to I<localhost:443> (this assumes you would
-configure your B<httpd> process to listen to port 443).
 
 Note that you can set B<sslh> to listen on I<ext_ip:443> and
 B<httpd> to listen on I<localhost:443>: this allows clients
 inside your network to just connect directly to B<httpd>.
 
-=item B<-s> I<target address for SSH>
+=item B<--ssh> I<target address>
 
-Interface and port on which to forward SSH connection,
-defaults to I<localhost:22>.
+Interface and port on which to forward SSH connections,
+typically I<localhost:22>.
 
-=item B<-o> I<target address for OpenVPN>
+=item B<--openvpn> I<target address>
 
-Interface and port on which to forward OpenVPN connections.
-This parameter is optional, and has no default. If not
-specified, incoming OpenVPN connections will not be detected
-as such and treated the same as SSL.
+Interface and port on which to forward OpenVPN connections,
+typically I<localhost:1194>.
 
-=item B<-v>
+=item B<--tinc> I<target address>
+
+Interface and port on which to forward tinc connections,
+typically I<localhost:655>.
+
+This is experimental. If you use this feature, please report
+the results (even if it works!)
+
+=item B<-v>, B<--verbose>
 
 Increase verboseness.
+
+=item B<-n>, B<--numeric>
+
+Do not attempt to resolve hostnames: logs will contain IP
+addresses. This is mostly useful if the system's DNS is slow
+and running the I<sslh-select> variant, as DNS requests will
+hang all connections.
 
 =item B<-V>
 
 Prints B<sslh> version.
 
-=item B<-u> I<username>
+=item B<-u> I<username>, B<--user> I<username>
 
 Requires to run under the specified username. Defaults to
 I<nobody> (which is not perfect -- ideally B<sslh> should
 run under its own UID).
 
-=item B<-P> I<pidfile>
+=item B<-P> I<pidfile>, B<--pid-file> I<pidfile>
 
 Specifies the file in which to write the PID of the main
 server. Defaults to I</var/run/sslh.pid>.
 
-=item B<-i>
+=item B<-i>, B<--inetd>
 
 Runs as an I<inetd> server. Options B<-P> (PID file), B<-p>
 (listen address), B<-u> (user) are ignored.
 
-=item B<-f>
+=item B<-f>, B<--foreground>
 
 Runs in foreground. The server will not fork and will remain connected
 to the terminal. Messages normally sent to B<syslog> will also be sent
