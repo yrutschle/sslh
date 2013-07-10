@@ -35,6 +35,7 @@ int is_ssh_protocol(const char *p, int len);
 int is_openvpn_protocol(const char *p, int len);
 int is_tinc_protocol(const char *p, int len);
 int is_xmpp_protocol(const char *p, int len);
+int is_http_protocol(const char *p, int len);
 int is_true(const char *p, int len) { return 1; }
 
 /* Table of all the protocols we know how to connect to.
@@ -51,6 +52,7 @@ struct proto protocols[] = {
     { 0,         "openvpn",     NULL,   {0},   is_openvpn_protocol },
     { 0,         "tinc",        NULL,   {0},   is_tinc_protocol },
     { 0,         "xmpp",        NULL,   {0},   is_xmpp_protocol },
+    { 0,         "http",        NULL,   {0},   is_http_protocol },
     /* probe for SSL always successes: it's the default, and must be tried last
      **/
     { 0,        "ssl",          NULL,   {0},   is_true }
@@ -338,6 +340,32 @@ int is_xmpp_protocol( const char *p, int len)
     return strstr(p, "jabber") ? 1 : 0;
 }
 
+int probe_http_method(const char *p, const char *opt)
+{
+    return !strncmp(p, opt, strlen(opt)-1);
+}
+
+/* Is the buffer the beginnin of an HTTP connection?  */
+int is_http_protocol(const char *p, int len)
+{
+    /* If it's got HTTP in the request (HTTP/1.1) then it's HTTP */
+    if (strstr(p, "HTTP"))
+        return 1;
+
+    /* Otherwise it could be HTTP/1.0 without version: check if it's got an
+     * HTTP method (RFC2616 5.1.1) */
+    probe_http_method(p, "OPTIONS");
+    probe_http_method(p, "GET");
+    probe_http_method(p, "HEAD");
+    probe_http_method(p, "POST");
+    probe_http_method(p, "PUT");
+    probe_http_method(p, "DELETE");
+    probe_http_method(p, "TRACE");
+    probe_http_method(p, "CONNECT");
+
+    return 0;
+}
+
 
 /* 
  * Read the beginning of data coming from the client connection and check if
@@ -392,8 +420,18 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
                numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
 
    if (res) {
-      fprintf(stderr, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
-      exit(1);
+       log_message(LOG_ERR, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
+       /* Name resolution failed: do it numerically instead */
+       res = getnameinfo(a->ai_addr, a->ai_addrlen,
+                         host, sizeof(host), 
+                         serv, sizeof(serv), 
+                         NI_NUMERICHOST | NI_NUMERICSERV);
+       /* should not fail but... */
+       if (res) {
+           log_message(LOG_ERR, "sprintaddr:getnameinfo(NUM): %s\n", gai_strerror(res));
+           strcpy(host, "?");
+           strcpy(serv, "?");
+       }
    }
 
    snprintf(buf, size, "%s:%s", host, serv);
@@ -436,18 +474,16 @@ void resolve_name(struct addrinfo **out, char* fullname)
    }
 }
 
-/* Log to syslog, and to stderr if foreground */
+/* Log to syslog or stderr if foreground */
 void log_message(int type, char* msg, ...)
 {
     va_list ap;
 
     va_start(ap, msg);
-    vsyslog(type, msg, ap);
-    va_end(ap);
-
-    va_start(ap, msg);
     if (foreground)
         vfprintf(stderr, msg, ap);
+    else
+        vsyslog(type, msg, ap);
     va_end(ap);
 }
 

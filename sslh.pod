@@ -6,15 +6,15 @@
 
 =head1 SYNOPSIS
 
-sslh [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
-B<sslh> accepts HTTPS, SSH, OpenVPN, tinc and XMPP connections
-on the same port. This makes it possible to connect to any
-of these servers on port 443 (e.g. from inside a corporate
-firewall, which almost never block port 443) while still
-serving HTTPS on that port. 
+B<sslh> accepts HTTP, HTTPS, SSH, OpenVPN, tinc and XMPP
+connections on the same port. This makes it possible to
+connect to any of these servers on port 443 (e.g. from
+inside a corporate firewall, which almost never block port
+443) while still serving HTTPS on that port. 
 
 
 The idea is to have B<sslh> listen to the external 443 port,
@@ -123,14 +123,12 @@ Prints B<sslh> version.
 
 =item B<-u> I<username>, B<--user> I<username>
 
-Requires to run under the specified username. Defaults to
-I<nobody> (which is not perfect -- ideally B<sslh> should
-run under its own UID).
+Requires to run under the specified username. 
 
 =item B<-P> I<pidfile>, B<--pid-file> I<pidfile>
 
-Specifies the file in which to write the PID of the main
-server. Defaults to I</var/run/sslh.pid>.
+Specifies a file in which to write the PID of the main
+server.
 
 =item B<-i>, B<--inetd>
 

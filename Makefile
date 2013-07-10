@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="v1.10"
+VERSION="v1.11"
 USELIBWRAP=	# Use libwrap?
 COV_TEST= 	# Perform test coverage?
 PREFIX=/usr/local

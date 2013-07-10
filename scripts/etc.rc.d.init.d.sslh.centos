@@ -20,7 +20,7 @@
 SSLH="/usr/local/sbin/sslh"
 PIDFILE="/var/run/sslh"
 
-OPTIONS="-p  0.0.0.0:8443 --ssl 127.0.0.1:443 --ssh 127.0.0.1:22"
+OPTIONS="--user nobody --pidfile $PIDFILE -p  0.0.0.0:8443 --ssl 127.0.0.1:443 --ssh 127.0.0.1:22"
 
 if [ -f /etc/sysconfig/sslh ]; then
         . /etc/sysconfig/sslh

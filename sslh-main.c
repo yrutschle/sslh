@@ -154,8 +154,8 @@ int main(int argc, char *argv[])
    int *listen_sockets;
 
    /* Init defaults */
-   pid_file = "/var/run/sslh.pid";
-   user_name = "nobody";
+   pid_file = NULL;
+   user_name = NULL;
    foreground = 0;
 
    parse_cmdline(argc, argv);
@@ -172,20 +172,23 @@ int main(int argc, char *argv[])
 
    num_addr_listen = start_listen_sockets(&listen_sockets, addr_listen);
 
-   if (!foreground)
+   if (!foreground) {
        if (fork() > 0) exit(0); /* Detach */
+
+       /* New session -- become group leader */
+       if (getuid() == 0) {
+           res = setsid();
+           CHECK_RES_DIE(res, "setsid: already process leader");
+       }
+   }
 
    setup_signals();
 
-   drop_privileges(user_name);
+   if (user_name)
+       drop_privileges(user_name);
 
-   /* New session -- become group leader */
-   if (getuid() == 0) {
-       res = setsid();
-       CHECK_RES_DIE(res, "setsid: already process leader");
-   }
-
-   write_pid_file(pid_file);
+   if (pid_file)
+       write_pid_file(pid_file);
 
    /* Open syslog connection */
    setup_syslog(argv[0]);

@@ -138,6 +138,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     int in_socket, i, res;
     struct sigaction action;
 
+    listener_pid_number = num_addr_listen;
     listener_pid = malloc(listener_pid_number * sizeof(listener_pid[0]));
 
     /* Start one process for each listening address */
@@ -170,7 +171,6 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     res = sigaction(SIGTERM, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
 
-    listener_pid_number = num_addr_listen;
     wait(NULL);
 }
 

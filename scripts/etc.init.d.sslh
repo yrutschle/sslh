@@ -13,11 +13,6 @@ facility=user.info
 
 # /etc/init.d/sslh: start and stop the sslh proxy daemon
 
-# Defaults -- can be overridden in /etc/default/sslh
-LISTEN=thelonious:443
-SSH=localhost:22
-SSL=localhost:443
-
 if test -f /etc/default/sslh; then
     . /etc/default/sslh
 fi
@@ -30,7 +25,7 @@ DAEMON=$PREFIX/sbin/sslh
 start()
 {
         echo "Start services: sslh"
-        $DAEMON --user nobody --listen ${LISTEN} --ssh ${SSH} --ssl ${SSL}
+        $DAEMON --user ${USER} --pidfile ${PID} --listen ${LISTEN} --ssh ${SSH} --ssl ${SSL}
         logger -t ${tag} -p ${facility} -i 'Started sslh'
 }
 
