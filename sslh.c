@@ -28,9 +28,22 @@ Solaris:
 LynxOS:
   gcc -o tcproxy tcproxy.c -lnetinet
 
+HISTORY
+
+v1.1: 21MAY2007
+        Making sslhc more like a real daemon:
+        * If $PIDFILE is defined, write first PID to it upon startup
+        * Fork at startup (detach from terminal)
+        (thanks to http://www.enderunix.org/docs/eng/daemon.php -- good checklist)
+        * Less memory usage (?)
+
+v1.0: 
+        * Basic functionality: privilege dropping, target hostnames and ports
+        configurable.
+
 */
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -40,6 +53,7 @@ LynxOS:
 #include <stdio.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -51,8 +65,11 @@ if (res == -1) {    \
    exit(1);         \
 }
 
-#define USAGE_STRING "usage:\n\tsslh [-t <timeout>] -u <username> -p <listenport> -s [sshhost:]port -l [sslhost:]port [-v]\n"
+#define USAGE_STRING "usage:\n" \
+"\texport PIDFILE=/var/run/sslhc.pid" \
+"\tsslh [-t <timeout>] -u <username> -p <listenport> -s [sshhost:]port -l [sslhost:]port [-v]\n"
 
+int verbose = 0; /* That's really quite global */
 
 /* Starts a listening socket on specified port.
    Returns file descriptor
@@ -128,7 +145,7 @@ int shovel(int fd1, int fd2)
       if (FD_ISSET(fd1, &fds)) {
          res = fd2fd(fd2, fd1);
          if (!res) {
-            printf("client socket closed\n");
+            if (verbose) fprintf(stderr, "client socket closed\n");
             return res;
          }
       }
@@ -136,22 +153,21 @@ int shovel(int fd1, int fd2)
       if (FD_ISSET(fd2, &fds)) {
          res = fd2fd(fd1, fd2);
          if (!res) {
-            printf("server socket closed\n");
+            if (verbose) fprintf(stderr, "server socket closed\n");
             return res;
          }
       }
    }
 }
 
-/* returns a static string that prints the IP and port of the sockaddr */
-char* get_addr(struct sockaddr* s)
+/* returns a string that prints the IP and port of the sockaddr */
+char* sprintaddr(char* buf, size_t size, struct sockaddr* s)
 {
    char addr_str[1024];
-   static char addr_name[1024];
 
    inet_ntop(AF_INET, &((struct sockaddr_in*)s)->sin_addr, addr_str, sizeof(addr_str));
-   snprintf(addr_name, sizeof(addr_name), "%s:%d", addr_str,ntohs(((struct sockaddr_in*)s)->sin_port));
-   return addr_name;
+   snprintf(buf, size, "%s:%d", addr_str, ntohs(((struct sockaddr_in*)s)->sin_port));
+   return buf;
 }
 
 /* turns a "hostname:port" string into a struct sockaddr;
@@ -160,7 +176,7 @@ fullname: input string -- it gets clobbered
 serv: default service/port
 (defaults don't work yet)
 */
-int resolve_name(struct sockaddr *sock, char* fullname, int port) {
+void resolve_name(struct sockaddr *sock, char* fullname, int port) {
    struct addrinfo *addr, hint;
    char *serv, *host;
    int res;
@@ -195,11 +211,10 @@ int resolve_name(struct sockaddr *sock, char* fullname, int port) {
 }
 
 /* 
- * Settings that depend on the command line.
+ * Settings that depend on the command line. That's less global than verbose * :-)
  * They're set in main(), but also used in start_shoveler(), and it'd be heavy-handed
  * to pass it all as parameters
  */
-int verbose = 0;
 int timeout = 2;
 int listen_port = 443;
 struct sockaddr addr_ssl, addr_ssh;
@@ -289,6 +304,39 @@ void drop_privileges(char* user_name)
     CHECK_RES_DIE(res, "setuid");
 }
 
+/* Writes my PID if $PIDFILE is defined */
+void write_pid_file(void)
+{
+    char *pidfile = getenv("PIDFILE");
+    FILE *f;
+
+    if (!pidfile)
+        return;
+
+    f = fopen(pidfile, "w");
+    if (!f) {
+        perror(pidfile);
+        exit(1);
+    }
+
+    fprintf(f, "%d\n", getpid());
+    fclose(f);
+}
+
+void printsettings(void)
+{
+    char buf[64];
+
+    fprintf(
+            stderr, 
+            "SSL addr: %s (after timeout %ds)\n",
+            sprintaddr(buf, sizeof(buf), &addr_ssl), 
+            timeout
+           );
+    fprintf(stderr, "SSH addr: %s\n", sprintaddr(buf, sizeof(buf), &addr_ssh));
+    fprintf(stderr, "listening on port %d\n", listen_port);
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -296,12 +344,13 @@ int main(int argc, char *argv[])
    extern int optind;
    int c, res;
 
-   int in_socket, out_socket, listen_socket;
+   int in_socket, listen_socket;
 
    /* Init defaults */
    char *user_name = "nobody";
-   char ssl_str[] = "localhost:443"; /* need to copy -- Linux doesn't let write to BSS? */
+   char ssl_str[] = "localhost:443";
    char ssh_str[] = "localhost:22";
+
    resolve_name(&addr_ssl, ssl_str, 443);
    resolve_name(&addr_ssh, ssh_str, 22);
 
@@ -338,24 +387,28 @@ int main(int argc, char *argv[])
       }
    }
 
-   if (verbose) {
-      fprintf(stderr, "SSL addr: %s (after timeout %ds)\n", get_addr(&addr_ssl), timeout);
-      fprintf(stderr, "SSH addr: %s\n", get_addr(&addr_ssh));
-      fprintf(stderr, "listening on port %d\n", listen_port);
-   }
-
+   if (verbose)
+       printsettings();
 
    setup_signals();
 
    listen_socket = start_listen_socket(listen_port);
 
+   if (fork() > 0) exit(0); /* Detach */
+
+   write_pid_file();
+
    drop_privileges(user_name);
+
+   /* New session -- become group leader */
+   res = setsid();
+   CHECK_RES_DIE(res, "setsid: already process leader");
 
    /* Main server loop: accept connections, find what they are, fork shovelers */
    while (1)
    {
       in_socket = accept(listen_socket, 0, 0);
-      fprintf(stderr, "accepted fd %d\n", in_socket);
+      if (verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
       if (!fork())
       {
