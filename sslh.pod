@@ -2,59 +2,40 @@
 
 =head1 NAME
 
- sslh - ssl/ssh multiplexer
+ sslh - protocol demultiplexer
 
 =head1 SYNOPSIS
 
-sslh [B<-F> I<config file>] [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [B<-F> I<config file>] [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
-B<sslh> accepts connections in HTTP, HTTPS, SSH, OpenVPN,
-tinc, XMPP, or any other protocol that can be tested using a
-regular expression, on the same port. This makes it possible
-to connect to any of these servers on port 443 (e.g. from
-inside a corporate firewall, which almost never block port
-443) while still serving HTTPS on that port. 
+B<sslh> accepts connections on specified ports, and forwards
+them further based on tests performed on the first data
+packet sent by the remote client.
 
+Probes for HTTP, SSL, SSH, OpenVPN, tinc, XMPP are
+implemented, and any other protocol that can be tested using
+a regular expression, can be recognised. A typical use case
+is to allow serving several services on port 443 (e.g. to
+connect to ssh from inside a corporate firewall, which
+almost never block port 443) while still serving HTTPS on
+that port. 
 
-The idea is to have B<sslh> listen to the external 443 port,
-accept the incoming connections, work out what type of
-connection it is, and then fordward to the appropriate
-server.
-
-=head2 Protocol detection
-
-The protocol detection is made based on the first bytes sent
-by the client: SSH connections start by identifying each
-other's versions using clear text "SSH-2.0" strings (or
-equivalent version strings). This is defined in RFC4253,
-4.2. Meanwhile, OpenVPN clients start with 0x00 0x0D 0x38,
-tinc clients start with "0 ", and XMPP client start with a
-packet containing "jabber".
-
-Additionally, two kind of SSH clients exist: the client
-waits for the server to send its version string ("Shy"
-client, which is the case of OpenSSH and Putty), or the
-client sends its version first ("Bold" client, which is the
-case of Bitvise Tunnelier and ConnectBot). 
-
-If the client stays quiet after the timeout period, B<sslh>
-will connect to the first protocol defined (in the
-configuration file, or on the command line), so SSH should
-be defined first in B<sslh> configuration to accomodate for
-shy SSH clients.
+Hence B<sslh> acts as a protocol demultiplexer, or a
+switchboard. Its name comes from its original function to
+serve SSH and HTTPS on the same port.
 
 =head2 Libwrap support
 
-One drawback of B<sslh> is that the B<ssh> and B<httpd>
-servers do not see the original IP address of the client
-anymore, as the connection is forwarded through B<sslh>.
-B<sslh> provides enough logging to circumvent that problem.
-However it is common to limit access to B<ssh> using
-B<libwrap> or B<tcpd>. For this reason, B<sslh> can be
-compiled to check SSH accesses against SSH access lists as
-defined in F</etc/hosts.allow> and F</etc/hosts.deny>.
+One drawback of B<sslh> is that the servers do not see the
+original IP address of the client anymore, as the connection
+is forwarded through B<sslh>.
+
+For this reason, B<sslh> can be compiled with B<libwrap> to
+check accesses defined in F</etc/hosts.allow> and
+F</etc/hosts.deny>.  Libwrap services can be defined using
+the configuration file.
 
 =head2 Configuration file
 
@@ -78,6 +59,18 @@ Alternatively, the I<probe> parameter can be set to
 "builtin", to use the compiled probes which are much faster
 than regular expressions.
 
+=head2 Probing protocols
+
+When receiving an incoming connection, B<sslh> will read the
+first bytes sent be the connecting client. It will then
+probe for the protocol in the order specified on the command
+line (or the configuration file). Therefore B<--anyprot>
+should alway be used last, as it always succeeds and further
+protocols will never be tried.
+
+If no data is sent by the client, B<sslh> will eventually
+time out and connect to the protocol specified with
+B<--on-timeout>, or I<ssh> if none is specified.
 
 =head1 OPTIONS
 
@@ -85,9 +78,13 @@ than regular expressions.
 
 =item B<-t> I<num>, B<--timeout> I<num>
 
-Timeout before forwarding the connection to the first
-configured protocol (which should usually be SSH). Default
-is 2s.
+Timeout before forwarding the connection to the timeout
+protocol (which should usually be SSH). Default is 2s.
+
+=item B<--on-timeout> I<protocol name>
+
+Name of the protocol to connect to after the timeout period
+is over. Default is 'ssh'.
 
 =item B<-p> I<listening address>, B<--listen> I<listening address>
 
@@ -99,6 +96,7 @@ This can be specified several times to bind B<sslh> to
 several addresses.
 
 =item B<--ssl> I<target address>
+=item B<--tls> I<target address>
 
 Interface and port on which to forward SSL connection,
 typically I<localhost:443>.
@@ -106,6 +104,11 @@ typically I<localhost:443>.
 Note that you can set B<sslh> to listen on I<ext_ip:443> and
 B<httpd> to listen on I<localhost:443>: this allows clients
 inside your network to just connect directly to B<httpd>.
+
+Also, B<sslh> probes for SSLv3 (or TLSv1) handshake and will
+reject connections from clients requesting SSLv2. This is
+compliant to RFC6176 which prohibits the usage of SSLv2. If
+you wish to accept SSLv2, use B<--default> instead.
 
 =item B<--ssh> I<target address>
 
@@ -122,6 +125,11 @@ typically I<localhost:1194>.
 Interface and port on which to forward XMPP connections,
 typically I<localhost:5222>.
 
+=item B<--http> I<target address>
+
+Interface and port on which to forward HTTP connections,
+typically I<localhost:80>.
+
 =item B<--tinc> I<target address>
 
 Interface and port on which to forward tinc connections,
@@ -129,6 +137,14 @@ typically I<localhost:655>.
 
 This is experimental. If you use this feature, please report
 the results (even if it works!)
+
+=item B<--anyprot> I<target address>
+
+Interface and port on which to forward if no other protocol
+has been found. Because B<sslh> tries protocols in the order
+specified on the command line, this should be specified
+last. If no default is specified, B<sslh> will forward
+unknown protocols to the first protocol specified.
 
 =item B<-v>, B<--verbose>
 

@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="v1.13b"
+VERSION="1.14"
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
 COV_TEST= 	# Perform test coverage?
@@ -15,10 +15,10 @@ ifneq ($(strip $(COV_TEST)),)
     CFLAGS_COV=-fprofile-arcs -ftest-coverage
 endif
 
-CC = gcc
-CFLAGS=-Wall -g $(CFLAGS_COV)
+CC ?= gcc
+CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
-LIBS=
+LIBS=$(LDFLAGS)
 OBJS=common.o sslh-main.o probe.o
 
 ifneq ($(strip $(USELIBWRAP)),)
@@ -48,10 +48,17 @@ sslh-select: $(OBJS) sslh-select.o Makefile common.h
 	#strip sslh-select
 
 echosrv: $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) -o echosrv echosrv.o common.o $(LIBS)
+	$(CC) $(CFLAGS) -o echosrv echosrv.o probe.o common.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
+
+# Create release: export clean tree and tag current
+# configuration
+release:
+	svn export . /tmp/sslh-$(VERSION)
+	( cd /tmp; tar zcvf /tmp/sslh-$(VERSION).tar.gz sslh-$(VERSION) )
+	( cd .. ; svn copy trunk tags/sslh-$(VERSION) ; cd tags/sslh-$(VERSION) ; make clean )
 
 # generic install: install binary and man page
 install: sslh $(MAN)

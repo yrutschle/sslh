@@ -2,6 +2,8 @@
 
 ### BEGIN INIT INFO
 # Provides:		sslh
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
 # Default-Start:	2 3 4 5
 # Default-Stop:		1
 # Short-Description:	sslh proxy ssl & ssh connections

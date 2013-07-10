@@ -26,7 +26,7 @@ int inetd = 0;
 int foreground = 0;
 int background = 0;
 int numeric = 0;
-const char *user_name, *pid_file, *rule_filename;
+const char *user_name, *pid_file;
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
@@ -165,7 +165,6 @@ int flush_defered(struct queue *q)
         q->defered_data_size -= n;
     }
 
-
     return n;
 }
 
@@ -193,8 +192,6 @@ void dump_connection(struct connection *cnx)
  * returns FD_NODATA if no data was available
  * returns FD_STALLED if data was read, could not be written, and has been
  * stored in temporary buffer.
- *
- * slot for debug only and may go away at some point
  */
 int fd2fd(struct queue *target_q, struct queue *from_q)
 {

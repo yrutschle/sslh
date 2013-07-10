@@ -1,12 +1,20 @@
 ===== sslh -- A ssl/ssh multiplexer. =====
 
-sslh accepts connections in HTTP, HTTPS, SSH, OpenVPN,
-tinc, XMPP, or any other protocol that can be tested using a
-regular expression, on the same port. This makes it possible
-to connect to any of these servers on port 443 (e.g. from
-inside a corporate firewall, which almost never block port
-443) while still serving HTTPS on that port. 
+Sslh accepts connections on specified ports, and forwards
+them further based on tests performed on the first data
+packet sent by the remote client.
 
+Probes for HTTP, SSL, SSH, OpenVPN, tinc, XMPP are
+implemented, and any other protocol that can be tested using
+a regular expression, can be recognised. A typical use case
+is to allow serving several services on port 443 (e.g. to
+connect to ssh from inside a corporate firewall, which
+almost never block port 443) while still serving HTTPS on
+that port. 
+
+Hence sslh acts as a protocol demultiplexer, or a
+switchboard. Its name comes from its original function to
+serve SSH and HTTPS on the same port.
 
 ==== Compile and install ====
 
@@ -57,7 +65,7 @@ If you are going to use sslh for a "small" setup (less than
 a dozen ssh connections and a low-traffic https server) then
 sslh-fork is probably more suited for you. If you are going
 to use sslh on a "medium" setup (a few thousand ssh
-connections, and another few thousand sslh connections),
+connections, and another few thousand ssl connections),
 sslh-select will be better. If you have a very large site
 (tens of thousands of connections), you'll need a vapourware
 version that would use libevent or something like that.
@@ -139,17 +147,15 @@ Web browser --------http/ssl------> stunnel ---http---> sslh --> http:80
 Configuration goes like this:
 
 On the server side, using stunnel3:
-stunnel -f -p mycert.pem  -d thelonious:443 -l /usr/local/sbin/sslh -- sslh -i  --ssl localhost:80 --ssh localhost:22
+stunnel -f -p mycert.pem  -d thelonious:443 -l /usr/local/sbin/sslh -- sslh -i  --http localhost:80 --ssh localhost:22
 
 stunnel options: -f for foreground/debugging, -p specifies
 the key + certificate, -d specifies which interface and port
 we're listening to for incoming connexions, -l summons sslh
 in inetd mode.
 
-sslh options: -i for inetd mode, --ssl to forward SSL
-connexions (in fact normal HTTP at that stage) to port 80,
-and SSH connexions to port 22. This works because sslh
-considers that any protocol it doesn't recognise is SSL.
+sslh options: -i for inetd mode, --http to forward http
+connexions to port 80, and SSH connexions to port 22.
 
 ==== IP_TPROXY support ====
 

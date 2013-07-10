@@ -104,7 +104,7 @@ extern int probing_timeout, verbose, inetd, foreground, background, numeric;
 extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
-extern const char* user_name, *pid_file, *rule_filename;
+extern const char* user_name, *pid_file;
 extern const char* server_type;
 
 /* sslh-fork.c */

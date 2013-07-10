@@ -1,9 +1,11 @@
 [Unit]
 Description=SSL/SSH multiplexer
+After=network.target
 
 [Service]
 EnvironmentFile=/etc/conf.d/sslh
 ExecStart=/usr/bin/sslh --foreground $DAEMON_OPTS
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target

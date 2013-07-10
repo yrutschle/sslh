@@ -1,3 +1,28 @@
+v1.14: 21DEC2012
+	Corrected OpenVPN probe to support pre-shared secret
+	mode (OpenVPN port-sharing code is... wrong). Thanks
+	to Kai Ellinger for help in investigating and
+	testing.
+
+	Added an actual TLS/SSL probe.
+
+	Added configurable --on-timeout protocol
+	specification.
+
+	Added a --anyprot protocol probe (equivalent to what
+	--ssl was).
+
+	Makefile respects the user's compiler and CFLAG
+	choices (falling back to the current values if
+	undefined), as well as LDFLAGS. 
+	(Michael Palimaka)
+
+	Added "After" and "KillMode" to systemd.sslh.service
+	(Thomas Weiﬂschuh).
+
+	Added LSB tags to etc.init.d.sslh
+	(Thomas Varis).
+
 v1.13: 18MAY2012
 	Write PID file before dropping privileges.
 

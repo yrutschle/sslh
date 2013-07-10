@@ -94,32 +94,26 @@ void parse_cmdline(int argc, char* argv[])
 
 void start_echo(int fd)
 {
-    fd_set fds;
     int res;
     char buffer[1 << 20];
-    char* ret;
-    FILE *socket;
+    int ret, prefix_len;
 
-    FD_ZERO(&fds);
+    prefix_len = strlen(prefix);
 
-    socket = fdopen(fd, "r+");
-    if (!socket) {
-        CHECK_RES_DIE(-1, "fdopen");
-    }
+    memset(buffer, 0, sizeof(buffer));
+    strcpy(buffer, prefix);
 
     while (1) {
-        ret = fgets(buffer, sizeof(buffer), socket);
-        if (!ret) {
-            fprintf(stderr, "%s", strerror(ferror(socket)));
+        ret = read(fd, buffer + prefix_len, sizeof(buffer));
+        if (ret == -1) {
+            fprintf(stderr, "%s", strerror(errno));
             return;
         }
-        res = fprintf(socket, "%s%s", prefix, buffer);
+        res = write(fd, buffer, ret + prefix_len);
         if (res < 0) {
-            fprintf(stderr, "%s", strerror(ferror(socket)));
+            fprintf(stderr, "%s", strerror(errno));
             return;
         }
-
-        fflush(socket);
     }
 }
 

@@ -19,7 +19,10 @@
 # http://www.gnu.org/licenses/gpl.html
 */
 
+#define _GNU_SOURCE
+#include <stdio.h>
 #include <regex.h>
+#include <ctype.h>
 #include "probe.h"
 
 
@@ -29,6 +32,7 @@ static int is_openvpn_protocol(const char *p, int len, struct proto*);
 static int is_tinc_protocol(const char *p, int len, struct proto*);
 static int is_xmpp_protocol(const char *p, int len, struct proto*);
 static int is_http_protocol(const char *p, int len, struct proto*);
+static int is_tls_protocol(const char *p, int len, struct proto*);
 static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -40,10 +44,13 @@ static struct proto builtins[] = {
     { "tinc",        NULL,     NULL,   is_tinc_protocol },
     { "xmpp",        NULL,     NULL,   is_xmpp_protocol },
     { "http",        NULL,     NULL,   is_http_protocol },
-    { "ssl",          NULL,     NULL,  is_true }
+    { "ssl",         NULL,     NULL,   is_tls_protocol },
+    { "tls",         NULL,     NULL,   is_tls_protocol },
+    { "anyprot",     NULL,     NULL,   is_true }
 };
 
 static struct proto *protocols;
+static char* on_timeout = "ssh";
 
 struct proto*  get_builtins(void) {
     return builtins;
@@ -53,12 +60,21 @@ int get_num_builtins(void) {
     return ARRAY_SIZE(builtins);
 }
 
-/* Returns the protocol to connect to in case of timeout; conventionaly this is
- * the first protocol specified (but maybe we'll make it more explicit some
- * day)
+/* Sets the protocol name to connect to in case of timeout */
+void set_ontimeout(const char* name)
+{
+    asprintf(&on_timeout, "%s", name);
+}
+
+/* Returns the protocol to connect to in case of timeout; 
+ * if not found, return the first protocol specified 
  */
-struct proto* timeout_protocol(void) {
-    return protocols;
+struct proto* timeout_protocol(void) 
+{
+    struct proto* p = get_first_protocol();
+    for (; p && strcmp(p->description, on_timeout); p = p->next);
+    if (p) return p;
+    return get_first_protocol();
 }
 
 /* returns the first protocol (caller can then follow the *next pointers) */
@@ -72,6 +88,39 @@ void set_protocol_list(struct proto* prots)
     protocols = prots;
 }
 
+/* From http://grapsus.net/blog/post/Hexadecimal-dump-in-C */
+#define HEXDUMP_COLS 16
+void hexdump(const char *mem, unsigned int len)
+{
+    unsigned int i, j;
+
+    for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++)
+    {
+        /* print offset */
+        if(i % HEXDUMP_COLS == 0)
+            printf("0x%06x: ", i);
+
+        /* print hex data */
+        if(i < len)
+            printf("%02x ", 0xFF & mem[i]);
+        else /* end of block, just aligning for ASCII dump */
+            printf("   ");
+
+        /* print ASCII dump */
+        if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1)) {
+            for(j = i - (HEXDUMP_COLS - 1); j <= i; j++) {
+                if(j >= len) /* end of block, not really printing */
+                    putchar(' ');
+                else if(isprint(mem[j])) /* printable char */
+                    putchar(0xFF & mem[j]);        
+                else /* other char */
+                    putchar('.');
+            }
+            putchar('\n');
+        }
+    }
+}
+
 /* Is the buffer the beginning of an SSH connection? */
 static int is_ssh_protocol(const char *p, int len, struct proto *proto)
 {
@@ -82,24 +131,20 @@ static int is_ssh_protocol(const char *p, int len, struct proto *proto)
 }
 
 /* Is the buffer the beginning of an OpenVPN connection?
- * (code lifted from OpenVPN port-share option)
+ *
+ * Code inspired from OpenVPN port-share option; however, OpenVPN code is
+ * wrong: users using pre-shared secrets have non-initialised key_id fields so
+ * p[3] & 7 should not be looked at, and also the key_method can be specified
+ * to 1 which changes the opcode to P_CONTROL_HARD_RESET_CLIENT_V1.
+ * See:
+ * http://www.fengnet.com/book/vpns%20illustrated%20tunnels%20%20vpnsand%20ipsec/ch08lev1sec5.html
+ * and OpenVPN ssl.c, ssl.h and options.c
  */
 static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
 {
-#define P_OPCODE_SHIFT                 3
-#define P_CONTROL_HARD_RESET_CLIENT_V2 7
-    if (len >= 3)
-    {
-        return p[0] == 0
-            && p[1] >= 14
-            && p[2] == (P_CONTROL_HARD_RESET_CLIENT_V2<<P_OPCODE_SHIFT);
-    }
-    else if (len >= 2)
-    {
-        return p[0] == 0 && p[1] >= 14;
-    }
-    else
-        return 0;
+    int packet_len = ntohs(*(uint16_t*)p);
+
+    return packet_len == len - 2;
 }
 
 /* Is the buffer the beginning of a tinc connections?
@@ -145,6 +190,14 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
     return 0;
 }
 
+static int is_tls_protocol(const char *p, int len, struct proto *proto)
+{
+    /* TLS packet starts with a record "Hello" (0x16), followed by version
+     * (0x03 0x00-0x03) (RFC6101 A.1)
+     * This means we reject SSLv2 and lower, which is actually a good thing (RFC6176)
+     */
+    return p[0] == 0x16 && p[1] == 0x03 && ( p[2] >= 0 && p[2] <= 0x03);
+}
 
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
@@ -182,28 +235,47 @@ struct proto* probe_client_protocol(struct connection *cnx)
         defer_write(&cnx->q[1], buffer, n);
 
         for (p = protocols; p; p = p->next) {
+            if (! p->probe) continue;
+            if (verbose) fprintf(stderr, "probing for %s\n", p->description);
             if (p->probe(buffer, n, p)) {
+                if (verbose) fprintf(stderr, "probe %s successful\n", p->description);
                 return p;
             }
         }
     }
+
+    if (verbose) 
+        fprintf(stderr, 
+                "all probes failed, connecting to first protocol: %s\n", 
+                protocols->description);
 
     /* If none worked, return the first one affected (that's completely
      * arbitrary) */
     return protocols;
 }
 
-/* Returns the probe for specified protocol:
- * parameter is the description in builtins[], or "regex" 
- * */
-T_PROBE* get_probe(const char* description) {
+/* Returns the structure for specified protocol or NULL if not found */
+static struct proto* get_protocol(const char* description)
+{
     int i;
 
     for (i = 0; i < ARRAY_SIZE(builtins); i++) {
         if (!strcmp(builtins[i].description, description)) {
-            return builtins[i].probe;
+            return &builtins[i];
         }
     }
+    return NULL;
+}
+
+/* Returns the probe for specified protocol:
+ * parameter is the description in builtins[], or "regex" 
+ * */
+T_PROBE* get_probe(const char* description) {
+    struct proto* p = get_protocol(description);
+
+    if (p)
+        return p->probe;
+
     /* Special case of "regex" probe (we don't want to set it in builtins
      * because builtins is also used to build the command-line options and
      * regexp is not legal on the command line)*/

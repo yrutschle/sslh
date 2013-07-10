@@ -45,10 +45,15 @@ void set_protocol_list(struct proto*);
  */
 struct proto* probe_client_protocol(struct connection *cnx);
 
+/* set the protocol to connect to in case of timeout */
+void set_ontimeout(const char* name);
+
 /* timeout_protocol
  *
  * Returns the protocol to connect to in case of timeout
  */
 struct proto* timeout_protocol(void);
+
+void hexdump(const char*, unsigned int);
 
 #endif

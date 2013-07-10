@@ -36,18 +36,23 @@ const char* USAGE_STRING =
 "\tsslh  [-v] [-i] [-V] [-f] [-n] [-F <file>]\n"
 "\t[-t <timeout>] [-P <pidfile>] -u <username> -p <add> [-p <addr> ...] \n" \
 "%s\n\n" /* Dynamically built list of builtin protocols */  \
+"\t[--on-timeout <addr>]\n" \
 "-v: verbose\n" \
 "-V: version\n" \
 "-f: foreground\n" \
 "-n: numeric output\n" \
 "-F: use configuration file\n" \
-"-t: timeout before connecting to SSH.\n" \
+"--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
+"-t: seconds to wait before connecting to --on-timeout address.\n" \
 "-p: address and port to listen on.\n    Can be used several times to bind to several addresses.\n" \
 "--[ssh,ssl,...]: where to connect connections from corresponding protocol.\n" \
 "-F: specify a configuration file\n" \
 "-P: PID file.\n" \
 "-i: Run as a inetd service.\n" \
 "";
+
+/* Constants for options that have no one-character shorthand */
+#define OPT_ONTIMEOUT   257
 
 static struct option const_options[] = {
     { "inetd",      no_argument,            &inetd,         1 },
@@ -59,6 +64,7 @@ static struct option const_options[] = {
     { "config",     required_argument,      0,              'F' },
     { "pidfile",    required_argument,      0,              'P' },
     { "timeout",    required_argument,      0,              't' },
+    { "on-timeout", required_argument,      0,              OPT_ONTIMEOUT },
     { "listen",     required_argument,      0,              'p' },
     {}
 };
@@ -71,10 +77,12 @@ static const char *optstr = "vt:T:p:VP:F:";
 static void print_usage(void)
 {
     struct proto *p;
+    int i;
     char *prots = "";
 
-    for (p = get_first_protocol(); p; p = p->next)
-        asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p->description);
+    p = get_builtins();
+    for (i = 0; i < get_num_builtins(); i++)
+        asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p[i].description);
 
     fprintf(stderr, USAGE_STRING, prots);
 }
@@ -98,7 +106,8 @@ static void printsettings(void)
     for (a = addr_listen; a; a = a->ai_next) {
         fprintf(stderr, "\t%s\n", sprintaddr(buf, sizeof(buf), a));
     }
-    fprintf(stderr, "timeout to ssh: %d\n", probing_timeout);
+    fprintf(stderr, "timeout: %d\non-timeout: %s\n", probing_timeout,
+            timeout_protocol()->description);
 }
 
 
@@ -195,8 +204,8 @@ static int config_protocols(config_t *config, struct proto **prots)
 
             prot = config_setting_get_elem(setting, i);
             if ((config_setting_lookup_string(prot, "name", &name) &&
-                  config_setting_lookup_string(prot, "host", &hostname) &&
-                  config_setting_lookup_string(prot, "port", &port)
+                 config_setting_lookup_string(prot, "host", &hostname) &&
+                 config_setting_lookup_string(prot, "port", &port)
                 )) {
                 p->description = name;
                 config_setting_lookup_string(prot, "service", &(p->service));
@@ -205,24 +214,26 @@ static int config_protocols(config_t *config, struct proto **prots)
 
 
                 probes = config_setting_get_member(prot, "probe");
-                if (config_setting_is_array(probes)) {
-                    /* If 'probe' is an array, setup a regex probe using the
-                     * array of strings as pattern */
+                if (probes) {
+                    if (config_setting_is_array(probes)) {
+                        /* If 'probe' is an array, setup a regex probe using the
+                         * array of strings as pattern */
 
-                    setup_regex_probe(p, probes);
+                        setup_regex_probe(p, probes);
 
-                } else {
-                    /* if 'probe' is 'builtin', set the probe to the
-                     * appropriate builtin protocol */
-                    if (!strcmp(config_setting_get_string(probes), "builtin")) {
-                        p->probe = get_probe(name);
-                        if (!p->probe) {
-                            fprintf(stderr, "%s: no builtin probe for this protocol\n", name);
+                    } else {
+                        /* if 'probe' is 'builtin', set the probe to the
+                         * appropriate builtin protocol */
+                        if (!strcmp(config_setting_get_string(probes), "builtin")) {
+                            p->probe = get_probe(name);
+                            if (!p->probe) {
+                                fprintf(stderr, "%s: no builtin probe for this protocol\n", name);
+                                exit(1);
+                            }
+                        } else {
+                            fprintf(stderr, "%s: illegal probe name\n", name);
                             exit(1);
                         }
-                    } else {
-                        fprintf(stderr, "%s: illegal probe name\n", name);
-                        exit(1);
                     }
                 }
             }
@@ -243,6 +254,7 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
 {
     config_t config;
     long int timeout;
+    const char* str;
 
     config_init(&config);
     if (config_read_file(&config, filename) == CONFIG_FALSE) {
@@ -260,6 +272,10 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
 
     if (config_lookup_int(&config, "timeout", &timeout) == CONFIG_TRUE) {
         probing_timeout = timeout;
+    }
+
+    if (config_lookup_string(&config, "on-timeout", &str)) {
+        set_ontimeout(str);
     }
 
     config_lookup_string(&config, "user", &user_name);
@@ -386,6 +402,10 @@ next_arg:
 
         case 't':
              probing_timeout = atoi(optarg);
+            break;
+
+        case OPT_ONTIMEOUT:
+            set_ontimeout(optarg);
             break;
 
         case 'p':
