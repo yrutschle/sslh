@@ -1,3 +1,7 @@
+vNEXT:
+	Fixed bug in sslh-select: if socket dropped while
+	defered_data was present, sslh-select would crash.
+
 v1.14: 21DEC2012
 	Corrected OpenVPN probe to support pre-shared secret
 	mode (OpenVPN port-sharing code is... wrong). Thanks

@@ -261,12 +261,13 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             if (verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
-                        }
-                        /* If no defered data is left, stop monitoring the fd 
-                         * for write, and restart monitoring the other one for reads*/
-                        if (!cnx[i].q[j].defered_data_size) {
-                            FD_CLR(cnx[i].q[j].fd, &fds_w);
-                            FD_SET(cnx[i].q[1-j].fd, &fds_r);
+                        } else {
+                            /* If no defered data is left, stop monitoring the fd 
+                             * for write, and restart monitoring the other one for reads*/
+                            if (!cnx[i].q[j].defered_data_size) {
+                                FD_CLR(cnx[i].q[j].fd, &fds_w);
+                                FD_SET(cnx[i].q[1-j].fd, &fds_r);
+                            }
                         }
                     }
                 }
