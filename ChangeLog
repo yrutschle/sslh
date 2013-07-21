@@ -1,4 +1,8 @@
 vNEXT:
+	Added --transparent option for transparent proxying.
+	See README for iptables magic and capability
+	management.
+
 	Fixed bug in sslh-select: if socket dropped while
 	defered_data was present, sslh-select would crash.
 

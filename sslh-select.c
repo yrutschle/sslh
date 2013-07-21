@@ -122,7 +122,7 @@ int connect_queue(struct connection *cnx, struct addrinfo *addr,
 {
     struct queue *q = &cnx->q[1];
 
-    q->fd = connect_addr(addr, cnx_name);
+    q->fd = connect_addr(addr, cnx->q[0].fd, cnx_name);
     if (q->fd != -1) {
         log_connection(cnx);
         set_nonblock(q->fd);

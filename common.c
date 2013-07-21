@@ -25,6 +25,7 @@ int probing_timeout = 2;
 int inetd = 0;
 int foreground = 0;
 int background = 0;
+int transparent = 0;
 int numeric = 0;
 const char *user_name, *pid_file;
 
@@ -96,9 +97,35 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
    return num_addr;
 }
 
+/* Transparent proxying: bind the peer address of fd to the peer address of
+ * fd_from */
+#define IP_TRANSPARENT 19
+int bind_peer(int fd, int fd_from)
+{
+    struct addrinfo from;
+    struct sockaddr_storage ss;
+    int res, trans = 1;
+
+    memset(&from, 0, sizeof(from));
+    from.ai_addr = (struct sockaddr*)&ss;
+    from.ai_addrlen = sizeof(ss);
+
+    res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
+    CHECK_RES_DIE(res, "getpeername");
+    res = setsockopt(fd, SOL_IP, IP_TRANSPARENT, &trans, sizeof(trans));
+    CHECK_RES_DIE(res, "setsockopt");
+    res = bind(fd, from.ai_addr, from.ai_addrlen);
+    CHECK_RES_RETURN(res, "bind");
+
+    return 0;
+}
+
 /* Connect to first address that works and returns a file descriptor, or -1 if
- * none work. cnx_name points to the name of the service (for logging) */
-int connect_addr(struct addrinfo *addr, const char* cnx_name)
+ * none work. 
+ * If transparent proxying is on, use fd_from peer address on external address
+ * of new file descriptor.
+ * cnx_name points to the name of the service (for logging) */
+int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
 {
     struct addrinfo *a;
     char buf[NI_MAXHOST];
@@ -113,6 +140,8 @@ int connect_addr(struct addrinfo *addr, const char* cnx_name)
         if (fd == -1) {
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n", cnx_name, strerror(errno));
         } else {
+            if (transparent)
+                bind_peer(fd, fd_from);
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
                 log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 

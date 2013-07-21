@@ -157,31 +157,65 @@ in inetd mode.
 sslh options: -i for inetd mode, --http to forward http
 connexions to port 80, and SSH connexions to port 22.
 
-==== IP_TPROXY support ====
+==== capapbilities support ====
 
-There is a netfilter patch that adds an option to the Linux
-TCP/IP stack to allow a program to set the source address
-of an IP packet that it sends. This could let sslh set the
-address of packets to that of the actual client, so that
-sshd would see and log the IP address of the client, making
-sslh transparent.
+On Linux (only?), you can use POSIX capabilities to reduce a
+server's capabilities to the minimum it needs (see
+capabilities(8).  For sslh, this is CAP_NET_ADMIN (to
+perform transparent proxy-ing) and CAP_NET_BIND_SERVICE (to
+bind to port 443 without being root).
 
-This is not, and won't be, implemented in sslh for the
-following reasons (in increasing order of importance):
+The simplest way to use capabilities is to give them to the
+executable as root:
 
-  * It's not vital: the real connecting IP address can be
-    found in logs. Little gain.
-  * It's Linux only: it means increased complexity for no
-    gain to some users.
-  * It's a patch: it means it'd only be useful to Linux
-    users who compile their own kernel.
-  * Only root can use the feature: that's a definite no-no.
-    Sslh should not, must not, will never run as root.
+# setcap cap_net_bind_service,cap_net_admin+pe sslh-select
 
-This isn't to mean that it won't eventually get implemented,
-when/if the feature finds its way into the main kernel and
-it becomes usuable by non-root processes.
+Then you can run sslh-select as an unpriviledged user, e.g.:
 
+$ sslh-select -p myname:443 --ssh localhost:22 --ssl localhost:443
+
+This has 2 advantages over starting as root with -u:
+- You no longer start as root (duh)
+- This enables transparent proxying.
+
+Caveat: CAP_NET_ADMIN does give sslh too many rights, e.g.
+configuring the interface. If you're not going to use
+transparent proxying, just don't use it.
+
+==== Transparent proxy support ====
+
+On Linux (only?) you can use the --transparent option to
+request transparent proying. This means services behind sslh
+(Apache, sshd and so on) will see the external IP and ports
+as if the external world connected directly to them. This
+simplifies IP-based access control (or makes it possible at
+all).
+
+sslh needs extended rights to perform this: you'll need to
+give it cap_net_admin capabilities (see appropriate chapter)
+or run it as root (but don't do that).
+
+The firewalling tables also need to be adjusted as follow
+(example to connect to https on 4443 -- adapt to your needs
+(I don't think it is possible to have httpd listen to 443 in
+this scheme -- let me know if you manage that))):
+
+# iptables -t mangle -N SSLH
+# iptables -t mangle -A  OUTPUT --protocol tcp --out-interface eth0 --sport 22 --jump SSLH
+# iptables -t mangle -A OUTPUT --protocol tcp --out-interface eth0 --sport 4443 --jump SSLH
+# iptables -t mangle -A SSLH --jump MARK --set-mark 0x1
+# iptables -t mangle -A SSLH --jump ACCEPT
+# ip rule add fwmark 0x1 lookup 100
+# ip route add local 0.0.0.0/0 dev lo table 100
+
+This will only work if sslh does not use any loopback
+addresses (no 127.0.0.1 or localhost), you'll need to use
+explicit IP addresses (or names):
+
+sslh --listen 192.168.0.1:443 --ssh 192.168.0.1:22 --ssl 192.168.0.1:4443
+
+This will not work:
+sslh --listen 192.168.0.1:443 --ssh 127.0.0.1:22 --ssl 127.0.0.1:4443
 
 ==== Comments? Questions? ====
 

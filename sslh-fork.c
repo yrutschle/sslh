@@ -102,7 +102,7 @@ void start_shoveler(int in_socket)
    }
 
    /* Connect the target socket */
-   out_socket = connect_addr(saddr, prot->description);
+   out_socket = connect_addr(saddr, in_socket, prot->description);
    CHECK_RES_DIE(out_socket, "connect");
 
    cnx.q[1].fd = out_socket;

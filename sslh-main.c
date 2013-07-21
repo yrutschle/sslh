@@ -58,6 +58,7 @@ static struct option const_options[] = {
     { "inetd",      no_argument,            &inetd,         1 },
     { "foreground", no_argument,            &foreground,    1 },
     { "background", no_argument,            &background,    1 },
+    { "transparent", no_argument,           &transparent,   1 },
     { "numeric",    no_argument,            &numeric,       1 },
     { "verbose",    no_argument,            &verbose,       1 },
     { "user",       required_argument,      0,              'u' },

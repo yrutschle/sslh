@@ -34,7 +34,7 @@
 
 #define CHECK_RES_RETURN(res, str) \
     if (res == -1) {                                    \
-        log_message(LOG_CRIT, "%s: %d\n", str, errno);  \
+        log_message(LOG_CRIT, "%s:%d:%s\n", str, errno, strerror(errno));  \
         return res;                                     \
     } 
 
@@ -80,7 +80,7 @@ struct connection {
 
 /* common.c */
 void init_cnx(struct connection *cnx);
-int connect_addr(struct addrinfo *addr, const char* cnx_name);
+int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name);
 int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);
@@ -100,7 +100,8 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 int defer_write(struct queue *q, void* data, int data_size);
 int flush_defered(struct queue *q);
 
-extern int probing_timeout, verbose, inetd, foreground, background, numeric;
+extern int probing_timeout, verbose, inetd, foreground, 
+       background, transparent, numeric;
 extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
