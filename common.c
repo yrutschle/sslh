@@ -112,7 +112,7 @@ int bind_peer(int fd, int fd_from)
 
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_DIE(res, "getpeername");
-    res = setsockopt(fd, SOL_IP, IP_TRANSPARENT, &trans, sizeof(trans));
+    res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt");
     res = bind(fd, from.ai_addr, from.ai_addrlen);
     CHECK_RES_RETURN(res, "bind");
