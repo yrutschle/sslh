@@ -3,6 +3,10 @@ vNEXT:
 	See README for iptables magic and capability
 	management.
 
+	Fixed bug in sslh-select: if number of opened file
+	descriptor became bigger than FD_SETSIZE, bad things
+	would happen.
+
 	Fixed bug in sslh-select: if socket dropped while
 	defered_data was present, sslh-select would crash.
 

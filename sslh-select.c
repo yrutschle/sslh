@@ -72,6 +72,16 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
     return 0;
 }
 
+/* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
+ * and FD_CLR. Need to drop connections if we go above that limit */
+int fd_is_in_range(int fd) {
+    if (fd >= FD_SETSIZE) {
+        log_message(LOG_ERR, "too many open file descriptor to monitor them all -- dropping connection\n");
+        return 0;
+    }
+    return 1;
+}
+
 /* Accepts a connection from the main socket and assigns it to an empty slot.
  * If no slots are available, allocate another few. If that fails, drop the
  * connexion */
@@ -82,6 +92,9 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
 
     in_socket = accept(listen_socket, 0, 0);
     CHECK_RES_RETURN(in_socket, "accept");
+
+    if (!fd_is_in_range(in_socket))
+        return -1;
 
     res = set_nonblock(in_socket);
     if (res == -1) return -1;
@@ -123,7 +136,7 @@ int connect_queue(struct connection *cnx, struct addrinfo *addr,
     struct queue *q = &cnx->q[1];
 
     q->fd = connect_addr(addr, cnx->q[0].fd, cnx_name);
-    if (q->fd != -1) {
+    if ((q->fd != -1) && fd_is_in_range(q->fd)) {
         log_connection(cnx);
         set_nonblock(q->fd);
         flush_defered(q);
