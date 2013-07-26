@@ -1,6 +1,12 @@
 #ifndef __COMMON_H_
 #define __COMMON_H_
 
+/* FD_SETSIZE is 64 on Cygwin, which is really low. Just redefining it is
+ * enough for the macros to adapt (http://support.microsoft.com/kb/111855)
+ */
+#ifdef __CYGWIN__
+#define FD_SETSIZE 4096
+#endif
 
 #define _GNU_SOURCE
 #include <sys/types.h>
