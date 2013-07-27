@@ -1,4 +1,4 @@
-vNEXT:
+v1.15:	27JUL2013
 	Added --transparent option for transparent proxying.
 	See README for iptables magic and capability
 	management.
@@ -9,6 +9,9 @@ vNEXT:
 
 	Fixed bug in sslh-select: if socket dropped while
 	defered_data was present, sslh-select would crash.
+
+	Increased FD_SETSIZE for Cygwin, as the default 64
+	is too low for even moderate load.
 
 v1.14: 21DEC2012
 	Corrected OpenVPN probe to support pre-shared secret

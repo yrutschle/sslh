@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="1.14"
+VERSION="1.15"
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
 COV_TEST= 	# Perform test coverage?
@@ -56,9 +56,7 @@ $(MAN): sslh.pod Makefile
 # Create release: export clean tree and tag current
 # configuration
 release:
-	svn export . /tmp/sslh-$(VERSION)
-	( cd /tmp; tar zcvf /tmp/sslh-$(VERSION).tar.gz sslh-$(VERSION) )
-	( cd .. ; svn copy trunk tags/sslh-$(VERSION) ; cd tags/sslh-$(VERSION) ; make clean )
+	git archive master --prefix="sslh-$(VERSION)/" | gzip > /tmp/sslh-$(VERSION).tar.gz
 
 # generic install: install binary and man page
 install: sslh $(MAN)
