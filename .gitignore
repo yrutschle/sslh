@@ -1,0 +1,8 @@
+*.swp
+*.swo
+*.o
+echosrv
+sslh-fork
+sslh-select
+sslh.8.gz
+tags
