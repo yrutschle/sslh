@@ -1,6 +1,7 @@
 *.swp
 *.swo
 *.o
+cscope.*
 echosrv
 sslh-fork
 sslh-select

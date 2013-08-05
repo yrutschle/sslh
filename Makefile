@@ -77,13 +77,17 @@ uninstall:
 	update-rc.d sslh remove
 
 distclean: clean
-	rm -f tags
+	rm -f tags cscope.*
 
 clean:
 	rm -f sslh-fork sslh-select echosrv $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info 
 
 tags:
 	ctags --globals -T *.[ch]
+
+cscope:
+	-find . -name "*.[chS]" >cscope.files
+	-cscope -b -R
 
 test:
 	./t
