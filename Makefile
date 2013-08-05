@@ -76,6 +76,9 @@ uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/sbin/sslh $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN) $(DESTDIR)/etc/init.d/sslh $(DESTDIR)/etc/default/sslh
 	update-rc.d sslh remove
 
+distclean: clean
+	rm -f tags
+
 clean:
 	rm -f sslh-fork sslh-select echosrv $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info 
 
