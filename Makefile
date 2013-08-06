@@ -1,6 +1,6 @@
 # Configuration
 
-VERSION="1.15"
+VERSION=$(shell ./genver.sh -r)
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
 COV_TEST= 	# Perform test coverage?
@@ -34,17 +34,19 @@ endif
 all: sslh $(MAN) echosrv
 
 .c.o: *.h
-	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -c $<
+	$(CC) $(CFLAGS) -c $<
 
+version.h:
+	./genver.sh >version.h
 
 sslh: $(OBJS) sslh-fork sslh-select
 
-sslh-fork: $(OBJS) sslh-fork.o Makefile common.h
-	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
+sslh-fork: $(OBJS) sslh-fork.o Makefile common.h version.h
+	$(CC) $(CFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	#strip sslh-fork
 
-sslh-select: $(OBJS) sslh-select.o Makefile common.h 
-	$(CC) $(CFLAGS) -D'VERSION=$(VERSION)' -o sslh-select sslh-select.o $(OBJS) $(LIBS)
+sslh-select: $(OBJS) sslh-select.o Makefile common.h version.h
+	$(CC) $(CFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	#strip sslh-select
 
 echosrv: $(OBJS) echosrv.o

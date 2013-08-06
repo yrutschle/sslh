@@ -27,10 +27,7 @@
 #include <libgen.h>
 #include <time.h>
 #include <getopt.h>
-
-#ifndef VERSION
-#define VERSION "v?"
-#endif
+#include "version.h"
 
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) {    \
