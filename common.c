@@ -110,8 +110,10 @@ int bind_peer(int fd, int fd_from)
     from.ai_addr = (struct sockaddr*)&ss;
     from.ai_addrlen = sizeof(ss);
 
+    /* getpeername can fail with ENOTCONN if connection was dropped before we
+     * got here */
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
-    CHECK_RES_DIE(res, "getpeername");
+    CHECK_RES_RETURN(res, "getpeername");
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt");
     res = bind(fd, from.ai_addr, from.ai_addrlen);
@@ -140,8 +142,10 @@ int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
         if (fd == -1) {
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n", cnx_name, strerror(errno));
         } else {
-            if (transparent)
-                bind_peer(fd, fd_from);
+            if (transparent) {
+                res = bind_peer(fd, fd_from);
+                CHECK_RES_RETURN(res, "bind_peer");
+            }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
                 log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 
@@ -380,7 +384,8 @@ void log_connection(struct connection *cnx)
     addr.ai_addrlen = sizeof(ss);
 
     res = getpeername(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
-    if (res == -1) return; /* that should never happen, right? */
+    if (res == -1) return; /* Can happen if connection drops before we get here. 
+                               In that case, don't log anything (there is no connection) */
     sprintaddr(peer, sizeof(peer), &addr);
 
     addr.ai_addrlen = sizeof(ss);
@@ -421,7 +426,7 @@ int check_access_rights(int in_socket, const char* service)
     int res;
 
     res = getpeername(in_socket, &peeraddr, &size);
-    CHECK_RES_DIE(res, "getpeername");
+    CHECK_RES_RETURN(res, "getpeername");
 
     /* extract peer address */
     res = getnameinfo(&peeraddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);

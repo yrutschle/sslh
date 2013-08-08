@@ -1,3 +1,9 @@
+vNEXT:
+	Fixed bugs related to getpeername that would cause
+	sslh to quit erroneously (getpeername can return
+	actual errors if connections are dropped before
+	getting to getpeername).
+
 v1.15:	27JUL2013
 	Added --transparent option for transparent proxying.
 	See README for iptables magic and capability
