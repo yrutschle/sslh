@@ -28,9 +28,9 @@ For OpenSUSE, these are contained in packages libconfig9 and
 libconfig-dev in repository
 http://download.opensuse.org/repositories/multimedia:/libs/openSUSE_12.1/
 
-For Fedora, this package should work:
-https://admin.fedoraproject.org/pkgdb/acls/name/libconfig
-(feedback from Fedorans appreciated).
+For Fedora, you'll need packages libconfig and
+libconfig-devel:
+yum install libconfig libconfig-devel
 
 If you can't find libconfig, or just don't want a
 configuration file, set 'USELIBCONFIG=' in the Makefile.
