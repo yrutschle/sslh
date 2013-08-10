@@ -60,8 +60,8 @@ release:
 
 # generic install: install binary and man page
 install: sslh $(MAN)
-	install -D sslh-fork $(PREFIX)/sbin/sslh
-	install -D -m 0644 $(MAN) $(PREFIX)/share/man/man8/$(MAN)
+	install -pD sslh-fork $(DESTDIR)$(PREFIX)/sbin/sslh
+	install -pD -m 0644 $(MAN) $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN)
 
 # "extended" install for Debian: install startup script
 install-debian: install sslh $(MAN)
@@ -71,7 +71,7 @@ install-debian: install sslh $(MAN)
 	update-rc.d sslh defaults
 
 uninstall:
-	rm -f $(PREFIX)/sbin/sslh $(PREFIX)/share/man/man8/$(MAN) /etc/init.d/sslh /etc/default/sslh
+	rm -f $(DESTDIR)$(PREFIX)/sbin/sslh $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN) $(DESTDIR)/etc/init.d/sslh $(DESTDIR)/etc/default/sslh
 	update-rc.d sslh remove
 
 clean:
