@@ -485,6 +485,11 @@ void setup_syslog(const char* bin_name) {
 
     name1 = strdup(bin_name);
     asprintf(&name2, "%s[%d]", basename(name1), getpid());
+
+    if (asprintf(&name2, "%s[%d]", basename(name1), getpid()) == -1) {
+        fprintf(stderr, "Failed to open syslog connection.\n");
+    }
+
     openlog(name2, LOG_CONS, LOG_AUTH);
     free(name1); 
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
