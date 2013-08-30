@@ -1,56 +1,56 @@
 #!/bin/bash
 #
-#       /etc/rc.d/init.d/sslh
-# sslh          This shell script takes care of starting and stopping
-#               sslh - a daemon switching incoming connection between SSH and SSL/HTTPS servers
+# sslh         Startup script for the SSL/SSH multiplexer
 #
-# Author: Andre Krajnik akrajnik@gmail.com
-# 2010-03-20
+# chkconfig: - 13 87
+# description: Sslh accepts connections on specified ports, and forwards
+#              them further based on tests performed on the first data
+#              packet sent by the remote client.
+# processname: sslh
+# config: /etc/sslh.cfg
+# config: /etc/sysconfig/sslh
+# pidfile: /var/run/sslh/sslh.pid
 #
-#
-# chkconfig: 2345 13 87
-#
-# description: sslh - a daemon switching incoming connection between SSH and SSL/HTTPS servers
+# Authors:
+# Andre Krajnik akrajnik@gmail.com - 2010-03-20
+# Julien Thomas julthomas@free.fr - 2013-08-25
 
 # Source function library.
 . /etc/init.d/functions
-
-# ./sslh -p  0.0.0.0:8443 -l 127.0.0.1:443 -s 127.0.0.1:22
-
-SSLH="/usr/local/sbin/sslh"
-PIDFILE="/var/run/sslh"
-
-OPTIONS="--user nobody --pidfile $PIDFILE -p  0.0.0.0:8443 --ssl 127.0.0.1:443 --ssh 127.0.0.1:22"
 
 if [ -f /etc/sysconfig/sslh ]; then
         . /etc/sysconfig/sslh
 fi
 
-start() {
-        echo -n "Starting SSL-SSH-Switch: "
-        if [ -f $PIDFILE ]; then
-                PID=`cat $PIDFILE`
-                echo sslh already running: $PID
-                exit 2;
-        else
-                daemon  $SSLH $OPTIONS
-                RETVAL=$?
-                echo
-                [ $RETVAL -eq 0 ] && touch $PIDFILE
-                return $RETVAL
-        fi
+PROGNAME=sslh
+SSLH=${SSLH:-/usr/sbin/sslh-select}
+SSLH_LANG=${SSLH_LANG:-C}
+CONFIG=${CONFIG:-/etc/sslh.cfg}
+PIDFILE=${PIDFILE:-/var/run/sslh/sslh.pid}
+LOCKFILE=${LOCKFILE:-/var/lock/subsys/sslh}
+STOP_TIMEOUT=${STOP_TIMEOUT:-10}
+RETVAL=0
 
+start() {
+    echo -n "Starting $PROGNAME: "
+    LANG=$SSLH_LANG daemon --pidfile="$PIDFILE" \
+                           ${SSLH_USER:+--user="${SSLH_USER}"} \
+                           "$SSLH" ${CONFIG:+-F "$CONFIG"} "$OPTIONS"
+    RETVAL=$?
+    echo
+    [ $RETVAL = 0 ] && touch "$LOCKFILE"
+    return $RETVAL
 }
 
 stop() {
-        echo -n "Shutting down SSL-SSH-Switch: "
-        echo
-        killproc sslh
-        echo
-        rm -f $PIDFILE
-        return 0
+    echo -n "Stopping $PROGNAME: "
+    killproc -p "$PIDFILE" -d "$STOP_TIMEOUT" "$SSLH"
+    RETVAL=$?
+    echo
+    [ $RETVAL = 0 ] && rm -f "$LOCKFILE" "$PIDFILE"
 }
 
+# See how we were called.
 case "$1" in
     start)
         start
@@ -59,18 +59,17 @@ case "$1" in
         stop
         ;;
     status)
-        status sslh
+        status -p "$PIDFILE" "$SSLH"
+        RETVAL=$?
         ;;
     restart)
         stop
         start
         ;;
     *)
-        echo "Usage:  {start|stop|status|restart}"
-        exit 1
+        echo "Usage: $PROGNAME {start|stop|status|restart}"
+        RETVAL=2
         ;;
 esac
-exit $?
 
-
-
+exit $RETVAL
