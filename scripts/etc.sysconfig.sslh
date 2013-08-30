@@ -1,0 +1,36 @@
+#
+# The default processing model uses select
+# A fork model is also available
+#
+#SSLH=/usr/sbin/sslh-select
+
+#
+# If transparent mode is enabled, the following
+# is needed in order to run as sslh user
+#
+#SSLH_USER=sslh
+#setcap cap_net_bind_service,cap_net_admin=+ep $SSLH
+
+#
+# Configuration file for sslh
+# Set empty to disable configuration file support
+#
+#CONFIG=/etc/sslh.cfg
+
+#
+# Extra option to pass on comand line
+# Those can supersede configuration file settings
+# 
+#OPTIONS=
+
+#
+# The sslh process is started by default with the C
+# locale, it can be changed here
+#
+#SSLH_LANG=C
+
+#
+# If an alternate location is specified in configuration
+# file, it needs to be reported here
+#
+#PIDFILE=/var/run/sslh/sslh.pid
