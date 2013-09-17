@@ -487,9 +487,11 @@ void setup_signals(void)
  * banner is made up of basename(bin_name)+"[pid]" */
 void setup_syslog(const char* bin_name) {
     char *name1, *name2;
+    int res;
 
     name1 = strdup(bin_name);
-    asprintf(&name2, "%s[%d]", basename(name1), getpid());
+    res = asprintf(&name2, "%s[%d]", basename(name1), getpid());
+    CHECK_RES_DIE(res, "asprintf");
     openlog(name2, LOG_CONS, LOG_AUTH);
     free(name1); 
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
@@ -511,7 +513,7 @@ void drop_privileges(const char* user_name)
 
     res = setgid(pw->pw_gid);
     CHECK_RES_DIE(res, "setgid");
-    setuid(pw->pw_uid);
+    res = setuid(pw->pw_uid);
     CHECK_RES_DIE(res, "setuid");
 }
 
