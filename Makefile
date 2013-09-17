@@ -23,18 +23,18 @@ OBJS=common.o sslh-main.o probe.o
 
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
-	CFLAGS:=$(CFLAGS) -DLIBWRAP
+	CPPFLAGS+=-DLIBWRAP
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
 	LIBS:=$(LIBS) -lconfig
-	CFLAGS:=$(CFLAGS) -DLIBCONFIG
+	CPPFLAGS+=-DLIBCONFIG
 endif
 
 all: sslh $(MAN) echosrv
 
 .c.o: *.h
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 version.h:
 	./genver.sh >version.h
