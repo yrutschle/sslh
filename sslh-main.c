@@ -254,7 +254,7 @@ static int config_protocols(config_t *config, struct proto **prots)
 static int config_parse(char *filename, struct addrinfo **listen, struct proto **prots)
 {
     config_t config;
-    long int timeout;
+    int timeout;
     const char* str;
 
     config_init(&config);
