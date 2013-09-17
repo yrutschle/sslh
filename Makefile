@@ -18,7 +18,7 @@ endif
 CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
-LIBS=$(LDFLAGS)
+LIBS=
 OBJS=common.o sslh-main.o probe.o
 
 ifneq ($(strip $(USELIBWRAP)),)
@@ -42,15 +42,15 @@ version.h:
 sslh: $(OBJS) sslh-fork sslh-select
 
 sslh-fork: $(OBJS) sslh-fork.o Makefile common.h version.h
-	$(CC) $(CFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	#strip sslh-fork
 
 sslh-select: $(OBJS) sslh-select.o Makefile common.h version.h
-	$(CC) $(CFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	#strip sslh-select
 
 echosrv: $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) -o echosrv echosrv.o probe.o common.o $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
