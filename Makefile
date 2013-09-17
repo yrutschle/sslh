@@ -39,13 +39,13 @@ all: sslh $(MAN) echosrv
 version.h:
 	./genver.sh >version.h
 
-sslh: $(OBJS) sslh-fork sslh-select
+sslh: sslh-fork sslh-select
 
-sslh-fork: $(OBJS) sslh-fork.o Makefile common.h version.h
+sslh-fork: version.h $(OBJS) sslh-fork.o Makefile common.h
 	$(CC) $(CFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	#strip sslh-fork
 
-sslh-select: $(OBJS) sslh-select.o Makefile common.h version.h
+sslh-select: version.h $(OBJS) sslh-select.o Makefile common.h
 	$(CC) $(CFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	#strip sslh-select
 
