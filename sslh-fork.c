@@ -157,7 +157,8 @@ void main_loop(int listen_sockets[], int num_addr_listen)
 
                 if (!fork())
                 {
-                    close(listen_sockets[i]);
+                    for (i = 0; i < num_addr_listen; ++i)
+                        close(listen_sockets[i]);
                     start_shoveler(in_socket);
                     exit(0);
                 }
