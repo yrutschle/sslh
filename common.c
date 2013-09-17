@@ -511,7 +511,7 @@ void drop_privileges(const char* user_name)
 
     res = setgid(pw->pw_gid);
     CHECK_RES_DIE(res, "setgid");
-    setuid(pw->pw_uid);
+    res = setuid(pw->pw_uid);
     CHECK_RES_DIE(res, "setuid");
 }
 
