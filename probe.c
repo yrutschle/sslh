@@ -63,7 +63,8 @@ int get_num_builtins(void) {
 /* Sets the protocol name to connect to in case of timeout */
 void set_ontimeout(const char* name)
 {
-    asprintf(&on_timeout, "%s", name);
+    int res = asprintf(&on_timeout, "%s", name);
+    CHECK_RES_DIE(res, "asprintf");
 }
 
 /* Returns the protocol to connect to in case of timeout; 

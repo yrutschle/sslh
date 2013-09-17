@@ -79,11 +79,14 @@ static void print_usage(void)
 {
     struct proto *p;
     int i;
+    int res;
     char *prots = "";
 
     p = get_builtins();
-    for (i = 0; i < get_num_builtins(); i++)
-        asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p[i].description);
+    for (i = 0; i < get_num_builtins(); i++) {
+        res = asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p[i].description);
+        CHECK_RES_DIE(res, "asprintf");
+    }
 
     fprintf(stderr, USAGE_STRING, prots);
 }
