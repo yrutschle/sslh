@@ -129,13 +129,11 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
 
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-int connect_queue(struct connection *cnx, struct addrinfo *addr, 
-                  const char* cnx_name,
-                  fd_set *fds_r, fd_set *fds_w)
+int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
 {
     struct queue *q = &cnx->q[1];
 
-    q->fd = connect_addr(addr, cnx->q[0].fd, cnx_name);
+    q->fd = connect_addr(cnx, cnx->q[0].fd);
     if ((q->fd != -1) && fd_is_in_range(q->fd)) {
         log_connection(cnx);
         set_nonblock(q->fd);
@@ -322,10 +320,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;
                         } else {
-                            res = connect_queue(&cnx[i], 
-                                                cnx[i].proto->saddr, 
-                                                cnx[i].proto->description, 
-                                                &fds_r, &fds_w);
+                            res = connect_queue(&cnx[i], &fds_r, &fds_w);
                         }
 
                         if (res >= max_fd)

@@ -126,22 +126,22 @@ int bind_peer(int fd, int fd_from)
 /* Connect to first address that works and returns a file descriptor, or -1 if
  * none work. 
  * If transparent proxying is on, use fd_from peer address on external address
- * of new file descriptor.
- * cnx_name points to the name of the service (for logging) */
-int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
+ * of new file descriptor. */
+int connect_addr(struct connection *cnx, int fd_from)
 {
     struct addrinfo *a;
     char buf[NI_MAXHOST];
     int fd, res;
 
-    for (a = addr; a; a = a->ai_next) {
+    for (a = cnx->proto->saddr; a; a = a->ai_next) {
         if (verbose) 
             fprintf(stderr, "connecting to %s family %d len %d\n", 
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
-            log_message(LOG_ERR, "forward to %s failed:socket: %s\n", cnx_name, strerror(errno));
+            log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
+                        cnx->proto->description, strerror(errno));
         } else {
             if (transparent) {
                 res = bind_peer(fd, fd_from);
@@ -150,7 +150,7 @@ int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
                 log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 
-                            cnx_name, strerror(errno));
+                            cnx->proto->description, strerror(errno));
             } else {
                 return fd;
             }

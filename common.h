@@ -84,7 +84,7 @@ struct connection {
 
 /* common.c */
 void init_cnx(struct connection *cnx);
-int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name);
+int connect_addr(struct connection *cnx, int fd_from);
 int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);

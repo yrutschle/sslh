@@ -69,7 +69,6 @@ void start_shoveler(int in_socket)
 {
    fd_set fds;
    struct timeval tv;
-   struct addrinfo *saddr;
    int res = PROBE_AGAIN;
    int out_socket;
    struct connection cnx;
@@ -99,14 +98,13 @@ void start_shoveler(int in_socket)
        }
    }
 
-   saddr = cnx.proto->saddr;
    if (cnx.proto->service &&
        check_access_rights(in_socket, cnx.proto->service)) {
        exit(0);
    }
 
    /* Connect the target socket */
-   out_socket = connect_addr(saddr, in_socket, cnx.proto->description);
+   out_socket = connect_addr(&cnx, in_socket);
    CHECK_RES_DIE(out_socket, "connect");
 
    cnx.q[1].fd = out_socket;
