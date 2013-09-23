@@ -238,7 +238,7 @@ static int regex_probe(const char *p, int len, struct proto *proto)
  * write buffer of the connection and returns a pointer to the protocol
  * structure
  */
-struct proto* probe_client_protocol(struct connection *cnx)
+int probe_client_protocol(struct connection *cnx)
 {
     char buffer[BUFSIZ];
     struct proto *p;
@@ -251,16 +251,19 @@ struct proto* probe_client_protocol(struct connection *cnx)
      * function does not have to deal with a specific  failure condition (the
      * connection will just fail later normally). */
     if (n > 0) {
+        int res = PROBE_NEXT;
+
         defer_write(&cnx->q[1], buffer, n);
 
-        for (p = protocols; p; p = p->next) {
+        for (p = cnx->proto; p && res == PROBE_NEXT; p = p->next) {
             if (! p->probe) continue;
             if (verbose) fprintf(stderr, "probing for %s\n", p->description);
-            if (p->probe(buffer, n, p)) {
-                if (verbose) fprintf(stderr, "probe %s successful\n", p->description);
-                return p;
-            }
+
+            cnx->proto = p;
+            res = p->probe(cnx->q[1].defered_data, cnx->q[1].defered_data_size, p);
         }
+        if (res != PROBE_NEXT)
+            return res;
     }
 
     if (verbose) 
@@ -270,7 +273,8 @@ struct proto* probe_client_protocol(struct connection *cnx)
 
     /* If none worked, return the first one affected (that's completely
      * arbitrary) */
-    return protocols;
+    cnx->proto = protocols;
+    return PROBE_MATCH;
 }
 
 /* Returns the structure for specified protocol or NULL if not found */

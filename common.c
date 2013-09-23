@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 #include "common.h"
+#include "probe.h"
 
 /* Added to make the code compilable under CYGWIN 
  * */
@@ -215,6 +216,7 @@ void init_cnx(struct connection *cnx)
     memset(cnx, 0, sizeof(*cnx));
     cnx->q[0].fd = -1;
     cnx->q[1].fd = -1;
+    cnx->proto = get_first_protocol();
 }
 
 void dump_connection(struct connection *cnx)

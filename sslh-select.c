@@ -210,7 +210,6 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     struct timeval tv;
     int max_fd, in_socket, i, j, res;
     struct connection *cnx;
-    struct proto *prot;
     int num_cnx;  /* Number of connections in *cnx */
     int num_probing = 0; /* Number of connections currently probing 
                           * We use this to know if we need to time out of
@@ -303,26 +302,29 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             dump_connection(&cnx[i]);
                             exit(1);
                         }
-                        num_probing--;
-                        cnx[i].state = ST_SHOVELING;
 
                         /* If timed out it's SSH, otherwise the client sent
                          * data so probe the protocol */
                         if ((cnx[i].probe_timeout < time(NULL))) {
-                            prot = timeout_protocol();
+                            cnx[i].proto = timeout_protocol();
                         } else {
-                            prot = probe_client_protocol(&cnx[i]);
+                            res = probe_client_protocol(&cnx[i]);
+                            if (res == PROBE_AGAIN)
+                                continue;
                         }
 
+                        num_probing--;
+                        cnx[i].state = ST_SHOVELING;
+
                         /* libwrap check if required for this protocol */
-                        if (prot->service && 
-                            check_access_rights(in_socket, prot->service)) {
+                        if (cnx[i].proto->service &&
+                            check_access_rights(in_socket, cnx[i].proto->service)) {
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;
                         } else {
                             res = connect_queue(&cnx[i], 
-                                                prot->saddr, 
-                                                prot->description, 
+                                                cnx[i].proto->saddr, 
+                                                cnx[i].proto->description, 
                                                 &fds_r, &fds_w);
                         }
 

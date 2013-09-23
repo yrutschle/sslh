@@ -49,7 +49,7 @@ void set_protocol_list(struct proto*);
  * write buffer of the connection and returns a pointer to the protocol
  * structure
  */
-struct proto* probe_client_protocol(struct connection *cnx);
+int probe_client_protocol(struct connection *cnx);
 
 /* set the protocol to connect to in case of timeout */
 void set_ontimeout(const char* name);

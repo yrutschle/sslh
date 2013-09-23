@@ -69,6 +69,7 @@ struct queue {
 struct connection {
     enum connection_state state;
     time_t probe_timeout;
+    struct proto *proto;
 
     /* q[0]: queue for external connection (client);
      * q[1]: queue for internal connection (httpd or sshd);
@@ -87,7 +88,6 @@ int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name);
 int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);
-struct proto* probe_client_protocol(struct connection *cnx);
 void log_connection(struct connection *cnx);
 int check_access_rights(int in_socket, const char* service);
 void setup_signals(void);
