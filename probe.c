@@ -126,7 +126,7 @@ void hexdump(const char *mem, unsigned int len)
 static int is_ssh_protocol(const char *p, int len, struct proto *proto)
 {
     if (len < 4)
-        return PROBE_NEXT;
+        return PROBE_AGAIN;
 
     return !strncmp(p, "SSH-", 4);
 }
@@ -146,7 +146,7 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
     int packet_len;
 
     if (len < 2)
-        return PROBE_NEXT;
+        return PROBE_AGAIN;
 
     packet_len = ntohs(*(uint16_t*)p);
     return packet_len == len - 2;
@@ -158,7 +158,7 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
 static int is_tinc_protocol( const char *p, int len, struct proto *proto)
 {
     if (len < 2)
-        return PROBE_NEXT;
+        return PROBE_AGAIN;
 
     return !strncmp(p, "0 ", 2);
 }
@@ -170,7 +170,7 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
 static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 {
     if (len < 6)
-        return PROBE_NEXT;
+        return PROBE_AGAIN;
 
     return memmem(p, len, "jabber", 6) ? 1 : 0;
 }
@@ -178,7 +178,7 @@ static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 static int probe_http_method(const char *p, int len, const char *opt)
 {
     if (len < strlen(opt))
-        return PROBE_NEXT;
+        return PROBE_AGAIN;
 
     return !strncmp(p, opt, len);
 }
@@ -212,7 +212,7 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
     if (len < 3)
-        return PROBE_NEXT;
+        return PROBE_AGAIN;
 
     /* TLS packet starts with a record "Hello" (0x16), followed by version
      * (0x03 0x00-0x03) (RFC6101 A.1)
