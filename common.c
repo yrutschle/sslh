@@ -161,12 +161,20 @@ int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
 /* Store some data to write to the queue later */
 int defer_write(struct queue *q, void* data, int data_size) 
 {
+    char *p;
     if (verbose) 
         fprintf(stderr, "**** writing defered on fd %d\n", q->fd);
-    q->defered_data = malloc(data_size);
-    q->begin_defered_data = q->defered_data;
-    q->defered_data_size = data_size;
-    memcpy(q->defered_data, data, data_size);
+
+    p = realloc(q->defered_data, q->defered_data_size + data_size);
+    if (!p) {
+        perror("realloc");
+        exit(1);
+    }
+
+    q->defered_data = q->begin_defered_data = p;
+    p += q->defered_data_size;
+    q->defered_data_size += data_size;
+    memcpy(p, data, data_size);
 
     return 0;
 }
