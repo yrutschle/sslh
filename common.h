@@ -58,12 +58,12 @@ enum connection_state {
 #define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
 
 /* A 'queue' is composed of a file descriptor (which can be read from or
- * written to), and a queue for defered write data */
+ * written to), and a queue for deferred write data */
 struct queue {
     int fd;
-    void *begin_defered_data;
-    void *defered_data;
-    int defered_data_size;
+    void *begin_deferred_data;
+    void *deferred_data;
+    int deferred_data_size;
 };
 
 struct connection {
@@ -101,7 +101,7 @@ int resolve_split_name(struct addrinfo **out, const char* hostname, const char* 
 int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 
 int defer_write(struct queue *q, void* data, int data_size);
-int flush_defered(struct queue *q);
+int flush_deferred(struct queue *q);
 
 extern int probing_timeout, verbose, inetd, foreground, 
        background, transparent, numeric;

@@ -14,7 +14,7 @@ v1.15:	27JUL2013
 	would happen.
 
 	Fixed bug in sslh-select: if socket dropped while
-	defered_data was present, sslh-select would crash.
+	deferred_data was present, sslh-select would crash.
 
 	Increased FD_SETSIZE for Cygwin, as the default 64
 	is too low for even moderate load.

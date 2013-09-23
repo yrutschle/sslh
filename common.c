@@ -164,17 +164,17 @@ int defer_write(struct queue *q, void* data, int data_size)
 {
     char *p;
     if (verbose) 
-        fprintf(stderr, "**** writing defered on fd %d\n", q->fd);
+        fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
-    p = realloc(q->defered_data, q->defered_data_size + data_size);
+    p = realloc(q->deferred_data, q->deferred_data_size + data_size);
     if (!p) {
         perror("realloc");
         exit(1);
     }
 
-    q->defered_data = q->begin_defered_data = p;
-    p += q->defered_data_size;
-    q->defered_data_size += data_size;
+    q->deferred_data = q->begin_deferred_data = p;
+    p += q->deferred_data_size;
+    q->deferred_data_size += data_size;
     memcpy(p, data, data_size);
 
     return 0;
@@ -184,27 +184,27 @@ int defer_write(struct queue *q, void* data, int data_size)
  * Upon success, the number of bytes written is returned.
  * Upon failure, -1 returned (e.g. connexion closed)
  * */
-int flush_defered(struct queue *q)
+int flush_deferred(struct queue *q)
 {
     int n;
 
     if (verbose)
-        fprintf(stderr, "flushing defered data to fd %d\n", q->fd);
+        fprintf(stderr, "flushing deferred data to fd %d\n", q->fd);
 
-    n = write(q->fd, q->defered_data, q->defered_data_size);
+    n = write(q->fd, q->deferred_data, q->deferred_data_size);
     if (n == -1)
         return n;
 
-    if (n == q->defered_data_size) {
+    if (n == q->deferred_data_size) {
         /* All has been written -- release the memory */
-        free(q->begin_defered_data);
-        q->begin_defered_data = NULL;
-        q->defered_data = NULL;
-        q->defered_data_size = 0;
+        free(q->begin_deferred_data);
+        q->begin_deferred_data = NULL;
+        q->deferred_data = NULL;
+        q->deferred_data_size = 0;
     } else {
         /* There is data left */
-        q->defered_data += n;
-        q->defered_data_size -= n;
+        q->deferred_data += n;
+        q->deferred_data_size -= n;
     }
 
     return n;
@@ -222,8 +222,8 @@ void init_cnx(struct connection *cnx)
 void dump_connection(struct connection *cnx)
 {
     printf("state: %d\n", cnx->state);
-    printf("fd %d, %d defered\n", cnx->q[0].fd, cnx->q[0].defered_data_size);
-    printf("fd %d, %d defered\n", cnx->q[1].fd, cnx->q[1].defered_data_size);
+    printf("fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
+    printf("fd %d, %d deferred\n", cnx->q[1].fd, cnx->q[1].deferred_data_size);
 }
 
 

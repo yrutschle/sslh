@@ -64,8 +64,8 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
             close(cnx->q[i].fd);
             FD_CLR(cnx->q[i].fd, fds);
             FD_CLR(cnx->q[i].fd, fds2);
-            if (cnx->q[i].defered_data)
-                free(cnx->q[i].defered_data);
+            if (cnx->q[i].deferred_data)
+                free(cnx->q[i].deferred_data);
         }
     }
     init_cnx(cnx);
@@ -137,8 +137,8 @@ int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
     if ((q->fd != -1) && fd_is_in_range(q->fd)) {
         log_connection(cnx);
         set_nonblock(q->fd);
-        flush_defered(q);
-        if (q->defered_data) {
+        flush_deferred(q);
+        if (q->deferred_data) {
             FD_SET(q->fd, fds_w);
         } else {
             FD_SET(q->fd, fds_r);
@@ -192,9 +192,9 @@ int is_fd_active(int fd, fd_set* set)
  * - When a file descriptor goes off, process it: read from it, write the data
  * to its corresponding pair.
  * - When a file descriptor blocks when writing, remove the read fd from fds_r,
- * move the data to a defered buffer, and add the write fd to fds_w. Defered
+ * move the data to a deferred buffer, and add the write fd to fds_w. Defered
  * buffer is allocated dynamically.
- * - When we can write to a file descriptor that has defered data, we try to
+ * - When we can write to a file descriptor that has deferred data, we try to
  * write as much as we can. Once all data is written, remove the fd from fds_w
  * and add its corresponding pair to fds_r, free the buffer.
  *
@@ -265,16 +265,16 @@ void main_loop(int listen_sockets[], int num_addr_listen)
             if (cnx[i].q[0].fd != -1) {
                 for (j = 0; j < 2; j++) {
                     if (is_fd_active(cnx[i].q[j].fd, &writefds)) {
-                        res = flush_defered(&cnx[i].q[j]);
+                        res = flush_deferred(&cnx[i].q[j]);
                         if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
                             if (cnx[i].state == ST_PROBING) num_probing--;
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             if (verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
                         } else {
-                            /* If no defered data is left, stop monitoring the fd 
+                            /* If no deferred data is left, stop monitoring the fd 
                              * for write, and restart monitoring the other one for reads*/
-                            if (!cnx[i].q[j].defered_data_size) {
+                            if (!cnx[i].q[j].deferred_data_size) {
                                 FD_CLR(cnx[i].q[j].fd, &fds_w);
                                 FD_SET(cnx[i].q[1-j].fd, &fds_r);
                             }

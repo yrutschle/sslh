@@ -45,7 +45,7 @@ void set_protocol_list(struct proto*);
 /* probe_client_protocol
  *
  * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. Then leave the data on the defered
+ * it's a known protocol. Then leave the data on the deferred
  * write buffer of the connection and returns a pointer to the protocol
  * structure
  */
