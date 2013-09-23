@@ -5,6 +5,12 @@
 
 #include "common.h"
 
+typedef enum {
+    PROBE_NEXT,
+    PROBE_MATCH,
+    PROBE_AGAIN,
+} probe_result;
+
 struct proto;
 typedef int T_PROBE(const char*, int, struct proto*);
 

@@ -125,10 +125,10 @@ void hexdump(const char *mem, unsigned int len)
 /* Is the buffer the beginning of an SSH connection? */
 static int is_ssh_protocol(const char *p, int len, struct proto *proto)
 {
-    if (len >= 4 && !strncmp(p, "SSH-", 4)) {
-        return 1;
-    }
-    return 0;
+    if (len < 4)
+        return PROBE_NEXT;
+
+    return !strncmp(p, "SSH-", 4);
 }
 
 /* Is the buffer the beginning of an OpenVPN connection?
@@ -146,7 +146,7 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
     int packet_len;
 
     if (len < 2)
-        return 0;
+        return PROBE_NEXT;
 
     packet_len = ntohs(*(uint16_t*)p);
     return packet_len == len - 2;
@@ -158,7 +158,7 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
 static int is_tinc_protocol( const char *p, int len, struct proto *proto)
 {
     if (len < 2)
-        return 0;
+        return PROBE_NEXT;
 
     return !strncmp(p, "0 ", 2);
 }
@@ -169,13 +169,16 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
  * */
 static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 {
+    if (len < 6)
+        return PROBE_NEXT;
+
     return memmem(p, len, "jabber", 6) ? 1 : 0;
 }
 
 static int probe_http_method(const char *p, int len, const char *opt)
 {
     if (len < strlen(opt))
-        return 0;
+        return PROBE_NEXT;
 
     return !strncmp(p, opt, len);
 }
@@ -183,11 +186,12 @@ static int probe_http_method(const char *p, int len, const char *opt)
 /* Is the buffer the beginning of an HTTP connection?  */
 static int is_http_protocol(const char *p, int len, struct proto *proto)
 {
+    int res;
     /* If it's got HTTP in the request (HTTP/1.1) then it's HTTP */
     if (memmem(p, len, "HTTP", 4))
-        return 1;
+        return PROBE_MATCH;
 
-#define PROBE_HTTP_METHOD(opt) if (probe_http_method(p, len, opt)) return 1
+#define PROBE_HTTP_METHOD(opt) if ((res = probe_http_method(p, len, opt)) != PROBE_NEXT) return res
 
     /* Otherwise it could be HTTP/1.0 without version: check if it's got an
      * HTTP method (RFC2616 5.1.1) */
@@ -202,13 +206,13 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
 
 #undef PROBE_HTTP_METHOD
 
-    return 0;
+    return PROBE_NEXT;
 }
 
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
     if (len < 3)
-        return 0;
+        return PROBE_NEXT;
 
     /* TLS packet starts with a record "Hello" (0x16), followed by version
      * (0x03 0x00-0x03) (RFC6101 A.1)
