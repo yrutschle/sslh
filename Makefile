@@ -80,7 +80,7 @@ distclean: clean
 	rm -f tags cscope.*
 
 clean:
-	rm -f sslh-fork sslh-select echosrv $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info 
+	rm -f sslh-fork sslh-select echosrv version.h $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
 
 tags:
 	ctags --globals -T *.[ch]
