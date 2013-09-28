@@ -230,7 +230,7 @@ void dump_connection(struct connection *cnx)
 /* 
  * moves data from one fd to other
  *
- * retuns number of bytes copied if success
+ * returns number of bytes copied if success
  * returns 0 (FD_CNXCLOSED) if incoming socket closed
  * returns FD_NODATA if no data was available
  * returns FD_STALLED if data was read, could not be written, and has been
@@ -265,7 +265,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
 
    size_w = write(target, buffer, size_r);
    /* process -1 when we know how to deal with it */
-   if ((size_w == -1)) {
+   if (size_w == -1) {
        switch (errno) {
        case EAGAIN:
            /* write blocked: Defer data */
@@ -479,7 +479,7 @@ void setup_signals(void)
     res = sigaction(SIGCHLD, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
 
-    /* Set SIGTERM to exit. For some reason if it's not set explicitely,
+    /* Set SIGTERM to exit. For some reason if it's not set explicitly,
      * coverage information is lost when killing the process */
     memset(&action, 0, sizeof(action));
     action.sa_handler = exit;
@@ -509,7 +509,7 @@ void setup_syslog(const char* bin_name) {
     log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
 }
 
-/* We don't want to run as root -- drop priviledges if required */
+/* We don't want to run as root -- drop privileges if required */
 void drop_privileges(const char* user_name)
 {
     int res;

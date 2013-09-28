@@ -188,7 +188,7 @@ int is_fd_active(int fd, fd_set* set)
 }
 
 /* Main loop: the idea is as follow:
- * - fds_r and fds_w contain the file descritors to monitor in read and write
+ * - fds_r and fds_w contain the file descriptors to monitor in read and write
  * - When a file descriptor goes off, process it: read from it, write the data
  * to its corresponding pair.
  * - When a file descriptor blocks when writing, remove the read fd from fds_r,

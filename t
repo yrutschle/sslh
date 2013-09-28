@@ -58,7 +58,7 @@ for my $binary (@binaries) {
         my $cmd = "./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
         warn "$cmd\n";
         #exec $cmd;
-        exec "valgrind --leak-check=full ./sslh-select -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
+        exec "valgrind --leak-check=full ./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
         exit 0;
     }
     warn "spawned $sslh_pid\n";
