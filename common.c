@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 #include "common.h"
+#include "probe.h"
 
 /* Added to make the code compilable under CYGWIN 
  * */
@@ -125,22 +126,22 @@ int bind_peer(int fd, int fd_from)
 /* Connect to first address that works and returns a file descriptor, or -1 if
  * none work. 
  * If transparent proxying is on, use fd_from peer address on external address
- * of new file descriptor.
- * cnx_name points to the name of the service (for logging) */
-int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
+ * of new file descriptor. */
+int connect_addr(struct connection *cnx, int fd_from)
 {
     struct addrinfo *a;
     char buf[NI_MAXHOST];
     int fd, res;
 
-    for (a = addr; a; a = a->ai_next) {
+    for (a = cnx->proto->saddr; a; a = a->ai_next) {
         if (verbose) 
             fprintf(stderr, "connecting to %s family %d len %d\n", 
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
-            log_message(LOG_ERR, "forward to %s failed:socket: %s\n", cnx_name, strerror(errno));
+            log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
+                        cnx->proto->description, strerror(errno));
         } else {
             if (transparent) {
                 res = bind_peer(fd, fd_from);
@@ -149,7 +150,7 @@ int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
                 log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 
-                            cnx_name, strerror(errno));
+                            cnx->proto->description, strerror(errno));
             } else {
                 return fd;
             }
@@ -161,12 +162,20 @@ int connect_addr(struct addrinfo *addr, int fd_from, const char* cnx_name)
 /* Store some data to write to the queue later */
 int defer_write(struct queue *q, void* data, int data_size) 
 {
+    char *p;
     if (verbose) 
-        fprintf(stderr, "**** writing defered on fd %d\n", q->fd);
-    q->defered_data = malloc(data_size);
-    q->begin_defered_data = q->defered_data;
-    q->defered_data_size = data_size;
-    memcpy(q->defered_data, data, data_size);
+        fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
+
+    p = realloc(q->begin_deferred_data, q->deferred_data_size + data_size);
+    if (!p) {
+        perror("realloc");
+        exit(1);
+    }
+
+    q->deferred_data = q->begin_deferred_data = p;
+    p += q->deferred_data_size;
+    q->deferred_data_size += data_size;
+    memcpy(p, data, data_size);
 
     return 0;
 }
@@ -175,27 +184,27 @@ int defer_write(struct queue *q, void* data, int data_size)
  * Upon success, the number of bytes written is returned.
  * Upon failure, -1 returned (e.g. connexion closed)
  * */
-int flush_defered(struct queue *q)
+int flush_deferred(struct queue *q)
 {
     int n;
 
     if (verbose)
-        fprintf(stderr, "flushing defered data to fd %d\n", q->fd);
+        fprintf(stderr, "flushing deferred data to fd %d\n", q->fd);
 
-    n = write(q->fd, q->defered_data, q->defered_data_size);
+    n = write(q->fd, q->deferred_data, q->deferred_data_size);
     if (n == -1)
         return n;
 
-    if (n == q->defered_data_size) {
+    if (n == q->deferred_data_size) {
         /* All has been written -- release the memory */
-        free(q->begin_defered_data);
-        q->begin_defered_data = NULL;
-        q->defered_data = NULL;
-        q->defered_data_size = 0;
+        free(q->begin_deferred_data);
+        q->begin_deferred_data = NULL;
+        q->deferred_data = NULL;
+        q->deferred_data_size = 0;
     } else {
         /* There is data left */
-        q->defered_data += n;
-        q->defered_data_size -= n;
+        q->deferred_data += n;
+        q->deferred_data_size -= n;
     }
 
     return n;
@@ -207,20 +216,21 @@ void init_cnx(struct connection *cnx)
     memset(cnx, 0, sizeof(*cnx));
     cnx->q[0].fd = -1;
     cnx->q[1].fd = -1;
+    cnx->proto = get_first_protocol();
 }
 
 void dump_connection(struct connection *cnx)
 {
     printf("state: %d\n", cnx->state);
-    printf("fd %d, %d defered\n", cnx->q[0].fd, cnx->q[0].defered_data_size);
-    printf("fd %d, %d defered\n", cnx->q[1].fd, cnx->q[1].defered_data_size);
+    printf("fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
+    printf("fd %d, %d deferred\n", cnx->q[1].fd, cnx->q[1].deferred_data_size);
 }
 
 
 /* 
  * moves data from one fd to other
  *
- * retuns number of bytes copied if success
+ * returns number of bytes copied if success
  * returns 0 (FD_CNXCLOSED) if incoming socket closed
  * returns FD_NODATA if no data was available
  * returns FD_STALLED if data was read, could not be written, and has been
@@ -255,7 +265,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
 
    size_w = write(target, buffer, size_r);
    /* process -1 when we know how to deal with it */
-   if ((size_w == -1)) {
+   if (size_w == -1) {
        switch (errno) {
        case EAGAIN:
            /* write blocked: Defer data */
@@ -469,7 +479,7 @@ void setup_signals(void)
     res = sigaction(SIGCHLD, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
 
-    /* Set SIGTERM to exit. For some reason if it's not set explicitely,
+    /* Set SIGTERM to exit. For some reason if it's not set explicitly,
      * coverage information is lost when killing the process */
     memset(&action, 0, sizeof(action));
     action.sa_handler = exit;
@@ -499,7 +509,7 @@ void setup_syslog(const char* bin_name) {
     log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
 }
 
-/* We don't want to run as root -- drop priviledges if required */
+/* We don't want to run as root -- drop privileges if required */
 void drop_privileges(const char* user_name)
 {
     int res;

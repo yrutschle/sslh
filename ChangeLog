@@ -1,4 +1,10 @@
 vNEXT:
+	Probes made more resilient, to incoming data
+	containing NULLs. Also made them behave properly
+	when receiving too short packets to probe on the
+	first incoming packet.
+	(Ondrej Kuzník)
+
 	Fixed bugs related to getpeername that would cause
 	sslh to quit erroneously (getpeername can return
 	actual errors if connections are dropped before
@@ -14,7 +20,7 @@ v1.15:	27JUL2013
 	would happen.
 
 	Fixed bug in sslh-select: if socket dropped while
-	defered_data was present, sslh-select would crash.
+	deferred_data was present, sslh-select would crash.
 
 	Increased FD_SETSIZE for Cygwin, as the default 64
 	is too low for even moderate load.

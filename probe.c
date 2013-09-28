@@ -125,10 +125,10 @@ void hexdump(const char *mem, unsigned int len)
 /* Is the buffer the beginning of an SSH connection? */
 static int is_ssh_protocol(const char *p, int len, struct proto *proto)
 {
-    if (!strncmp(p, "SSH-", 4)) {
-        return 1;
-    }
-    return 0;
+    if (len < 4)
+        return PROBE_AGAIN;
+
+    return !strncmp(p, "SSH-", 4);
 }
 
 /* Is the buffer the beginning of an OpenVPN connection?
@@ -143,8 +143,12 @@ static int is_ssh_protocol(const char *p, int len, struct proto *proto)
  */
 static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
 {
-    int packet_len = ntohs(*(uint16_t*)p);
+    int packet_len;
 
+    if (len < 2)
+        return PROBE_AGAIN;
+
+    packet_len = ntohs(*(uint16_t*)p);
     return packet_len == len - 2;
 }
 
@@ -153,6 +157,9 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
  * */
 static int is_tinc_protocol( const char *p, int len, struct proto *proto)
 {
+    if (len < 2)
+        return PROBE_AGAIN;
+
     return !strncmp(p, "0 ", 2);
 }
 
@@ -162,37 +169,51 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
  * */
 static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 {
-    return strstr(p, "jabber") ? 1 : 0;
+    if (len < 6)
+        return PROBE_AGAIN;
+
+    return memmem(p, len, "jabber", 6) ? 1 : 0;
 }
 
-static int probe_http_method(const char *p, const char *opt)
+static int probe_http_method(const char *p, int len, const char *opt)
 {
-    return !strcmp(p, opt);
+    if (len < strlen(opt))
+        return PROBE_AGAIN;
+
+    return !strncmp(p, opt, len);
 }
 
 /* Is the buffer the beginning of an HTTP connection?  */
 static int is_http_protocol(const char *p, int len, struct proto *proto)
 {
+    int res;
     /* If it's got HTTP in the request (HTTP/1.1) then it's HTTP */
-    if (strstr(p, "HTTP"))
-        return 1;
+    if (memmem(p, len, "HTTP", 4))
+        return PROBE_MATCH;
+
+#define PROBE_HTTP_METHOD(opt) if ((res = probe_http_method(p, len, opt)) != PROBE_NEXT) return res
 
     /* Otherwise it could be HTTP/1.0 without version: check if it's got an
      * HTTP method (RFC2616 5.1.1) */
-    probe_http_method(p, "OPTIONS");
-    probe_http_method(p, "GET");
-    probe_http_method(p, "HEAD");
-    probe_http_method(p, "POST");
-    probe_http_method(p, "PUT");
-    probe_http_method(p, "DELETE");
-    probe_http_method(p, "TRACE");
-    probe_http_method(p, "CONNECT");
+    PROBE_HTTP_METHOD("OPTIONS");
+    PROBE_HTTP_METHOD("GET");
+    PROBE_HTTP_METHOD("HEAD");
+    PROBE_HTTP_METHOD("POST");
+    PROBE_HTTP_METHOD("PUT");
+    PROBE_HTTP_METHOD("DELETE");
+    PROBE_HTTP_METHOD("TRACE");
+    PROBE_HTTP_METHOD("CONNECT");
 
-    return 0;
+#undef PROBE_HTTP_METHOD
+
+    return PROBE_NEXT;
 }
 
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
+    if (len < 3)
+        return PROBE_AGAIN;
+
     /* TLS packet starts with a record "Hello" (0x16), followed by version
      * (0x03 0x00-0x03) (RFC6101 A.1)
      * This means we reject SSLv2 and lower, which is actually a good thing (RFC6176)
@@ -202,25 +223,22 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
 
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
-    regex_t** probe_list = (regex_t**)(proto->data);
-    int i=0;
+    regex_t **probe = proto->data;
+    regmatch_t pos = { 0, len };
 
-    while (probe_list[i]) {
-        if (!regexec(probe_list[i], p, 0, NULL, 0)) {
-            return 1;
-        }
-        i++;
-    }
-    return 0;
+    for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
+        /* try them all */;
+
+    return (probe != NULL);
 }
 
 /* 
  * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. Then leave the data on the defered
- * write buffer of the connection and returns a pointer to the protocol
- * structure
+ * it's a known protocol. 
+ * Return PROBE_AGAIN if not enough data, or PROBE_MATCH if it succeeded in
+ * which case cnx->proto is set to the appropriate protocol.
  */
-struct proto* probe_client_protocol(struct connection *cnx)
+int probe_client_protocol(struct connection *cnx)
 {
     char buffer[BUFSIZ];
     struct proto *p;
@@ -233,16 +251,19 @@ struct proto* probe_client_protocol(struct connection *cnx)
      * function does not have to deal with a specific  failure condition (the
      * connection will just fail later normally). */
     if (n > 0) {
+        int res = PROBE_NEXT;
+
         defer_write(&cnx->q[1], buffer, n);
 
-        for (p = protocols; p; p = p->next) {
+        for (p = cnx->proto; p && res == PROBE_NEXT; p = p->next) {
             if (! p->probe) continue;
             if (verbose) fprintf(stderr, "probing for %s\n", p->description);
-            if (p->probe(buffer, n, p)) {
-                if (verbose) fprintf(stderr, "probe %s successful\n", p->description);
-                return p;
-            }
+
+            cnx->proto = p;
+            res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
         }
+        if (res != PROBE_NEXT)
+            return res;
     }
 
     if (verbose) 
@@ -252,7 +273,8 @@ struct proto* probe_client_protocol(struct connection *cnx)
 
     /* If none worked, return the first one affected (that's completely
      * arbitrary) */
-    return protocols;
+    cnx->proto = protocols;
+    return PROBE_MATCH;
 }
 
 /* Returns the structure for specified protocol or NULL if not found */

@@ -64,8 +64,8 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
             close(cnx->q[i].fd);
             FD_CLR(cnx->q[i].fd, fds);
             FD_CLR(cnx->q[i].fd, fds2);
-            if (cnx->q[i].defered_data)
-                free(cnx->q[i].defered_data);
+            if (cnx->q[i].deferred_data)
+                free(cnx->q[i].deferred_data);
         }
     }
     init_cnx(cnx);
@@ -129,18 +129,16 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
 
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-int connect_queue(struct connection *cnx, struct addrinfo *addr, 
-                  const char* cnx_name,
-                  fd_set *fds_r, fd_set *fds_w)
+int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
 {
     struct queue *q = &cnx->q[1];
 
-    q->fd = connect_addr(addr, cnx->q[0].fd, cnx_name);
+    q->fd = connect_addr(cnx, cnx->q[0].fd);
     if ((q->fd != -1) && fd_is_in_range(q->fd)) {
         log_connection(cnx);
         set_nonblock(q->fd);
-        flush_defered(q);
-        if (q->defered_data) {
+        flush_deferred(q);
+        if (q->deferred_data) {
             FD_SET(q->fd, fds_w);
         } else {
             FD_SET(q->fd, fds_r);
@@ -190,13 +188,13 @@ int is_fd_active(int fd, fd_set* set)
 }
 
 /* Main loop: the idea is as follow:
- * - fds_r and fds_w contain the file descritors to monitor in read and write
+ * - fds_r and fds_w contain the file descriptors to monitor in read and write
  * - When a file descriptor goes off, process it: read from it, write the data
  * to its corresponding pair.
  * - When a file descriptor blocks when writing, remove the read fd from fds_r,
- * move the data to a defered buffer, and add the write fd to fds_w. Defered
+ * move the data to a deferred buffer, and add the write fd to fds_w. Defered
  * buffer is allocated dynamically.
- * - When we can write to a file descriptor that has defered data, we try to
+ * - When we can write to a file descriptor that has deferred data, we try to
  * write as much as we can. Once all data is written, remove the fd from fds_w
  * and add its corresponding pair to fds_r, free the buffer.
  *
@@ -210,7 +208,6 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     struct timeval tv;
     int max_fd, in_socket, i, j, res;
     struct connection *cnx;
-    struct proto *prot;
     int num_cnx;  /* Number of connections in *cnx */
     int num_probing = 0; /* Number of connections currently probing 
                           * We use this to know if we need to time out of
@@ -268,16 +265,16 @@ void main_loop(int listen_sockets[], int num_addr_listen)
             if (cnx[i].q[0].fd != -1) {
                 for (j = 0; j < 2; j++) {
                     if (is_fd_active(cnx[i].q[j].fd, &writefds)) {
-                        res = flush_defered(&cnx[i].q[j]);
+                        res = flush_deferred(&cnx[i].q[j]);
                         if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
                             if (cnx[i].state == ST_PROBING) num_probing--;
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             if (verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
                         } else {
-                            /* If no defered data is left, stop monitoring the fd 
+                            /* If no deferred data is left, stop monitoring the fd 
                              * for write, and restart monitoring the other one for reads*/
-                            if (!cnx[i].q[j].defered_data_size) {
+                            if (!cnx[i].q[j].deferred_data_size) {
                                 FD_CLR(cnx[i].q[j].fd, &fds_w);
                                 FD_SET(cnx[i].q[1-j].fd, &fds_r);
                             }
@@ -303,27 +300,27 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             dump_connection(&cnx[i]);
                             exit(1);
                         }
-                        num_probing--;
-                        cnx[i].state = ST_SHOVELING;
 
                         /* If timed out it's SSH, otherwise the client sent
                          * data so probe the protocol */
                         if ((cnx[i].probe_timeout < time(NULL))) {
-                            prot = timeout_protocol();
+                            cnx[i].proto = timeout_protocol();
                         } else {
-                            prot = probe_client_protocol(&cnx[i]);
+                            res = probe_client_protocol(&cnx[i]);
+                            if (res == PROBE_AGAIN)
+                                continue;
                         }
 
+                        num_probing--;
+                        cnx[i].state = ST_SHOVELING;
+
                         /* libwrap check if required for this protocol */
-                        if (prot->service && 
-                            check_access_rights(in_socket, prot->service)) {
+                        if (cnx[i].proto->service &&
+                            check_access_rights(in_socket, cnx[i].proto->service)) {
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;
                         } else {
-                            res = connect_queue(&cnx[i], 
-                                                prot->saddr, 
-                                                prot->description, 
-                                                &fds_r, &fds_w);
+                            res = connect_queue(&cnx[i], &fds_r, &fds_w);
                         }
 
                         if (res >= max_fd)

@@ -275,7 +275,7 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
     config_lookup_bool(&config, "numeric", &numeric);
     config_lookup_bool(&config, "transparent", &transparent);
 
-    if (config_lookup_int(&config, "timeout", &timeout) == CONFIG_TRUE) {
+    if (config_lookup_int(&config, "timeout", (int *)&timeout) == CONFIG_TRUE) {
         probing_timeout = timeout;
     }
 

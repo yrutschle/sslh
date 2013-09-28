@@ -69,47 +69,49 @@ void start_shoveler(int in_socket)
 {
    fd_set fds;
    struct timeval tv;
-   struct addrinfo *saddr;
-   int res;
+   int res = PROBE_AGAIN;
    int out_socket;
    struct connection cnx;
-   struct proto *prot;
 
    init_cnx(&cnx);
+   cnx.q[0].fd = in_socket;
 
    FD_ZERO(&fds);
    FD_SET(in_socket, &fds);
    memset(&tv, 0, sizeof(tv));
    tv.tv_sec = probing_timeout;
-   res = select(in_socket + 1, &fds, NULL, NULL, &tv);
-   if (res == -1)
-      perror("select");
 
-   cnx.q[0].fd = in_socket;
+   while (res == PROBE_AGAIN) {
+       /* POSIX does not guarantee that tv will be updated, but the client can
+        * only postpone the inevitable for so long */
+       res = select(in_socket + 1, &fds, NULL, NULL, &tv);
+       if (res == -1)
+           perror("select");
 
-   if (FD_ISSET(in_socket, &fds)) {
-       /* Received data: figure out what protocol it is */
-       prot = probe_client_protocol(&cnx);
-   } else {
-       /* Timed out: it's necessarily SSH */
-       prot = timeout_protocol();
+       if (FD_ISSET(in_socket, &fds)) {
+           /* Received data: figure out what protocol it is */
+           res = probe_client_protocol(&cnx);
+       } else {
+           /* Timed out: it's necessarily SSH */
+           cnx.proto = timeout_protocol();
+           break;
+       }
    }
 
-   saddr = prot->saddr;
-   if (prot->service && 
-       check_access_rights(in_socket, prot->service)) {
+   if (cnx.proto->service &&
+       check_access_rights(in_socket, cnx.proto->service)) {
        exit(0);
    }
 
    /* Connect the target socket */
-   out_socket = connect_addr(saddr, in_socket, prot->description);
+   out_socket = connect_addr(&cnx, in_socket);
    CHECK_RES_DIE(out_socket, "connect");
 
    cnx.q[1].fd = out_socket;
 
    log_connection(&cnx);
 
-   flush_defered(&cnx.q[1]);
+   flush_deferred(&cnx.q[1]);
 
    shovel(&cnx);
 

@@ -5,6 +5,12 @@
 
 #include "common.h"
 
+typedef enum {
+    PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */
+    PROBE_MATCH, /* Enough data, probe successful -- it's the current protocol */
+    PROBE_AGAIN, /* Not enough data for this probe, try again with more data */
+} probe_result;
+
 struct proto;
 typedef int T_PROBE(const char*, int, struct proto*);
 
@@ -39,11 +45,11 @@ void set_protocol_list(struct proto*);
 /* probe_client_protocol
  *
  * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. Then leave the data on the defered
+ * it's a known protocol. Then leave the data on the deferred
  * write buffer of the connection and returns a pointer to the protocol
  * structure
  */
-struct proto* probe_client_protocol(struct connection *cnx);
+int probe_client_protocol(struct connection *cnx);
 
 /* set the protocol to connect to in case of timeout */
 void set_ontimeout(const char* name);
