@@ -166,7 +166,7 @@ int defer_write(struct queue *q, void* data, int data_size)
     if (verbose) 
         fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
-    p = realloc(q->deferred_data, q->deferred_data_size + data_size);
+    p = realloc(q->begin_deferred_data, q->deferred_data_size + data_size);
     if (!p) {
         perror("realloc");
         exit(1);

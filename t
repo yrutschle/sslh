@@ -18,6 +18,7 @@ my $pidfile = "/tmp/sslh_test.pid";
 my $SSL_CNX =           1;
 my $SSH_SHY_CNX =       1;
 my $SSH_BOLD_CNX =      1;
+my $SSH_PROBE_AGAIN =   1;
 my $SSL_MIX_SSH =       1;
 my $SSH_MIX_SSL =       1;
 my $BIG_MSG =           0; # This test is unreliable
@@ -62,7 +63,7 @@ for my $binary (@binaries) {
         exit 0;
     }
     warn "spawned $sslh_pid\n";
-    sleep 1;  # valgrind can be heavy -- wait 5 seconds
+    sleep 5;  # valgrind can be heavy -- wait 5 seconds
 
 
     my $test_data = "hello world\n";
@@ -107,6 +108,22 @@ for my $binary (@binaries) {
             is($data, "ssh: $td", "Bold SSH connection");
         }
     }
+
+# Test: PROBE_AGAIN, incomplete first frame
+    if ($SSH_PROBE_AGAIN) {
+        print "***Test: incomplete SSH first frame\n";
+        my $cnx_h = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+        warn "$!\n" unless $cnx_h;
+        if (defined $cnx_h) {
+            my $td = "SSH-2.0 testsuite\t$test_data";
+            print $cnx_h substr $td, 0, 2;
+            sleep 1;
+            print $cnx_h substr $td, 2;
+            my $data = <$cnx_h>;
+            is($data, "ssh: $td", "Incomplete first SSH frame");
+        }
+    }
+
 
 # Test: One SSL half-started then one SSH
     if ($SSL_MIX_SSH) {

@@ -234,9 +234,9 @@ static int regex_probe(const char *p, int len, struct proto *proto)
 
 /* 
  * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. Then leave the data on the deferred
- * write buffer of the connection and returns a pointer to the protocol
- * structure
+ * it's a known protocol. 
+ * Return PROBE_AGAIN if not enough data, or PROBE_MATCH if it succeeded in
+ * which case cnx->proto is set to the appropriate protocol.
  */
 int probe_client_protocol(struct connection *cnx)
 {
@@ -260,7 +260,7 @@ int probe_client_protocol(struct connection *cnx)
             if (verbose) fprintf(stderr, "probing for %s\n", p->description);
 
             cnx->proto = p;
-            res = p->probe(cnx->q[1].deferred_data, cnx->q[1].deferred_data_size, p);
+            res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
         }
         if (res != PROBE_NEXT)
             return res;

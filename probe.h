@@ -6,9 +6,9 @@
 #include "common.h"
 
 typedef enum {
-    PROBE_NEXT,
-    PROBE_MATCH,
-    PROBE_AGAIN,
+    PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */
+    PROBE_MATCH, /* Enough data, probe successful -- it's the current protocol */
+    PROBE_AGAIN, /* Not enough data for this probe, try again with more data */
 } probe_result;
 
 struct proto;
