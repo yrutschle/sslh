@@ -1,0 +1,25 @@
+Here's a list of features that have been suggested or
+sometimes requested. This list is not a roadmap and
+shouldn't be construed to mean that any of this will happen.
+
+- configurable behaviour depending on services (e.g.
+  select() for ssl but fork() for ssh).
+
+- have certain services available only from specified subnets
+
+- some sort of "service knocking" allowing to activate a
+  service upon some external even, similar to port knocking;
+for example, go to a specific URL to enable sslh forwarding
+to sshd for a set period of time:
+    * sslh listens on 443 and only directs to httpd
+    * user goes somewhere to https://example.org/open_ssh.cgi
+    * open_ssh.cgi tells sslh
+    * sslh starts checking if incoming connections are ssh, and
+    if they are, forward to sshd
+    * 10 minutes later, sslh stops forwarding to ssh
+
+That would make it almost impossible for an observer
+(someone who'd telnet regularly on 443) to ever notice both
+services are available on 443.
+
+
