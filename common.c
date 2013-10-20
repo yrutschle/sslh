@@ -37,6 +37,10 @@ struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 int allow_severity =0, deny_severity = 0;
 #endif
 
+#ifdef LIBCAP
+#include <sys/prctl.h>
+#include <sys/capability.h>
+#endif
 
 /* check result and die, printing the offending address and error */
 void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
@@ -509,6 +513,56 @@ void setup_syslog(const char* bin_name) {
     log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
 }
 
+/* Ask OS to keep capabilities over a setuid(nonzero) */
+void set_keepcaps(int val) {
+#ifdef LIBCAP
+    int res;
+    res = prctl(PR_SET_KEEPCAPS, val, 0, 0, 0);
+    if (res) {
+        perror("prctl");
+        exit(1);
+    }
+#endif
+}
+
+/* set needed capabilities for effective and permitted, clear rest */
+void set_capabilities(void) {
+#ifdef LIBCAP
+    int res;
+    cap_t caps;
+    cap_value_t cap_list[10];
+    int ncap = 0;
+
+    if (transparent)
+        cap_list[ncap++] = CAP_NET_ADMIN;
+
+    caps = cap_init();
+
+#define _cap_set_flag(flag) do { \
+        res = cap_clear_flag(caps, flag); \
+        CHECK_RES_DIE(res, "cap_clear_flag(" #flag ")"); \
+        if (ncap > 0) { \
+            res = cap_set_flag(caps, flag, ncap, cap_list, CAP_SET); \
+            CHECK_RES_DIE(res, "cap_set_flag(" #flag ")"); \
+        } \
+    } while(0)
+
+    _cap_set_flag(CAP_EFFECTIVE);
+    _cap_set_flag(CAP_PERMITTED);
+
+#undef _cap_set_flag
+
+    res = cap_set_proc(caps);
+    CHECK_RES_DIE(res, "cap_set_proc");
+
+    res = cap_free(caps);
+    if (res) {
+        perror("cap_free");
+        exit(1);
+    }
+#endif
+}
+
 /* We don't want to run as root -- drop privileges if required */
 void drop_privileges(const char* user_name)
 {
@@ -521,10 +575,15 @@ void drop_privileges(const char* user_name)
     if (verbose)
         fprintf(stderr, "turning into %s\n", user_name);
 
+    set_keepcaps(1);
+
     res = setgid(pw->pw_gid);
     CHECK_RES_DIE(res, "setgid");
     res = setuid(pw->pw_uid);
     CHECK_RES_DIE(res, "setuid");
+
+    set_capabilities();
+    set_keepcaps(0);
 }
 
 /* Writes my PID */

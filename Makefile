@@ -3,6 +3,7 @@
 VERSION=$(shell ./genver.sh -r)
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
+USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
 PREFIX=/usr/local
 
@@ -29,6 +30,11 @@ endif
 ifneq ($(strip $(USELIBCONFIG)),)
 	LIBS:=$(LIBS) -lconfig
 	CPPFLAGS+=-DLIBCONFIG
+endif
+
+ifneq ($(strip $(USELIBCAP)),)
+	LIBS:=$(LIBS) -lcap
+	CPPFLAGS+=-DLIBCAP
 endif
 
 all: sslh $(MAN) echosrv
