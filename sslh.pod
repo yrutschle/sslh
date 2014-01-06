@@ -96,6 +96,7 @@ This can be specified several times to bind B<sslh> to
 several addresses.
 
 =item B<--ssl> I<target address>
+
 =item B<--tls> I<target address>
 
 Interface and port on which to forward SSL connection,
