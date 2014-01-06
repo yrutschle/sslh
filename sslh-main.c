@@ -450,7 +450,7 @@ next_arg:
 
     set_protocol_list(prots);
 
-    if (!addr_listen) {
+    if (!addr_listen && !inetd) {
         fprintf(stderr, "No listening address specified; use at least one -p option\n");
         exit(1);
     }
