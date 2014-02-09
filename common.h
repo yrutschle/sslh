@@ -49,6 +49,10 @@
 #define TRACE
 #endif
 
+#ifndef IP_FREEBIND
+#define IP_FREEBIND 0
+#endif
+
 enum connection_state {
     ST_PROBING=1,    /* Waiting for timeout to find where to forward */
     ST_SHOVELING   /* Connexion is established */

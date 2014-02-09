@@ -62,7 +62,7 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
 {
    struct sockaddr_storage *saddr;
    struct addrinfo *addr;
-   int i, res, reuse;
+   int i, res, one;
    int num_addr = 0;
 
    for (addr = addr_list; addr; addr = addr->ai_next)
@@ -83,9 +83,14 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        (*sockfd)[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
        check_res_dumpdie((*sockfd)[i], addr, "socket");
 
-       reuse = 1;
-       res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));
-       check_res_dumpdie(res, addr, "setsockopt");
+       one = 1;
+       res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
+       check_res_dumpdie(res, addr, "setsockopt(SO_REUSEADDR)");
+
+       if (IP_FREEBIND) {
+           res = setsockopt((*sockfd)[i], IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
+           check_res_dumpdie(res, addr, "setsockopt(IP_FREEBIND)");
+       }
 
        res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
        check_res_dumpdie(res, addr, "bind");
