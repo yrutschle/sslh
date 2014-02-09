@@ -189,28 +189,29 @@ Configuration goes like this on the server side, using `stunnel3`:
 Capabilities support
 --------------------
 
-On Linux (only?), you can use POSIX capabilities to reduce a
-server's capabilities to the minimum it needs (see
-`capabilities(8)`.  For sslh, this is `CAP_NET_ADMIN` (to
-perform transparent proxy-ing) and `CAP_NET_BIND_SERVICE` (to
-bind to port 443 without being root).
+On Linux (only?), you can compile sslh with USELIBCAP=1 to
+make use of POSIX capabilities; this will save the required
+capabilities needed for transparent proxying for unprivileged
+processes.
 
-The simplest way to use capabilities is to give them to the
-executable as root:
+Alternatively, you may use filesystem capabilities instead
+of starting sslh as root and asking it to drop privileges.
+You will need CAP_NET_BIND_SERVICE for listening on port 443
+and CAP_NET_ADMIN for transparent proxying (see
+capabilities(7)).
 
-	# setcap cap_net_bind_service,cap_net_admin+pe sslh-select
+You can use the setcap(8) utility to give these capabilities
+to the executable:
 
-Then you can run `sslh-select` as an unpriviledged user, e.g.:
+# setcap cap_net_bind_service,cap_net_admin+pe sslh-select
 
-	$ sslh-select -p myname:443 --ssh localhost:22 --ssl localhost:443
+Then you can run sslh-select as an unpriviledged user, e.g.:
 
-This has 2 advantages over starting as root with `-u`:
-- You no longer start as root (duh)
-- This enables transparent proxying.
+$ sslh-select -p myname:443 --ssh localhost:22 --ssl localhost:443
 
-Caveat: `CAP_NET_ADMIN` does give `sslh` too many rights, e.g.
+Caveat: CAP_NET_ADMIN does give sslh too many rights, e.g.
 configuring the interface. If you're not going to use
-transparent proxying, just don't use it.
+transparent proxying, just don't use it (or use the libcap method).
 
 Transparent proxy support
 -------------------------
