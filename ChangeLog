@@ -5,6 +5,12 @@ vNEXT:
 	first incoming packet.
 	(Ondrej Kuzník)
 
+	Libcap support: Keep only CAP_NET_ADMIN if started
+	as root with transparent proxying and dropping
+	priviledges (enable USELIBCAP in Makefile). This
+	avoids having to mess with filesystem capabilities.
+	(Sebastian Schmidt/yath)
+
 	Fixed bugs related to getpeername that would cause
 	sslh to quit erroneously (getpeername can return
 	actual errors if connections are dropped before

@@ -91,6 +91,23 @@ static void print_usage(void)
     fprintf(stderr, USAGE_STRING, prots);
 }
 
+static void printcaps(void) {
+#ifdef LIBCAP
+    cap_t caps;
+    char* desc;
+    ssize_t len;
+
+    caps = cap_get_proc();
+
+    desc = cap_to_text(caps, &len);
+
+    fprintf(stderr, "capabilities: %s\n", desc);
+
+    cap_free(caps);
+    cap_free(desc);
+#endif
+}
+
 static void printsettings(void)
 {
     char buf[NI_MAXHOST];
@@ -508,8 +525,12 @@ int main(int argc, char *argv[])
    if (user_name)
        drop_privileges(user_name);
 
+
    /* Open syslog connection */
    setup_syslog(argv[0]);
+
+   if (verbose)
+       printcaps();
 
    main_loop(listen_sockets, num_addr_listen);
 

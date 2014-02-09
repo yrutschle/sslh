@@ -27,6 +27,12 @@
 #include <libgen.h>
 #include <time.h>
 #include <getopt.h>
+
+#ifdef LIBCAP
+#include <sys/prctl.h>
+#include <sys/capability.h>
+#endif
+
 #include "version.h"
 
 #define CHECK_RES_DIE(res, str) \

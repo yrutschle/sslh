@@ -37,11 +37,6 @@ struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 int allow_severity =0, deny_severity = 0;
 #endif
 
-#ifdef LIBCAP
-#include <sys/prctl.h>
-#include <sys/capability.h>
-#endif
-
 /* check result and die, printing the offending address and error */
 void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
 {
