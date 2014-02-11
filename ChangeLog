@@ -1,4 +1,4 @@
-vNEXT:
+v1.16:	11FEB2014
 	Probes made more resilient, to incoming data
 	containing NULLs. Also made them behave properly
 	when receiving too short packets to probe on the
