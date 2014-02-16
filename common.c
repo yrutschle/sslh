@@ -155,6 +155,7 @@ int connect_addr(struct connection *cnx, int fd_from)
             if (res == -1) {
                 log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 
                             cnx->proto->description, strerror(errno));
+                close(fd);
             } else {
                 return fd;
             }
