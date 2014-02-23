@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 if [ ${#} -eq 1 ] && [ "x$1" = "x-r" ]; then
 	# release text only
@@ -10,10 +10,19 @@ fi
 if ! `(git status | grep -q "On branch") 2> /dev/null`; then
         # If we don't have git, we can't work out what
         # version this is. It must have been downloaded as a
-        # zip file. Github creates the zip file with all
-        # files dated from the last change: use the
-        # Makefile's modification time as a release number
-	release=zip-`stat -c "%y" Makefile | sed 's/ .*//'`
+        # zip file. 
+        
+        # If downloaded from the release page, the directory
+        # has the version number.
+        release=`pwd | sed s/.*sslh-// | grep "[[:digit:]]"`
+        
+        if [ "x$release" = "x" ]; then
+            # If downloaded from the head, Github creates the
+            # zip file with all files dated from the last
+            # change: use the Makefile's modification time as a
+            # release number
+            release=head-`stat -c "%y" Makefile | sed 's/ .*//'`
+        fi
 fi
 
 if head=`git rev-parse --verify HEAD 2>/dev/null`; then
