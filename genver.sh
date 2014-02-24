@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 if [ ${#} -eq 1 ] && [ "x$1" = "x-r" ]; then
 	# release text only

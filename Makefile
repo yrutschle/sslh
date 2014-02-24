@@ -3,7 +3,7 @@
 VERSION=$(shell ./genver.sh -r)
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP=	# Use libwrap?
-USELIBCAP=1	# Use libcap?
+USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
 PREFIX=/usr/local
 
