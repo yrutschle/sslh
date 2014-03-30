@@ -2,7 +2,7 @@
 # main: processing of config file, command line options and start the main
 # loop.
 #
-# Copyright (C) 2007-2012  Yves Rutschle
+# Copyright (C) 2007-2014  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -33,7 +33,7 @@
 const char* USAGE_STRING =
 "sslh " VERSION "\n" \
 "usage:\n" \
-"\tsslh  [-v] [-i] [-V] [-f] [-n] [-F <file>]\n"
+"\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F <file>]\n"
 "\t[-t <timeout>] [-P <pidfile>] -u <username> -p <add> [-p <addr> ...] \n" \
 "%s\n\n" /* Dynamically built list of builtin protocols */  \
 "\t[--on-timeout <addr>]\n" \
@@ -41,6 +41,7 @@ const char* USAGE_STRING =
 "-V: version\n" \
 "-f: foreground\n" \
 "-n: numeric output\n" \
+"--transparent: behave as a transparent proxy\n" \
 "-F: use configuration file\n" \
 "--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
 "-t: seconds to wait before connecting to --on-timeout address.\n" \

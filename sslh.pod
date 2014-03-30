@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [B<-F> I<config file>] [ B<-t> I<num> ] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [B<-F> I<config file>] [ B<-t> I<num> ] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
@@ -85,6 +85,13 @@ protocol (which should usually be SSH). Default is 2s.
 
 Name of the protocol to connect to after the timeout period
 is over. Default is 'ssh'.
+
+=item B<--transparent>
+
+Makes B<sslh> behave as a transparent proxy, i.e. the
+receiving service sees the original client's IP address.
+This works on Linux only and involves B<iptables> settings.
+Refer to the README for more information.
 
 =item B<-p> I<listening address>, B<--listen> I<listening address>
 
