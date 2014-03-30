@@ -1,3 +1,8 @@
+vNEXT: 
+	Call setgroups() before setgid() (fixes potential
+	privilege escalation).
+	(Lars Vogdt)
+
 v1.16:	11FEB2014
 	Probes made more resilient, to incoming data
 	containing NULLs. Also made them behave properly

@@ -6,6 +6,7 @@
 
 #define _GNU_SOURCE
 #include <stdarg.h>
+#include <grp.h>
 
 #include "common.h"
 #include "probe.h"
@@ -577,6 +578,13 @@ void drop_privileges(const char* user_name)
         fprintf(stderr, "turning into %s\n", user_name);
 
     set_keepcaps(1);
+
+    /* remove extraneous groups in case we belong to several extra groups that
+     * may have unwanted rights. If non-root when calling setgroups(), it
+     * fails, which is fine because... we have no unwanted rights 
+     * (see POS36-C for security context)
+     * */
+    setgroups(0, NULL);
 
     res = setgid(pw->pw_gid);
     CHECK_RES_DIE(res, "setgid");
