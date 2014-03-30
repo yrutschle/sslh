@@ -250,6 +250,18 @@ This will not work:
 
 	sslh --listen 192.168.0.1:443 --ssh 127.0.0.1:22 --ssl 127.0.0.1:4443
 
+Fail2ban
+--------
+
+If using transparent proxying, just use the standard ssh
+rules. If you can't or don't want to use transparent
+proxying, you can set `fail2ban` rules to block repeated ssh
+connections from a same IP address (obviously this depends
+on the site, there might be legimite reasons you would get
+many connections to ssh from the same IP address...)
+
+See example files in scripts/fail2ban.
+
 Comments? Questions?
 ====================
 

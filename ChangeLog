@@ -3,6 +3,9 @@ vNEXT:
 	privilege escalation).
 	(Lars Vogdt)
 
+	Example configuration for fail2ban.
+	(Every Mouw)
+
 v1.16:	11FEB2014
 	Probes made more resilient, to incoming data
 	containing NULLs. Also made them behave properly
