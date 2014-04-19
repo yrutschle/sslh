@@ -151,7 +151,8 @@ To support OpenVPN connexions reliably, it is necessary to
 increase `sslh`'s timeout to 5 seconds.
 
 Instead of using OpenVPN's port sharing, it is more reliable
-to use `sslh`'s `-o` option to get `sslh` to do the port sharing.
+to use `sslh`'s `--openvpn` option to get `sslh` to do the
+port sharing.
 
 Using proxytunnel with sslh
 ---------------------------
