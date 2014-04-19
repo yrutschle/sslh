@@ -76,6 +76,12 @@ B<--on-timeout>, or I<ssh> if none is specified.
 
 =over 4
 
+=item B<-F> I<filename>, B<--config> I<filename>
+
+Uses I<filename> has configuration file. If other
+command-line options are specified, they will override the
+configuration file's settings.
+
 =item B<-t> I<num>, B<--timeout> I<num>
 
 Timeout before forwarding the connection to the timeout
