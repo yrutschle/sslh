@@ -41,13 +41,13 @@ const char* USAGE_STRING =
 "-V: version\n" \
 "-f: foreground\n" \
 "-n: numeric output\n" \
+"-u: specify under which user to run\n" \
 "--transparent: behave as a transparent proxy\n" \
 "-F: use configuration file\n" \
 "--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
 "-t: seconds to wait before connecting to --on-timeout address.\n" \
 "-p: address and port to listen on.\n    Can be used several times to bind to several addresses.\n" \
 "--[ssh,ssl,...]: where to connect connections from corresponding protocol.\n" \
-"-F: specify a configuration file\n" \
 "-P: PID file.\n" \
 "-i: Run as a inetd service.\n" \
 "";
