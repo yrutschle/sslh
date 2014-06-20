@@ -120,8 +120,13 @@ int bind_peer(int fd, int fd_from)
      * got here */
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername");
-    res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
-    CHECK_RES_DIE(res, "setsockopt");
+    if (from.ai_addr->sa_family==AF_INET) { /* IPv4 */
+        res = setsockopt(fd, IPPROTO_IP, IP_BINDANY, &trans, sizeof(trans));
+	CHECK_RES_RETURN(res, "setsockopt IP_BINDANY");
+    } else { /* IPv6 */
+        res = setsockopt(fd, IPPROTO_IPV6, IPV6_BINDANY, &trans, sizeof(trans));
+	CHECK_RES_RETURN(res, "setsockopt IPV6_BINDANY");
+    }
     res = bind(fd, from.ai_addr, from.ai_addrlen);
     CHECK_RES_RETURN(res, "bind");
 
@@ -143,6 +148,8 @@ int connect_addr(struct connection *cnx, int fd_from)
             fprintf(stderr, "connecting to %s family %d len %d\n", 
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
+
+	/* XXX Needs to match ai_family from fd_from when being transparent! */
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
