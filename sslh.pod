@@ -72,6 +72,12 @@ If no data is sent by the client, B<sslh> will eventually
 time out and connect to the protocol specified with
 B<--on-timeout>, or I<ssh> if none is specified.
 
+=head2 Logging
+
+As a security/authorization program, B<sslh> logs to the
+LOG_AUTH facility, with priority LOG_INFO for normal
+connections and LOG_ERR for failures.
+
 =head1 OPTIONS
 
 =over 4
