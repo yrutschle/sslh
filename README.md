@@ -217,12 +217,14 @@ transparent proxying, just don't use it (or use the libcap method).
 Transparent proxy support
 -------------------------
 
-On Linux (only?) you can use the `--transparent` option to
+On Linux and FreeBSD you can use the `--transparent` option to
 request transparent proying. This means services behind `sslh`
 (Apache, `sshd` and so on) will see the external IP and ports
 as if the external world connected directly to them. This
 simplifies IP-based access control (or makes it possible at
 all).
+
+Linux:
 
 `sslh` needs extended rights to perform this: you'll need to
 give it `CAP_NET_ADMIN` capabilities (see appropriate chapter)
@@ -240,6 +242,42 @@ this scheme -- let me know if you manage that:
 	# iptables -t mangle -A SSLH --jump ACCEPT
 	# ip rule add fwmark 0x1 lookup 100
 	# ip route add local 0.0.0.0/0 dev lo table 100
+
+FreeBSD:
+
+Given you have no firewall defined yet, you can use the following configuration
+to have ipfw properly redirect traffic back to sslh
+
+/etc/rc.conf
+firewall_enable="YES"
+firewall_type="open"
+firewall_logif="YES"
+firewall_coscripts="/etc/ipfw/sslh.rules"
+
+
+/etc/ipfw/sslh.rules
+#! /bin/sh
+
+# ssl
+ipfw add 20000 fwd 192.0.2.1,443 log tcp from 192.0.2.1 8443 to any out
+ipfw add 20010 fwd 2001:db8::1,443 log tcp from 2001:db8::1 8443 to any out
+
+# ssh
+ipfw add 20100 fwd 192.0.2.1,443 log tcp from 192.0.2.1 8022 to any out
+ipfw add 20110 fwd 2001:db8::1,443 log tcp from 2001:db8::1 8022 to any out
+
+# xmpp
+ipfw add 20200 fwd 192.0.2.1,443 log tcp from 192.0.2.1 5222 to any out
+ipfw add 20210 fwd 2001:db8::1,443 log tcp from 2001:db8::1 5222 to any out
+
+# openvpn (running on other internal system)
+ipfw add 20300 fwd 192.0.2.1,443 log tcp from 198.51.100.7 1194 to any out
+ipfw add 20310 fwd 2001:db8::1,443 log tcp from 2001:db8:1::7 1194 to any out
+
+
+
+
+
 
 This will only work if `sslh` does not use any loopback
 addresses (no `127.0.0.1` or `localhost`), you'll need to use
