@@ -139,11 +139,22 @@ int bind_peer(int fd, int fd_from)
  * of new file descriptor. */
 int connect_addr(struct connection *cnx, int fd_from)
 {
-    struct addrinfo *a;
+    struct addrinfo *a, from;
+    struct sockaddr_storage ss;
     char buf[NI_MAXHOST];
     int fd, res;
 
+    memset(&from, 0, sizeof(from));
+    from.ai_addr = (struct sockaddr*)&ss;
+    from.ai_addrlen = sizeof(ss);
+
+    res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
+    CHECK_RES_RETURN(res, "getpeername");
+
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
+        /* When transparent, make sure both connections use the same address family */
+        if (transparent && a->ai_family != from.ai_addr->sa_family)
+            continue;
         if (verbose) 
             fprintf(stderr, "connecting to %s family %d len %d\n", 
                     sprintaddr(buf, sizeof(buf), a),
