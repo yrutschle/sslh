@@ -33,6 +33,7 @@ static int is_tinc_protocol(const char *p, int len, struct proto*);
 static int is_xmpp_protocol(const char *p, int len, struct proto*);
 static int is_http_protocol(const char *p, int len, struct proto*);
 static int is_tls_protocol(const char *p, int len, struct proto*);
+static int is_syslog_protocol(const char *p, int len, struct proto*);
 static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -46,6 +47,7 @@ static struct proto builtins[] = {
     { "http",        NULL,     NULL,   is_http_protocol },
     { "ssl",         NULL,     NULL,   is_tls_protocol },
     { "tls",         NULL,     NULL,   is_tls_protocol },
+    { "syslog",      NULL,     NULL,   is_syslog_protocol },
     { "anyprot",     NULL,     NULL,   is_true }
 };
 
@@ -219,6 +221,86 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
      * This means we reject SSLv2 and lower, which is actually a good thing (RFC6176)
      */
     return p[0] == 0x16 && p[1] == 0x03 && ( p[2] >= 0 && p[2] <= 0x03);
+}
+
+/*
+ * Checks if frame starts with <pri> and the priority is a valid syslog value
+ */
+static int is_valid_syslog_frame_start(const char *p, int len)
+{
+    const char *ptr=p;
+    char ch;
+    int priLen=0, priValue=0;
+
+    if (len < 3)    /* must be at least <1> */
+        return 0;
+
+    if (*p != '<')
+        return 0;
+    
+    for (priLen=0, ptr++; priLen < len; priLen++, ptr++)
+    {
+        ch = *ptr;
+
+        /* check if found end delimiter */
+        if ('>' == ch)
+        {
+            if (priLen > 3)
+                return 0;   /* syslog priority can have at most 3 digits */
+            
+            /*
+             * The Priority value is calculated by first multiplying the Facility
+             * number by 8 and then adding the numerical value of the Severity.
+             * We have max. facility value=23 (local7) and max. severity value=7
+             * (debug) ==> 23 * 8 + 7 = 191
+             */
+            return (priValue < 192);
+        }
+        
+        if ((ch < '0') || (ch > '9'))
+            return 0;   /* up to the separator they must be digits only */
+        
+        if ((0 == priLen) && ('0' == ch))
+            return !strncmp(p, "<0>", 3);    /* no leading zero is allowed - unless it is '<0>' itself */
+
+        priValue *= 10;     /* make room for next digit */
+        priValue += (ch - '0');
+    }
+
+    return 0;   // this point is reached if no separator found
+}
+
+/* Is the buffer the beginning of an RFC-6857 framed syslog message
+ *
+ * See:
+ * https://tools.ietf.org/html/rfc6587#section-3.4
+ * and OpenVPN ssl.c, ssl.h and options.c
+ */
+static int is_syslog_protocol(const char*p,int len, struct proto *proto)
+{
+    const char *ptr=p;
+    char ch;
+    int remainLen=len;
+
+    /* even with octet count framing we should have at least a digit, a space and one character */
+    if (len < 3)
+        return PROBE_AGAIN;
+
+    if ('<' == *p)  /* is it LF encapsulated frame - most common */
+        return is_valid_syslog_frame_start(ptr, remainLen);
+
+    // is it octet count frame encapsulation
+    for ( ; remainLen > 0; remainLen--, ptr++)
+    {
+        ch = *ptr;
+        if (' ' == ch)    /* found separator - the rest should be a valid syslog frame */
+            return is_valid_syslog_frame_start(ptr + 1, remainLen - 1);
+        
+        if ((ch < '0') || (ch > '9'))
+            return 0;   /* up to the separator they must be digits only */
+    }
+
+    return 0;   // this point is reached if no separator found
 }
 
 static int regex_probe(const char *p, int len, struct proto *proto)
