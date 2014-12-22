@@ -1,4 +1,6 @@
 vNEXT: 
+	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
+
 	Call setgroups() before setgid() (fixes potential
 	privilege escalation).
 	(Lars Vogdt)

@@ -349,20 +349,30 @@ fullname: input string -- it gets clobbered
 */
 void resolve_name(struct addrinfo **out, char* fullname)
 {
-   char *serv, *host;
+   char *serv, *host, *end;
    int res;
 
+   /* Find port */
    char *sep = strrchr(fullname, ':');
-
-   if (!sep) /* No separator: parameter is just a port */
-   {
+   if (!sep) { /* No separator: parameter is just a port */
       fprintf(stderr, "%s: names must be fully specified as hostname:port\n", fullname);
       exit(1);
    }
-
-   host = fullname;
    serv = sep+1;
    *sep = 0;
+
+   host = fullname;
+
+   /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
+    * around IP address */
+   if (host[0] == '[') {
+       end = strrchr(host, ']');
+       if (!end) {
+           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
+       }
+       host++; /* skip first bracket */
+       *end = 0; /* remove last bracket */
+   }
 
    res = resolve_split_name(out, host, serv);
    if (res) {
