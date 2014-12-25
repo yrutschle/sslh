@@ -1,6 +1,9 @@
 vNEXT: 
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
 
+	Transparant proxy support for FreeBSD.
+	(Ruben van Staveren)
+
 	Call setgroups() before setgid() (fixes potential
 	privilege escalation).
 	(Lars Vogdt)
