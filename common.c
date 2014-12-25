@@ -120,8 +120,20 @@ int bind_peer(int fd, int fd_from)
      * got here */
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername");
+#ifndef IP_BINDANY /* use IP_TRANSPARENT */
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt");
+#else
+    if (from.ai_addr->sa_family==AF_INET) { /* IPv4 */
+        res = setsockopt(fd, IPPROTO_IP, IP_BINDANY, &trans, sizeof(trans));
+        CHECK_RES_RETURN(res, "setsockopt IP_BINDANY");
+#ifdef IPV6_BINDANY
+    } else { /* IPv6 */
+        res = setsockopt(fd, IPPROTO_IPV6, IPV6_BINDANY, &trans, sizeof(trans));
+        CHECK_RES_RETURN(res, "setsockopt IPV6_BINDANY");
+#endif /* IPV6_BINDANY */
+    }
+#endif /* IP_TRANSPARENT / IP_BINDANY */
     res = bind(fd, from.ai_addr, from.ai_addrlen);
     CHECK_RES_RETURN(res, "bind");
 
@@ -134,15 +146,28 @@ int bind_peer(int fd, int fd_from)
  * of new file descriptor. */
 int connect_addr(struct connection *cnx, int fd_from)
 {
-    struct addrinfo *a;
+    struct addrinfo *a, from;
+    struct sockaddr_storage ss;
     char buf[NI_MAXHOST];
     int fd, res;
 
+    memset(&from, 0, sizeof(from));
+    from.ai_addr = (struct sockaddr*)&ss;
+    from.ai_addrlen = sizeof(ss);
+
+    res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
+    CHECK_RES_RETURN(res, "getpeername");
+
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
+        /* When transparent, make sure both connections use the same address family */
+        if (transparent && a->ai_family != from.ai_addr->sa_family)
+            continue;
         if (verbose) 
             fprintf(stderr, "connecting to %s family %d len %d\n", 
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
+
+        /* XXX Needs to match ai_family from fd_from when being transparent! */
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
