@@ -295,21 +295,6 @@ if ($RB_OPEN_PID_FILE) {
     is($code, 3, "Exit status if can't open PID file");
 }
 
-# Robustness: Can't bind address
-if ($RB_BIND_ADDRESS) {
-    print "***Test: Can't bind address\n";
-    my $sslh_pid;
-    if (!($sslh_pid = fork)) {
-        my $user = (getpwuid $<)[0]; # Run under current username
-        exec "./sslh-select -v -f -u $user --listen 74.125.39.106:9000 --ssh $ssh_address --ssl $ssl_address -P $pidfile";
-    }
-    warn "spawned $sslh_pid\n";
-    waitpid $sslh_pid, 0;
-    my $code = $? >> 8;
-    warn "exited with $code\n";
-    is($code, 1, "Exit status if can't bind address");
-}
-
 # Robustness: Can't resolve address
 if ($RB_RESOLVE_ADDRESS) {
     print "***Test: Can't resolve address\n";
