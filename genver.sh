@@ -21,7 +21,7 @@ if ! `(git status | grep -q "On branch") 2> /dev/null`; then
             # zip file with all files dated from the last
             # change: use the Makefile's modification time as a
             # release number
-            release=head-`stat -c "%y" Makefile | sed 's/ .*//'`
+            release=head-`perl -MPOSIX -e 'print strftime "%Y-%m-%d",localtime((stat "Makefile")[9])'`
         fi
 fi
 
