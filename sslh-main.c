@@ -63,7 +63,7 @@ static struct option const_options[] = {
     { "numeric",    no_argument,            &numeric,       1 },
     { "verbose",    no_argument,            &verbose,       1 },
     { "user",       required_argument,      0,              'u' },
-    { "config",     required_argument,      0,              'F' },
+    { "config",     optional_argument,      0,              'F' },
     { "pidfile",    required_argument,      0,              'P' },
     { "timeout",    required_argument,      0,              't' },
     { "on-timeout", required_argument,      0,              OPT_ONTIMEOUT },
@@ -72,7 +72,7 @@ static struct option const_options[] = {
 };
 static struct option* all_options;
 static struct proto* builtins;
-static const char *optstr = "vt:T:p:VP:F:";
+static const char *optstr = "vt:T:p:VP:F::";
 
 
 
@@ -280,11 +280,14 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
 
     config_init(&config);
     if (config_read_file(&config, filename) == CONFIG_FALSE) {
-        fprintf(stderr, "%s:%d:%s\n", 
+        if (config_error_type(&config) == CONFIG_ERR_PARSE) {
+            fprintf(stderr, "%s:%d:%s\n", 
                     filename,
                     config_error_line(&config),
                     config_error_text(&config));
-        exit(1);
+            exit(1);
+        }
+        return 1;
     }
 
     config_lookup_bool(&config, "verbose", &verbose);
@@ -362,8 +365,18 @@ static void cmdline_config(int argc, char* argv[], struct proto** prots)
     while ((c = getopt_long_only(argc, argv, optstr, all_options, NULL)) != -1) {
         if (c == 'F') {
             config_filename = optarg;
-            /* find the end of the listen list */
-            res = config_parse(config_filename, &addr_listen, prots);
+            if (config_filename) {
+                fprintf(stderr, "config: %s\n", config_filename);
+                res = config_parse(config_filename, &addr_listen, prots);
+            } else {
+                /* No configuration file specified -- try default file locations */
+                res = config_parse("/etc/sslh/sslh.cfg", &addr_listen, prots);
+                if (!res && verbose) fprintf(stderr, "Using /etc/sslh/sslh.cfg\n");
+                if (res) {
+                    res = config_parse("/etc/sslh.cfg", &addr_listen, prots);
+                    if (!res && verbose) fprintf(stderr, "Using /etc/sslh.cfg\n");
+                }
+            }
             if (res)
                 exit(4);
             break;

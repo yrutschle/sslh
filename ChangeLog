@@ -4,6 +4,12 @@ vNEXT:
 	Transparant proxy support for FreeBSD.
 	(Ruben van Staveren)
 
+	Using -F with no argument will try
+	/etc/sslh/sslh.cfg and then /etc/sslh.cfg as
+	configuration files. (argument to -F can no longer
+	be separated from the option by a space, e.g. must
+	be -Ffoo.cfg)
+
 	Call setgroups() before setgid() (fixes potential
 	privilege escalation).
 	(Lars Vogdt)
