@@ -14,6 +14,10 @@ vNEXT:
 	privilege escalation).
 	(Lars Vogdt)
 
+	Use portable way of getting modified time for OSX
+	support.
+	(Aaron Madlon-Kay)
+
 	Example configuration for fail2ban.
 	(Every Mouw)
 
