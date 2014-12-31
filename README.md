@@ -243,6 +243,16 @@ this scheme -- let me know if you manage that:
 	# ip rule add fwmark 0x1 lookup 100
 	# ip route add local 0.0.0.0/0 dev lo table 100
 
+Tranparent proxying with IPv6 is similarly set up as follows:
+
+        # ip6tables -t mangle -N SSLH
+        # ip6tables -t mangle -A  OUTPUT --protocol tcp --out-interface eth0 --sport 22 --jump SSLH
+        # ip6tables -t mangle -A OUTPUT --protocol tcp --out-interface eth0 --sport 4443 --jump SSLH
+        # ip6tables -t mangle -A SSLH --jump MARK --set-mark 0x1
+        # ip6tables -t mangle -A SSLH --jump ACCEPT
+        # ip -6 rule add fwmark 0x1 lookup 100
+        # ip -6 route add local ::/0 dev lo table 100
+
 FreeBSD:
 
 Given you have no firewall defined yet, you can use the following configuration
