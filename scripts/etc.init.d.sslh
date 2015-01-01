@@ -27,7 +27,7 @@ DAEMON=$PREFIX/sbin/sslh
 start()
 {
         echo "Start services: sslh"
-        $DAEMON --user ${USER} --pidfile ${PID} --listen ${LISTEN} --ssh ${SSH} --ssl ${SSL}
+        $DAEMON -F /etc/sslh.cfg
         logger -t ${tag} -p ${facility} -i 'Started sslh'
 }
 

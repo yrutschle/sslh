@@ -93,7 +93,8 @@ Installation
 
 		make
 		cp sslh-fork /usr/local/sbin/sslh
-		cp scripts/etc.default.sslh /etc/default/sslh
+		cp basic.cfg /etc/sslh.cfg
+                vi /etc/sslh.cfg
 
 * For Debian:
 
@@ -113,14 +114,12 @@ start automatically at boot-up, e.g. under Debian:
 Configuration
 =============
 
-You can edit settings in /etc/default/sslh:
-
-	LISTEN=ifname:443
-	SSH=localhost:22
-	SSL=localhost:443
+If you use the scripts provided, sslh will get its
+configuration from /etc/sslh.cfg. Please refer to
+example.cfg for an overview of all the settings.
 
 A good scheme is to use the external name of the machine in
-`$LISTEN`, and bind `httpd` to `localhost:443` (instead of all
+`listen`, and bind `httpd` to `localhost:443` (instead of all
 binding to all interfaces): that way, HTTPS connections
 coming from inside your network don't need to go through
 `sslh`, and `sslh` is only there as a frontal for connections

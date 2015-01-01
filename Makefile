@@ -75,7 +75,6 @@ install: sslh $(MAN)
 install-debian: install sslh $(MAN)
 	sed -e "s+^PREFIX=+PREFIX=$(PREFIX)+" scripts/etc.init.d.sslh > /etc/init.d/sslh
 	chmod 755 /etc/init.d/sslh
-	cp scripts/etc.default.sslh /etc/default/sslh
 	update-rc.d sslh defaults
 
 uninstall:

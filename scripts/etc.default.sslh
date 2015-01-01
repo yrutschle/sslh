@@ -1,5 +1,0 @@
-LISTEN=ifname:443
-SSH=localhost:22
-SSL=localhost:443
-USER=nobody
-PID=/var/run/sslh.pid
