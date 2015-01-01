@@ -253,6 +253,13 @@ Tranparent proxying with IPv6 is similarly set up as follows:
         # ip -6 rule add fwmark 0x1 lookup 100
         # ip -6 route add local ::/0 dev lo table 100
 
+Note that these rules will prevent from connecting directly
+to ssh on the port 22, as packets coming out of sshd will be
+tagged. If you need to retain direct access to ssh on port
+22 as well as through sslh, you can make sshd listen to
+22 AND another port (e.g. 2222), and change the above rules
+accordingly.
+
 FreeBSD:
 
 Given you have no firewall defined yet, you can use the following configuration
