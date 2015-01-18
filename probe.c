@@ -223,12 +223,22 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
 
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
+    char *str;
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
-
-    for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
+    int i;
+    str = (char *)malloc(len+1);
+    str[len] = 0;
+    for(i=0;i<len;i++){
+      if (p[i]){
+        str[i] = p[i];
+      } else {
+        str[i] = 0xff;
+      }
+    }
+    for (; *probe && regexec(*probe, str, 0, &pos, REG_STARTEND); probe++)
         /* try them all */;
-
+    free(str);
     return (*probe != NULL);
 }
 
