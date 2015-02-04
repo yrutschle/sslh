@@ -102,7 +102,7 @@ Installation
 	
 * For CentOS:
 
-		cp scripts/etc.rc.d.init.d.sslh /etc/rc.d/init.d/sslh
+		cp scripts/etc.rc.d.init.d.sslh.centos /etc/rc.d/init.d/sslh
 
 
 You might need to create links in /etc/rc<x>.d so that the server
