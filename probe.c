@@ -169,7 +169,10 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
  * */
 static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 {
-    if (len < 6)
+    /* sometimes the word 'jabber' shows up late in the initial string,
+       sometimes after a newline. this makes sure we snarf the entire preamble
+       and detect it. (fixed for adium/pidgin) */
+    if (len < 50)
         return PROBE_AGAIN;
 
     return memmem(p, len, "jabber", 6) ? 1 : 0;
