@@ -217,7 +217,7 @@ Transparent proxy support
 -------------------------
 
 On Linux and FreeBSD you can use the `--transparent` option to
-request transparent proying. This means services behind `sslh`
+request transparent proxying. This means services behind `sslh`
 (Apache, `sshd` and so on) will see the external IP and ports
 as if the external world connected directly to them. This
 simplifies IP-based access control (or makes it possible at
