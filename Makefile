@@ -5,7 +5,7 @@ USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
-PREFIX=/usr/local
+PREFIX?=/usr/local
 
 MAN=sslh.8.gz	# man page name
 
@@ -68,8 +68,10 @@ release:
 
 # generic install: install binary and man page
 install: sslh $(MAN)
-	install -pD sslh-fork $(DESTDIR)$(PREFIX)/sbin/sslh
-	install -pD -m 0644 $(MAN) $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN)
+	mkdir -p $(DESTDIR)$(PREFIX)/sbin
+	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man8
+	install -p sslh-fork $(DESTDIR)$(PREFIX)/sbin/sslh
+	install -p -m 0644 $(MAN) $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN)
 
 # "extended" install for Debian: install startup script
 install-debian: install sslh $(MAN)
@@ -96,4 +98,3 @@ cscope:
 
 test:
 	./t
-
