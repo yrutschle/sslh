@@ -33,6 +33,7 @@ static int is_tinc_protocol(const char *p, int len, struct proto*);
 static int is_xmpp_protocol(const char *p, int len, struct proto*);
 static int is_http_protocol(const char *p, int len, struct proto*);
 static int is_tls_protocol(const char *p, int len, struct proto*);
+static int is_adb_protocol(const char *p, int len, struct proto*);
 static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -46,6 +47,7 @@ static struct proto builtins[] = {
     { "http",        NULL,     NULL,   is_http_protocol },
     { "ssl",         NULL,     NULL,   is_tls_protocol },
     { "tls",         NULL,     NULL,   is_tls_protocol },
+    { "adb",         NULL,     NULL,   is_adb_protocol },
     { "anyprot",     NULL,     NULL,   is_true }
 };
 
@@ -222,6 +224,22 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
      * This means we reject SSLv2 and lower, which is actually a good thing (RFC6176)
      */
     return p[0] == 0x16 && p[1] == 0x03 && ( p[2] >= 0 && p[2] <= 0x03);
+}
+
+static int is_adb_protocol(const char *p, int len, struct proto *proto)
+{
+    if (len < 30)
+        return PROBE_AGAIN;
+
+    /* The initial ADB host->device packet has a command type of CNXN, and a
+     * data payload starting with "host:".  Note that current versions of the
+     * client hardcode "host::" (with empty serialno and banner fields) but
+     * other clients may populate those fields.
+     *
+     * We aren't checking amessage.data_length, under the assumption that
+     * a packet >= 30 bytes long will have "something" in the payload field.
+     */
+    return !memcmp(&p[0], "CNXN", 4) && !memcmp(&p[24], "host:", 5);
 }
 
 static int regex_probe(const char *p, int len, struct proto *proto)
