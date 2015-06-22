@@ -5,7 +5,9 @@ USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
-PREFIX?=/usr/local
+PREFIX?=/usr
+BINDIR?=$(PREFIX)/sbin
+MANDIR?=$(PREFIX)/share/man/man8
 
 MAN=sslh.8.gz	# man page name
 
@@ -68,10 +70,10 @@ release:
 
 # generic install: install binary and man page
 install: sslh $(MAN)
-	mkdir -p $(DESTDIR)$(PREFIX)/sbin
-	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man8
-	install -p sslh-fork $(DESTDIR)$(PREFIX)/sbin/sslh
-	install -p -m 0644 $(MAN) $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN)
+	mkdir -p $(DESTDIR)/$(BINDIR)
+	mkdir -p $(DESTDIR)/$(MANDIR)
+	install -p sslh-fork $(DESTDIR)/$(BINDIR)/sslh
+	install -p -m 0644 $(MAN) $(DESTDIR)/$(MANDIR)/$(MAN)
 
 # "extended" install for Debian: install startup script
 install-debian: install sslh $(MAN)
@@ -80,7 +82,7 @@ install-debian: install sslh $(MAN)
 	update-rc.d sslh defaults
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/sbin/sslh $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN) $(DESTDIR)/etc/init.d/sslh $(DESTDIR)/etc/default/sslh
+	rm -f $(DESTDIR)$(BINDIR)/sslh $(DESTDIR)$(MANDIR)/$(MAN) $(DESTDIR)/etc/init.d/sslh $(DESTDIR)/etc/default/sslh
 	update-rc.d sslh remove
 
 distclean: clean
