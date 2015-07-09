@@ -2,6 +2,7 @@
 
 VERSION=$(shell ./genver.sh -r)
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
+USELIBPCRE=1	# Use libpcre? (necessary to use regex probe)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
@@ -27,6 +28,10 @@ OBJS=common.o sslh-main.o probe.o
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
 	CPPFLAGS+=-DLIBWRAP
+endif
+
+ifneq ($(strip $(USELIBPCRE)),)
+	CPPFLAGS+=-DLIBPCRE
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)

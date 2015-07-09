@@ -25,7 +25,9 @@
 #ifdef LIBCONFIG
 #include <libconfig.h>
 #endif
+#ifdef LIBPCRE
 #include <regex.h>
+#endif
 
 #include "common.h"
 #include "probe.h"
@@ -174,6 +176,7 @@ static int config_listen(config_t *config, struct addrinfo **listen)
 #ifdef LIBCONFIG
 static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 {
+#ifdef LIBPCRE
     int num_probes, errsize, i, res;
     char *err;
     const char * expr;
@@ -201,6 +204,10 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
             exit(1);
         }
     }
+#else
+    fprintf(stderr, "line %d: regex probe specified but not compiled in\n", config_setting_source_line(probes));
+    exit(5);
+#endif
 }
 #endif
 

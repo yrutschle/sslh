@@ -1,3 +1,7 @@
+vNEXT:
+	Added USELIBPCRE to make use of regex engine
+	optional.
+
 v1.17: 	09MAR2015
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
 

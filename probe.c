@@ -21,7 +21,9 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#ifdef LIBPCRE
 #include <regex.h>
+#endif
 #include <ctype.h>
 #include "probe.h"
 
@@ -244,6 +246,7 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
 
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
+#ifdef LIBPCRE
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
 
@@ -251,6 +254,11 @@ static int regex_probe(const char *p, int len, struct proto *proto)
         /* try them all */;
 
     return (*probe != NULL);
+#else
+    /* Should never happen as we check when loading config file */
+    fprintf(stderr, "FATAL: regex probe called but not built in\n");
+    exit(5);
+#endif
 }
 
 /* 
