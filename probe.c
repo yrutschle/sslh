@@ -216,6 +216,33 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
     return PROBE_NEXT;
 }
 
+static int is_sni_protocol(const char *p, int len, struct proto *proto)
+{
+    int valid_tls;
+    char *hostname;
+
+    valid_tls = parse_tls_header(p, len, &hostname);
+
+    if(valid_tls < 0)
+        return -1 == valid_tls ? PROBE_AGAIN : PROBE_NEXT;
+
+    if (verbose) fprintf(stderr, "sni hostname: %s\n", hostname);
+
+    /* Assume does not match */
+    valid_tls = PROBE_NEXT;
+
+    char **sni_hostname = proto->data;
+
+    for (; *sni_hostname; sni_hostname++)
+        if(!strcmp(hostname, *sni_hostname)) {
+            valid_tls = PROBE_MATCH;
+            break;
+        }
+
+    free(hostname);
+    return valid_tls;
+}
+
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
     if (len < 3)
@@ -333,6 +360,10 @@ T_PROBE* get_probe(const char* description) {
      * regexp is not legal on the command line)*/
     if (!strcmp(description, "regex"))
         return regex_probe;
+
+    /* Special case of "sni" probe for same reason as above*/
+    if (!strcmp(description, "sni"))
+        return is_sni_protocol;
 
     return NULL;
 }

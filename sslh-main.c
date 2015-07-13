@@ -211,13 +211,45 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 }
 #endif
 
+#ifdef LIBCONFIG
+static void setup_sni_hostnames(struct proto *p, config_setting_t* sni_hostnames)
+{
+    int num_probes, i, max_server_name_len, server_name_len;
+    const char * sni_hostname;
+    char** sni_hostname_list;
+
+    num_probes = config_setting_length(sni_hostnames);
+    if (!num_probes) {
+        fprintf(stderr, "%s: no sni_hostnames specified\n", p->description);
+        exit(1);
+    }
+
+    max_server_name_len = 0;
+    for (i = 0; i < num_probes; i++) {
+        server_name_len = strlen(config_setting_get_string_elem(sni_hostnames, i));
+        if(server_name_len > max_server_name_len)
+            max_server_name_len = server_name_len;
+    }
+
+    sni_hostname_list = calloc(num_probes + 1, ++max_server_name_len);
+    p->data = (void*)sni_hostname_list;
+
+    for (i = 0; i < num_probes; i++) {
+        sni_hostname = config_setting_get_string_elem(sni_hostnames, i);
+        sni_hostname_list[i] = malloc(max_server_name_len);
+        strcpy (sni_hostname_list[i], sni_hostname);
+        if(verbose) fprintf(stderr, "sni_hostnames[%d]: %s\n", i, sni_hostname_list[i]);
+    }
+}
+#endif
+
 /* Extract configuration for protocols to connect to.
  * out: newly-allocated list of protocols
  */
 #ifdef LIBCONFIG
 static int config_protocols(config_t *config, struct proto **prots)
 {
-    config_setting_t *setting, *prot, *probes;
+    config_setting_t *setting, *prot, *probes, *sni_hostnames;
     const char *hostname, *port, *name;
     int i, num_prots;
     struct proto *p, *prev = NULL;
@@ -264,6 +296,11 @@ static int config_protocols(config_t *config, struct proto **prots)
                             exit(1);
                         }
                     }
+                }
+
+                sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
+                if (sni_hostnames && config_setting_is_array(sni_hostnames)) {
+                    setup_sni_hostnames(p, sni_hostnames);
                 }
             }
         }
