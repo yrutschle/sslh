@@ -1,7 +1,7 @@
 /*
 # probe.c: Code for probing protocols
 #
-# Copyright (C) 2007-2012  Yves Rutschle
+# Copyright (C) 2007-2015  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -221,6 +221,7 @@ static int is_sni_protocol(const char *p, int len, struct proto *proto)
 {
     int valid_tls;
     char *hostname;
+    char **sni_hostname;
 
     valid_tls = parse_tls_header(p, len, &hostname);
 
@@ -232,9 +233,7 @@ static int is_sni_protocol(const char *p, int len, struct proto *proto)
     /* Assume does not match */
     valid_tls = PROBE_NEXT;
 
-    char **sni_hostname = proto->data;
-
-    for (; *sni_hostname; sni_hostname++)
+    for (sni_hostname = proto->data; *sni_hostname; sni_hostname++)
         if(!strcmp(hostname, *sni_hostname)) {
             valid_tls = PROBE_MATCH;
             break;
