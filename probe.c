@@ -157,7 +157,8 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
 }
 
 /* Is the buffer the beginning of a tinc connections?
- * (protocol is undocumented, but starts with "0 " in 1.0.15)
+ * Protocol is documented here: http://www.tinc-vpn.org/documentation/tinc.pdf
+ * First connection starts with "0 " in 1.0.15)
  * */
 static int is_tinc_protocol( const char *p, int len, struct proto *proto)
 {
