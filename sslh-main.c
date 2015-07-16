@@ -287,17 +287,14 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
 
     config_init(&config);
     if (config_read_file(&config, filename) == CONFIG_FALSE) {
-/* If it's a parse error then there will be a line number for the failure
- * an I/O error (such as non-existent file) will have the error line as 0
- */
-        if (config_error_line(&config) != 0) {
-            fprintf(stderr, "%s:%d:%s\n", 
-                    filename,
-                    config_error_line(&config),
-                    config_error_text(&config));
-            exit(1);
-        }
-        return 1;
+        /* If it's a parse error then there will be a line number for the failure
+         * an I/O error (such as non-existent file) will have the error line as 0
+         */
+        fprintf(stderr, "%s:%d:%s\n", 
+                filename,
+                config_error_line(&config),
+                config_error_text(&config));
+        exit(1);
     }
 
     config_lookup_bool(&config, "verbose", &verbose);
