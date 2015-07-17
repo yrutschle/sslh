@@ -51,13 +51,9 @@ and the list of protocols).
 
 The configuration file makes it possible to specify
 protocols using regular expressions: a list of regular
-expressions is given as the I<probe> parameter, and if the
+expressions is given as the I<regex_patterns> parameter, and if the
 first packet received from the client matches any of these
 expressions, B<sslh> connects to that protocol.
-
-Alternatively, the I<probe> parameter can be set to
-"builtin", to use the compiled probes which are much faster
-than regular expressions.
 
 =head2 Probing protocols
 

@@ -249,7 +249,7 @@ static void setup_sni_hostnames(struct proto *p, config_setting_t* sni_hostnames
 #ifdef LIBCONFIG
 static int config_protocols(config_t *config, struct proto **prots)
 {
-    config_setting_t *setting, *prot, *probes, *sni_hostnames;
+    config_setting_t *setting, *prot, *patterns, *sni_hostnames;
     const char *hostname, *port, *name;
     int i, num_prots;
     struct proto *p, *prev = NULL;
@@ -273,34 +273,26 @@ static int config_protocols(config_t *config, struct proto **prots)
 
                 resolve_split_name(&(p->saddr), hostname, port);
 
+                p->probe = get_probe(name);
+                if (!p->probe) {
+                    fprintf(stderr, "line %d: %s: probe unknown\n", config_setting_source_line(prot), name);
+                    exit(1);
+                }
 
-                probes = config_setting_get_member(prot, "probe");
-                if (probes) {
-                    if (config_setting_is_array(probes)) {
-                        /* If 'probe' is an array, setup a regex probe using the
-                         * array of strings as pattern */
-
-                        setup_regex_probe(p, probes);
-
-                    } else {
-                        /* if 'probe' is 'builtin', set the probe to the
-                         * appropriate builtin protocol */
-                        if (!strcmp(config_setting_get_string(probes), "builtin")) {
-                            p->probe = get_probe(name);
-                            if (!p->probe) {
-                                fprintf(stderr, "%s: no builtin probe for this protocol\n", name);
-                                exit(1);
-                            }
-                        } else {
-                            fprintf(stderr, "%s: illegal probe name\n", name);
-                            exit(1);
-                        }
+                /* Probe-specific options: regex patterns */
+                if (!strcmp(name, "regex")) {
+                    patterns = config_setting_get_member(prot, "regex_patterns");
+                    if (patterns && config_setting_is_array(patterns)) {
+                        setup_regex_probe(p, patterns);
                     }
                 }
 
-                sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
-                if (sni_hostnames && config_setting_is_array(sni_hostnames)) {
-                    setup_sni_hostnames(p, sni_hostnames);
+                /* Probe-specific options: SNI hostnames */
+                if (!strcmp(name, "sni")) {
+                    sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
+                    if (sni_hostnames && config_setting_is_array(sni_hostnames)) {
+                        setup_sni_hostnames(p, sni_hostnames);
+                    }
                 }
             }
         }

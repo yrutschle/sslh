@@ -233,11 +233,13 @@ static int is_sni_protocol(const char *p, int len, struct proto *proto)
     /* Assume does not match */
     valid_tls = PROBE_NEXT;
 
-    for (sni_hostname = proto->data; *sni_hostname; sni_hostname++)
+    for (sni_hostname = proto->data; *sni_hostname; sni_hostname++) {
+        fprintf(stderr, "matching [%s] with [%s]\n", hostname, *sni_hostname);
         if(!strcmp(hostname, *sni_hostname)) {
             valid_tls = PROBE_MATCH;
             break;
         }
+    }
 
     free(hostname);
     return valid_tls;
@@ -364,6 +366,11 @@ T_PROBE* get_probe(const char* description) {
     /* Special case of "sni" probe for same reason as above*/
     if (!strcmp(description, "sni"))
         return is_sni_protocol;
+
+    /* Special case of "timeout" is allowed as a probe name in the
+     * configuration file even though it's not really a probe */
+    if (!strcmp(description, "timeout"))
+        return is_true;
 
     return NULL;
 }
