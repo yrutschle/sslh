@@ -2,6 +2,14 @@ vNEXT:
 	Added USELIBPCRE to make use of regex engine
 	optional.
 
+	Added support for RFC4366 SNI 
+	(Travis Burtrum)
+
+	Changed configuration file format: 'probe' field is
+	no longer required, 'name' field can now contain
+	'sni' or 'regex', with corresponding options (see
+	example.org)
+
 v1.17: 	09MAR2015
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
 
