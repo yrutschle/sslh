@@ -306,6 +306,7 @@ static int config_protocols(config_t *config, struct proto **prots)
  * in: *filename
  * out: *listen, a newly-allocated linked list of listen addrinfo
  *      *prots, a newly-allocated linked list of protocols
+ *      1 on error, 0 on success
  */
 #ifdef LIBCONFIG
 static int config_parse(char *filename, struct addrinfo **listen, struct proto **prots)
@@ -319,11 +320,17 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
         /* If it's a parse error then there will be a line number for the failure
          * an I/O error (such as non-existent file) will have the error line as 0
          */
-        fprintf(stderr, "%s:%d:%s\n", 
+        if (config_error_line(&config) != 0) {
+            fprintf(stderr, "%s:%d:%s\n", 
+                    filename,
+                    config_error_line(&config),
+                    config_error_text(&config));
+            exit(1);
+        }
+        fprintf(stderr, "%s:%s\n", 
                 filename,
-                config_error_line(&config),
                 config_error_text(&config));
-        exit(1);
+        return 1;
     }
 
     config_lookup_bool(&config, "verbose", &verbose);
@@ -399,10 +406,12 @@ static void cmdline_config(int argc, char* argv[], struct proto** prots)
     optind = 1;
     opterr = 0; /* we're missing protocol options at this stage so don't output errors */
     while ((c = getopt_long_only(argc, argv, optstr, all_options, NULL)) != -1) {
+        if (c == 'v') {
+            verbose++;
+        }
         if (c == 'F') {
             config_filename = optarg;
             if (config_filename) {
-                fprintf(stderr, "config: %s\n", config_filename);
                 res = config_parse(config_filename, &addr_listen, prots);
             } else {
                 /* No configuration file specified -- try default file locations */
