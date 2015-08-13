@@ -21,8 +21,12 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#ifdef ENABLE_REGEX
 #ifdef LIBPCRE
+#include <pcreposix.h>
+#else
 #include <regex.h>
+#endif
 #endif
 #include <ctype.h>
 #include "probe.h"
@@ -275,7 +279,7 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
 
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
-#ifdef LIBPCRE
+#ifdef ENABLE_REGEX
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
 

@@ -25,8 +25,12 @@
 #ifdef LIBCONFIG
 #include <libconfig.h>
 #endif
+#ifdef ENABLE_REGEX
 #ifdef LIBPCRE
+#include <pcreposix.h>
+#else
 #include <regex.h>
+#endif
 #endif
 
 #include "common.h"
@@ -176,7 +180,7 @@ static int config_listen(config_t *config, struct addrinfo **listen)
 #ifdef LIBCONFIG
 static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 {
-#ifdef LIBPCRE
+#ifdef ENABLE_REGEX
     int num_probes, errsize, i, res;
     char *err;
     const char * expr;

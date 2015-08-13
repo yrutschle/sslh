@@ -1,8 +1,9 @@
 # Configuration
 
 VERSION=$(shell ./genver.sh -r)
+ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
-USELIBPCRE=1	# Use libpcre? (necessary to use regex probe)
+USELIBPCRE=1	# Use libpcre? (needed for regex on musl)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
@@ -30,8 +31,13 @@ ifneq ($(strip $(USELIBWRAP)),)
 	CPPFLAGS+=-DLIBWRAP
 endif
 
+ifneq ($(strip $(ENABLE_REGEX)),)
+	CPPFLAGS+=-DENABLE_REGEX
+endif
+
 ifneq ($(strip $(USELIBPCRE)),)
 	CPPFLAGS+=-DLIBPCRE
+	LIBS:=$(LIBS) -lpcre
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
