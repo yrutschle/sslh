@@ -471,16 +471,19 @@ void log_connection(struct connection *cnx)
 int check_access_rights(int in_socket, const char* service)
 {
 #ifdef LIBWRAP
-    struct sockaddr peeraddr;
-    socklen_t size = sizeof(peeraddr);
+    union {
+        struct sockaddr saddr;
+        struct sockaddr_storage ss;
+    } peer;
+    socklen_t size = sizeof(peer);
     char addr_str[NI_MAXHOST], host[NI_MAXHOST];
     int res;
 
-    res = getpeername(in_socket, &peeraddr, &size);
+    res = getpeername(in_socket, &peer.saddr, &size);
     CHECK_RES_RETURN(res, "getpeername");
 
     /* extract peer address */
-    res = getnameinfo(&peeraddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);
+    res = getnameinfo(&peer.saddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);
     if (res) {
         if (verbose)
             fprintf(stderr, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
@@ -489,7 +492,7 @@ int check_access_rights(int in_socket, const char* service)
     /* extract peer name */
     strcpy(host, STRING_UNKNOWN);
     if (!numeric) {
-        res = getnameinfo(&peeraddr, size, host, sizeof(host), NULL, 0, NI_NAMEREQD);
+        res = getnameinfo(&peer.saddr, size, host, sizeof(host), NULL, 0, NI_NAMEREQD);
         if (res) {
             if (verbose)
                 fprintf(stderr, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
