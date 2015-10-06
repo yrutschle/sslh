@@ -8,6 +8,10 @@
 #include <stdarg.h>
 #include <grp.h>
 
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+
 #include "common.h"
 #include "probe.h"
 
@@ -120,6 +124,39 @@ int bind_peer(int fd, int fd_from)
      * got here */
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername");
+    
+    // if the destination is the same machine, there's no need to do bind
+    struct ifaddrs *ifaddrs_p = NULL, *ifa;
+
+    getifaddrs(&ifaddrs_p);
+
+    for (ifa = ifaddrs_p; ifa != NULL; ifa = ifa->ifa_next)
+    {
+        if (!ifa->ifa_addr)
+            continue;
+        int match = 0;
+        if (from.ai_addr->sa_family == ifa->ifa_addr->sa_family)
+        {
+            int family = ifa->ifa_addr->sa_family;
+            if (family == AF_INET)
+            {
+                struct sockaddr_in *from_addr = from.ai_addr;
+                struct sockaddr_in *ifa_addr = ifa->ifa_addr;
+                if (from_addr->sin_addr.s_addr == ifa_addr->sin_addr.s_addr)
+                    match = 1;
+            }
+            else if (family == AF_INET6)
+            {
+                struct sockaddr_in6 *from_addr = from.ai_addr;
+                struct sockaddr_in6 *ifa_addr = ifa->ifa_addr;
+                if (!memcmp(from_addr->sin6_addr.s6_addr, ifa_addr->sin6_addr.s6_addr, 16))
+                    match = 1;
+            }
+        }
+        if (match)  // the destination is the same as the source, should not create a transparent bind
+            return 0;
+    }
+
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt");
