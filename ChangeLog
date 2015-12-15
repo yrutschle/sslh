@@ -5,6 +5,9 @@ vNEXT:
 	Added support for RFC4366 SNI 
 	(Travis Burtrum)
 
+	Changed connection log to include the name of the probe that
+	triggered.
+
 	Changed configuration file format: 'probe' field is
 	no longer required, 'name' field can now contain
 	'sni' or 'regex', with corresponding options (see

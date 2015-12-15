@@ -457,7 +457,8 @@ void log_connection(struct connection *cnx)
     if (res == -1) return;
     sprintaddr(local, sizeof(local), &addr);
 
-    log_message(LOG_INFO, "connection from %s to %s forwarded from %s to %s\n",
+    log_message(LOG_INFO, "%s:connection from %s to %s forwarded from %s to %s\n",
+                cnx->proto->description,
                 peer,
                 service,
                 local,
