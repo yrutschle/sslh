@@ -119,10 +119,11 @@ static void printsettings(void)
     
     for (p = get_first_protocol(); p; p = p->next) {
         fprintf(stderr,
-                "%s addr: %s. libwrap service: %s family %d %d\n", 
+                "%s addr: %s. libwrap service: %s log_level: %d family %d %d\n", 
                 p->description, 
                 sprintaddr(buf, sizeof(buf), p->saddr), 
                 p->service,
+                p->log_level,
                 p->saddr->ai_family,
                 p->saddr->ai_addr->sa_family);
     }
@@ -270,6 +271,10 @@ static int config_protocols(config_t *config, struct proto **prots)
                 )) {
                 p->description = name;
                 config_setting_lookup_string(prot, "service", &(p->service));
+
+                if (config_setting_lookup_int(prot, "log_level", &p->log_level) == CONFIG_FALSE) {
+                    p->log_level = 1;
+                }
 
                 resolve_split_name(&(p->saddr), hostname, port);
 

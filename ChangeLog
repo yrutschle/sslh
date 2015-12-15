@@ -9,6 +9,9 @@ vNEXT:
 	no longer required, 'name' field can now contain
 	'sni' or 'regex', with corresponding options (see
 	example.org)
+	Added 'log_level' option to each protocol, which
+	allows to turn off generation of log at each
+	connection.
 
 v1.17: 	09MAR2015
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.

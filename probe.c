@@ -41,16 +41,16 @@ static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 /* Table of protocols that have a built-in probe
  */
 static struct proto builtins[] = {
-    /* description   service  saddr   probe  */
-    { "ssh",         "sshd",   NULL,   is_ssh_protocol},
-    { "openvpn",     NULL,     NULL,   is_openvpn_protocol },
-    { "tinc",        NULL,     NULL,   is_tinc_protocol },
-    { "xmpp",        NULL,     NULL,   is_xmpp_protocol },
-    { "http",        NULL,     NULL,   is_http_protocol },
-    { "ssl",         NULL,     NULL,   is_tls_protocol },
-    { "tls",         NULL,     NULL,   is_tls_protocol },
-    { "adb",         NULL,     NULL,   is_adb_protocol },
-    { "anyprot",     NULL,     NULL,   is_true }
+    /* description   service  saddr  log_level   probe  */
+    { "ssh",         "sshd",   NULL,  1,         is_ssh_protocol},
+    { "openvpn",     NULL,     NULL,  1,         is_openvpn_protocol },
+    { "tinc",        NULL,     NULL,  1,         is_tinc_protocol },
+    { "xmpp",        NULL,     NULL,  1,         is_xmpp_protocol },
+    { "http",        NULL,     NULL,  1,         is_http_protocol },
+    { "ssl",         NULL,     NULL,  1,         is_tls_protocol },
+    { "tls",         NULL,     NULL,  1,         is_tls_protocol },
+    { "adb",         NULL,     NULL,  1,         is_adb_protocol },
+    { "anyprot",     NULL,     NULL,  1,         is_true }
 };
 
 static struct proto *protocols;

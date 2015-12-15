@@ -431,6 +431,9 @@ void log_connection(struct connection *cnx)
         local[MAX_NAMELENGTH], target[MAX_NAMELENGTH];
     int res;
 
+    if (cnx->proto->log_level < 1)
+        return;
+
     addr.ai_addr = (struct sockaddr*)&ss;
     addr.ai_addrlen = sizeof(ss);
 

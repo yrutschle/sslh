@@ -20,6 +20,9 @@ struct proto {
     const char* description;  /* a string that says what it is (for logging and command-line parsing) */
     const char* service;      /* service name to do libwrap checks */
     struct addrinfo *saddr; /* list of addresses to try and switch that protocol */
+    int log_level;  /* 0: No logging of connection
+                     * 1: Log incoming connection
+                     */
 
     /* function to probe that protocol; parameters are buffer and length
      * containing the data to probe, and a pointer to the protocol structure */
