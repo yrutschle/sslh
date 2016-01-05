@@ -2,7 +2,7 @@ vNEXT:
 	Added USELIBPCRE to make use of regex engine
 	optional.
 
-	Added support for RFC4366 SNI 
+	Added support for RFC4366 SNI and RFC7301 ALPN
 	(Travis Burtrum)
 
 	Changed connection log to include the name of the probe that
@@ -10,8 +10,8 @@ vNEXT:
 
 	Changed configuration file format: 'probe' field is
 	no longer required, 'name' field can now contain
-	'sni' or 'regex', with corresponding options (see
-	example.org)
+	'tls' or 'regex', with corresponding options (see
+	example.cfg)
 	Added 'log_level' option to each protocol, which
 	allows to turn off generation of log at each
 	connection.
