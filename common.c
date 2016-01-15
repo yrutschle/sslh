@@ -121,6 +121,15 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        (*sockfd)[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
        check_res_dumpdie((*sockfd)[i], addr, "socket");
 
+	   /* If transparent proxy enabled and ipv6 address then only listen on IPv6 port.
+		* Transparent proxying fails if you don't.
+		* */
+       if (transparent && saddr->ss_family == AF_INET6)
+	   {
+			   res = setsockopt((*sockfd)[i], IPPROTO_IPV6, IPV6_V6ONLY, (char*)&one, sizeof(one));
+			   check_res_dumpdie(res, addr, "setsockopt(IPV6_V6ONLY)");
+       }
+
        one = 1;
        res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
        check_res_dumpdie(res, addr, "setsockopt(SO_REUSEADDR)");
