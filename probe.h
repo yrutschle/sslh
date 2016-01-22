@@ -27,7 +27,8 @@ struct proto {
     /* function to probe that protocol; parameters are buffer and length
      * containing the data to probe, and a pointer to the protocol structure */
     T_PROBE* probe;
-    void* data;     /* opaque pointer ; used to pass list of regex to regex probe, or sni hostnames to sni probe */
+    /* opaque pointer ; used to pass list of regex to regex probe, or TLSProtocol struct to sni/alpn probe */
+    void* data;
     struct proto *next; /* pointer to next protocol in list, NULL if last */
 };
 

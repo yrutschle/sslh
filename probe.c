@@ -217,32 +217,17 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
     return PROBE_NEXT;
 }
 
-static int is_sni_protocol(const char *p, int len, struct proto *proto)
+static int is_sni_alpn_protocol(const char *p, int len, struct proto *proto)
 {
     int valid_tls;
-    char *hostname;
-    char **sni_hostname;
 
-    valid_tls = parse_tls_header(p, len, &hostname);
+    valid_tls = parse_tls_header(proto->data, p, len);
 
     if(valid_tls < 0)
         return -1 == valid_tls ? PROBE_AGAIN : PROBE_NEXT;
 
-    if (verbose) fprintf(stderr, "sni hostname: %s\n", hostname);
-
-    /* Assume does not match */
-    valid_tls = PROBE_NEXT;
-
-    for (sni_hostname = proto->data; *sni_hostname; sni_hostname++) {
-        fprintf(stderr, "matching [%s] with [%s]\n", hostname, *sni_hostname);
-        if(!strcmp(hostname, *sni_hostname)) {
-            valid_tls = PROBE_MATCH;
-            break;
-        }
-    }
-
-    free(hostname);
-    return valid_tls;
+    /* There *was* a valid match */
+    return PROBE_MATCH;
 }
 
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
@@ -363,9 +348,9 @@ T_PROBE* get_probe(const char* description) {
     if (!strcmp(description, "regex"))
         return regex_probe;
 
-    /* Special case of "sni" probe for same reason as above*/
-    if (!strcmp(description, "sni"))
-        return is_sni_protocol;
+    /* Special case of "sni/alpn" probe for same reason as above*/
+    if (!strcmp(description, "sni_alpn"))
+        return is_sni_alpn_protocol;
 
     /* Special case of "timeout" is allowed as a probe name in the
      * configuration file even though it's not really a probe */

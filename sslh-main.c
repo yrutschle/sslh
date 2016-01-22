@@ -213,34 +213,47 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 #endif
 
 #ifdef LIBCONFIG
-static void setup_sni_hostnames(struct proto *p, config_setting_t* sni_hostnames)
+static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items, const char* name, int alpn)
 {
     int num_probes, i, max_server_name_len, server_name_len;
-    const char * sni_hostname;
+    const char * config_item;
     char** sni_hostname_list;
 
-    num_probes = config_setting_length(sni_hostnames);
+    if(!config_items || !config_setting_is_array(config_items)) {
+        fprintf(stderr, "%s: no %s specified\n", p->description, name);
+        return;
+    }
+    num_probes = config_setting_length(config_items);
     if (!num_probes) {
-        fprintf(stderr, "%s: no sni_hostnames specified\n", p->description);
-        exit(1);
+        fprintf(stderr, "%s: no %s specified\n", p->description, name);
+        return;
     }
 
     max_server_name_len = 0;
     for (i = 0; i < num_probes; i++) {
-        server_name_len = strlen(config_setting_get_string_elem(sni_hostnames, i));
+        server_name_len = strlen(config_setting_get_string_elem(config_items, i));
         if(server_name_len > max_server_name_len)
             max_server_name_len = server_name_len;
     }
 
     sni_hostname_list = calloc(num_probes + 1, ++max_server_name_len);
-    p->data = (void*)sni_hostname_list;
 
     for (i = 0; i < num_probes; i++) {
-        sni_hostname = config_setting_get_string_elem(sni_hostnames, i);
+        config_item = config_setting_get_string_elem(config_items, i);
         sni_hostname_list[i] = malloc(max_server_name_len);
-        strcpy (sni_hostname_list[i], sni_hostname);
-        if(verbose) fprintf(stderr, "sni_hostnames[%d]: %s\n", i, sni_hostname_list[i]);
+        strcpy (sni_hostname_list[i], config_item);
+        if(verbose) fprintf(stderr, "%s: %s[%d]: %s\n", p->description, name, i, sni_hostname_list[i]);
     }
+
+    p->data = (void*)tls_data_set_list(p->data, alpn, sni_hostname_list);
+}
+
+static void setup_sni_alpn(struct proto *p, config_setting_t* sni_hostnames, config_setting_t* alpn_protocols)
+{
+    p->data = (void*)new_tls_data();
+    p->probe = get_probe("sni_alpn");
+    setup_sni_alpn_list(p, sni_hostnames, "sni_hostnames", 0);
+    setup_sni_alpn_list(p, alpn_protocols, "alpn_protocols", 1);
 }
 #endif
 
@@ -250,7 +263,7 @@ static void setup_sni_hostnames(struct proto *p, config_setting_t* sni_hostnames
 #ifdef LIBCONFIG
 static int config_protocols(config_t *config, struct proto **prots)
 {
-    config_setting_t *setting, *prot, *patterns, *sni_hostnames;
+    config_setting_t *setting, *prot, *patterns, *sni_hostnames, *alpn_protocols;
     const char *hostname, *port, *name;
     int i, num_prots;
     struct proto *p, *prev = NULL;
@@ -279,7 +292,7 @@ static int config_protocols(config_t *config, struct proto **prots)
                 resolve_split_name(&(p->saddr), hostname, port);
 
                 p->probe = get_probe(name);
-                if (!p->probe) {
+                if (!p->probe || !strcmp(name, "sni_alpn")) {
                     fprintf(stderr, "line %d: %s: probe unknown\n", config_setting_source_line(prot), name);
                     exit(1);
                 }
@@ -292,13 +305,16 @@ static int config_protocols(config_t *config, struct proto **prots)
                     }
                 }
 
-                /* Probe-specific options: SNI hostnames */
-                if (!strcmp(name, "sni")) {
+                /* Probe-specific options: SNI/ALPN */
+                if (!strcmp(name, "tls")) {
                     sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
-                    if (sni_hostnames && config_setting_is_array(sni_hostnames)) {
-                        setup_sni_hostnames(p, sni_hostnames);
+                    alpn_protocols = config_setting_get_member(prot, "alpn_protocols");
+
+                    if((sni_hostnames && config_setting_is_array(sni_hostnames)) || (alpn_protocols && config_setting_is_array(alpn_protocols))) {
+                        setup_sni_alpn(p, sni_hostnames, alpn_protocols);
                     }
                 }
+
             }
         }
     }
