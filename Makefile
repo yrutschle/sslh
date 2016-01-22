@@ -3,7 +3,7 @@
 VERSION=$(shell ./genver.sh -r)
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
-USELIBPCRE=1	# Use libpcre? (needed for regex on musl)
+USELIBPCRE=	# Use libpcre? (needed for regex on musl)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 COV_TEST= 	# Perform test coverage?
