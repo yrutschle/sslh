@@ -1,7 +1,7 @@
 /* API for probe.c */
 
-#ifndef __PROBE_H_
-#define __PROBE_H_
+#ifndef PROBE_H
+#define PROBE_H
 
 #include "common.h"
 #include "tls.h"

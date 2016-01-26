@@ -1,5 +1,5 @@
-#ifndef __COMMON_H_
-#define __COMMON_H_
+#ifndef COMMON_H
+#define COMMON_H
 
 /* FD_SETSIZE is 64 on Cygwin, which is really low. Just redefining it is
  * enough for the macros to adapt (http://support.microsoft.com/kb/111855)
