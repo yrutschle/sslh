@@ -11,13 +11,19 @@
 #include "common.h"
 #include "probe.h"
 
-/* Added to make the code compilable under CYGWIN 
+/* Added to make the code compilable under CYGWIN
  * */
 #ifndef SA_NOCLDWAIT
 #define SA_NOCLDWAIT 0
 #endif
 
-/* 
+/* Make use of systemd socket activation
+ * */
+#ifdef SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
+
+/*
  * Settings that depend on the command line.  They're set in main(), but also
  * used in other places in common.c, and it'd be heavy-handed to pass it all as
  * parameters
@@ -44,12 +50,33 @@ void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
     char buf[NI_MAXHOST];
 
     if (res == -1) {
-        fprintf(stderr, "%s:%s: %s\n", 
-                sprintaddr(buf, sizeof(buf), addr), 
-                syscall, 
+        fprintf(stderr, "%s:%s: %s\n",
+                sprintaddr(buf, sizeof(buf), addr),
+                syscall,
                 strerror(errno));
         exit(1);
     }
+}
+
+int get_fd_sockets(int *sockfd[])
+{
+    int sd = 0;
+
+#ifdef SYSTEMD
+    sd = sd_listen_fds(0);
+    if (sd < 0) {
+      fprintf(stderr, "sd_listen_fds(): %s\n", strerror(-sd));
+      exit(1);
+    }
+    if (sd > 0) {
+      *sockfd = malloc(sd * sizeof(*sockfd[0]));
+      for (int i = 0; i < sd; i++) {
+        (*sockfd)[i] = SD_LISTEN_FDS_START + i;
+      }
+    }
+#endif
+
+    return sd;
 }
 
 /* Starts listening sockets on specified addresses.
@@ -64,6 +91,13 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
    struct addrinfo *addr;
    int i, res, one;
    int num_addr = 0;
+   int sd_socks = 0;
+
+   sd_socks = get_fd_sockets(sockfd);
+
+   if (sd_socks > 0) {
+       return sd_socks;
+   }
 
    for (addr = addr_list; addr; addr = addr->ai_next)
        num_addr++;
@@ -141,7 +175,7 @@ int bind_peer(int fd, int fd_from)
 }
 
 /* Connect to first address that works and returns a file descriptor, or -1 if
- * none work. 
+ * none work.
  * If transparent proxying is on, use fd_from peer address on external address
  * of new file descriptor. */
 int connect_addr(struct connection *cnx, int fd_from)
@@ -162,8 +196,8 @@ int connect_addr(struct connection *cnx, int fd_from)
         /* When transparent, make sure both connections use the same address family */
         if (transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
-        if (verbose) 
-            fprintf(stderr, "connecting to %s family %d len %d\n", 
+        if (verbose)
+            fprintf(stderr, "connecting to %s family %d len %d\n",
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
 
@@ -179,7 +213,7 @@ int connect_addr(struct connection *cnx, int fd_from)
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
-                log_message(LOG_ERR, "forward to %s failed:connect: %s\n", 
+                log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
                             cnx->proto->description, strerror(errno));
                 close(fd);
             } else {
@@ -191,10 +225,10 @@ int connect_addr(struct connection *cnx, int fd_from)
 }
 
 /* Store some data to write to the queue later */
-int defer_write(struct queue *q, void* data, int data_size) 
+int defer_write(struct queue *q, void* data, int data_size)
 {
     char *p;
-    if (verbose) 
+    if (verbose)
         fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
     p = realloc(q->begin_deferred_data, q->deferred_data_size + data_size);
@@ -258,7 +292,7 @@ void dump_connection(struct connection *cnx)
 }
 
 
-/* 
+/*
  * moves data from one fd to other
  *
  * returns number of bytes copied if success
@@ -326,16 +360,16 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
    int res;
 
    res = getnameinfo(a->ai_addr, a->ai_addrlen,
-               host, sizeof(host), 
-               serv, sizeof(serv), 
+               host, sizeof(host),
+               serv, sizeof(serv),
                numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
 
    if (res) {
        log_message(LOG_ERR, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
        /* Name resolution failed: do it numerically instead */
        res = getnameinfo(a->ai_addr, a->ai_addrlen,
-                         host, sizeof(host), 
-                         serv, sizeof(serv), 
+                         host, sizeof(host),
+                         serv, sizeof(serv),
                          NI_NUMERICHOST | NI_NUMERICSERV);
        /* should not fail but... */
        if (res) {
@@ -350,7 +384,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
    return buf;
 }
 
-/* Turns a hostname and port (or service) into a list of struct addrinfo 
+/* Turns a hostname and port (or service) into a list of struct addrinfo
  * returns 0 on success, -1 otherwise and logs error
  **/
 int resolve_split_name(struct addrinfo **out, const char* host, const char* serv)
@@ -438,7 +472,7 @@ void log_connection(struct connection *cnx)
     addr.ai_addrlen = sizeof(ss);
 
     res = getpeername(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
-    if (res == -1) return; /* Can happen if connection drops before we get here. 
+    if (res == -1) return; /* Can happen if connection drops before we get here.
                                In that case, don't log anything (there is no connection) */
     sprintaddr(peer, sizeof(peer), &addr);
 
@@ -541,7 +575,7 @@ void setup_signals(void)
 
 }
 
-/* Open syslog connection with appropriate banner; 
+/* Open syslog connection with appropriate banner;
  * banner is made up of basename(bin_name)+"[pid]" */
 void setup_syslog(const char* bin_name) {
     char *name1, *name2;
@@ -551,7 +585,7 @@ void setup_syslog(const char* bin_name) {
     res = asprintf(&name2, "%s[%d]", basename(name1), getpid());
     CHECK_RES_DIE(res, "asprintf");
     openlog(name2, LOG_CONS, LOG_AUTH);
-    free(name1); 
+    free(name1);
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
 
     log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
@@ -623,7 +657,7 @@ void drop_privileges(const char* user_name)
 
     /* remove extraneous groups in case we belong to several extra groups that
      * may have unwanted rights. If non-root when calling setgroups(), it
-     * fails, which is fine because... we have no unwanted rights 
+     * fails, which is fine because... we have no unwanted rights
      * (see POS36-C for security context)
      * */
     setgroups(0, NULL);
