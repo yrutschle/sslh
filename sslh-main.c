@@ -2,7 +2,7 @@
 # main: processing of config file, command line options and start the main
 # loop.
 #
-# Copyright (C) 2007-2014  Yves Rutschle
+# Copyright (C) 2007-2016  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -133,7 +133,10 @@ static void printsettings(void)
     }
     fprintf(stderr, "listening on:\n");
     for (a = addr_listen; a; a = a->ai_next) {
-        fprintf(stderr, "\t%s\n", sprintaddr(buf, sizeof(buf), a));
+        fprintf(stderr, 
+                "\t%s\t[keepalive: %d]\n", 
+                sprintaddr(buf, sizeof(buf), a), 
+                a->ai_flags & SO_KEEPALIVE ? 1 : 0);
     }
     fprintf(stderr, "timeout: %d\non-timeout: %s\n", probing_timeout,
             timeout_protocol()->description);
@@ -147,7 +150,7 @@ static void printsettings(void)
 static int config_listen(config_t *config, struct addrinfo **listen) 
 {
     config_setting_t *setting, *addr;
-    int len, i;
+    int len, i, keepalive;
     const char *hostname, *port;
 
     setting = config_lookup(config, "listen");
@@ -163,12 +166,20 @@ static int config_listen(config_t *config, struct addrinfo **listen)
                 return -1;
             }
 
+            keepalive = 0;
+            config_setting_lookup_bool(addr, "keepalive", &keepalive);
+
             resolve_split_name(listen, hostname, port);
 
             /* getaddrinfo returned a list of addresses corresponding to the
              * specification; move the pointer to the end of that list before
-             * processing the next specification */
-            for (; *listen; listen = &((*listen)->ai_next));
+             * processing the next specification, while setting flags for
+             * start_listen_sockets() through ai_flags (which is not meant for
+             * that, but is only used as hint in getaddrinfo, so it's OK) */
+            for (; *listen; listen = &((*listen)->ai_next)) {
+                if (keepalive)
+                    (*listen)->ai_flags = SO_KEEPALIVE;
+            }
         }
     }
 

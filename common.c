@@ -87,6 +87,12 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
        check_res_dumpdie(res, addr, "setsockopt(SO_REUSEADDR)");
 
+       if (addr->ai_flags & SO_KEEPALIVE) {
+           res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
+           check_res_dumpdie(res, addr, "setsockopt(SO_KEEPALIVE)");
+           printf("set up keepalive\n");
+       }
+
        if (IP_FREEBIND) {
            res = setsockopt((*sockfd)[i], IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
            check_res_dumpdie(res, addr, "setsockopt(IP_FREEBIND)");
