@@ -155,7 +155,7 @@ int connect_addr(struct connection *cnx, int fd_from)
     struct addrinfo *a, from;
     struct sockaddr_storage ss;
     char buf[NI_MAXHOST];
-    int fd, res;
+    int fd, res, one;
 
     memset(&from, 0, sizeof(from));
     from.ai_addr = (struct sockaddr*)&ss;
@@ -189,6 +189,12 @@ int connect_addr(struct connection *cnx, int fd_from)
                             cnx->proto->description, strerror(errno));
                 close(fd);
             } else {
+                if (cnx->proto->keepalive) {
+                    one = 1;
+                    res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
+                    CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)");
+                    printf("set up keepalive\n");
+                }
                 return fd;
             }
         }

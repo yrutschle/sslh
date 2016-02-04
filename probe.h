@@ -23,6 +23,7 @@ struct proto {
     int log_level;  /* 0: No logging of connection
                      * 1: Log incoming connection
                      */
+    int keepalive; /* 0: No keepalive ; 1: Set Keepalive for this connection */
 
     /* function to probe that protocol; parameters are buffer and length
      * containing the data to probe, and a pointer to the protocol structure */

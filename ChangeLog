@@ -15,6 +15,7 @@ vNEXT:
 	Added 'log_level' option to each protocol, which
 	allows to turn off generation of log at each
 	connection.
+	Added 'keepalive' option.
 
 v1.17: 	09MAR2015
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
