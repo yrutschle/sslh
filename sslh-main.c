@@ -564,10 +564,13 @@ next_arg:
 
     set_protocol_list(prots);
 
+/* If compiling with systemd socket support no need to require listen address */
+#ifndef SYSTEMD
     if (!addr_listen && !inetd) {
         fprintf(stderr, "No listening address specified; use at least one -p option\n");
         exit(1);
     }
+#endif
 
     /* Did command-line override foreground setting? */
     if (background)
@@ -603,6 +606,13 @@ int main(int argc, char *argv[])
        printsettings();
 
    num_addr_listen = start_listen_sockets(&listen_sockets, addr_listen);
+
+#ifdef SYSTEMD
+   if (num_addr_listen < 1) {
+     fprintf(stderr, "No listening sockets found, restart sockets or specify addresses in config\n");
+     exit(1);
+    }
+#endif
 
    if (!foreground) {
        if (fork() > 0) exit(0); /* Detach */

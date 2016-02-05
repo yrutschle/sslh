@@ -6,6 +6,7 @@ USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBPCRE=	# Use libpcre? (needed for regex on musl)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
+USESYSTEMD=     # Make use of systemd socket activation
 COV_TEST= 	# Perform test coverage?
 PREFIX?=/usr
 BINDIR?=$(PREFIX)/sbin
@@ -50,6 +51,12 @@ ifneq ($(strip $(USELIBCAP)),)
 	CPPFLAGS+=-DLIBCAP
 endif
 
+ifneq ($(strip $(USESYSTEMD)),)
+        LIBS:=$(LIBS) -lsystemd
+        CPPFLAGS+=-DSYSTEMD
+endif
+
+
 all: sslh $(MAN) echosrv
 
 .c.o: *.h
@@ -67,6 +74,9 @@ sslh-fork: version.h $(OBJS) sslh-fork.o Makefile common.h
 sslh-select: version.h $(OBJS) sslh-select.o Makefile common.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	#strip sslh-select
+
+systemd-sslh-generator: systemd-sslh-generator.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
 echosrv: $(OBJS) echosrv.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o $(LIBS)
@@ -100,7 +110,7 @@ distclean: clean
 	rm -f tags cscope.*
 
 clean:
-	rm -f sslh-fork sslh-select echosrv version.h $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
+	rm -f sslh-fork sslh-select echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
 
 tags:
 	ctags --globals -T *.[ch]
