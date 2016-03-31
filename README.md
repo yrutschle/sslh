@@ -390,24 +390,6 @@ To use the generator place it in /usr/lib/systemd/system-generators and then
 call systemctl daemon-reload after any changes to /etc/sslh.cfg to generate 
 the new dynamic socket unit.
 
-Transparent proxying means the target server sees the real
-origin address, so it means if the client connects using
-IPv6, the server must also support IPv6. It is easy to
-support both IPv4 and IPv6 by configuring the server
-accordingly, and setting `sslh` to connect to a name that
-resolves to both IPv4 and IPv6, e.g.:
-
-        sslh --transparent --listen <extaddr>:443 --ssh insideaddr:22
-
-        /etc/hosts:
-        192.168.0.1  insideaddr
-        201::::2     insideaddr
-
-Upon incoming IPv6 connection, `sslh` will first try to
-connect to the IPv4 address (which will fail), then connect
-to the IPv6 address.
-
-
 Fail2ban
 --------
 
