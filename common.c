@@ -180,15 +180,15 @@ int bind_peer(int fd, int fd_from)
             int family = ifa->ifa_addr->sa_family;
             if (family == AF_INET)
             {
-                struct sockaddr_in *from_addr = from.ai_addr;
-                struct sockaddr_in *ifa_addr = ifa->ifa_addr;
+                struct sockaddr_in *from_addr = (struct sockaddr_in*)from.ai_addr;
+                struct sockaddr_in *ifa_addr = (struct sockaddr_in*)ifa->ifa_addr;
                 if (from_addr->sin_addr.s_addr == ifa_addr->sin_addr.s_addr)
                     match = 1;
             }
             else if (family == AF_INET6)
             {
-                struct sockaddr_in6 *from_addr = from.ai_addr;
-                struct sockaddr_in6 *ifa_addr = ifa->ifa_addr;
+                struct sockaddr_in6 *from_addr = (struct sockaddr_in6*)from.ai_addr;
+                struct sockaddr_in6 *ifa_addr = (struct sockaddr_in6*)ifa->ifa_addr;
                 if (!memcmp(from_addr->sin6_addr.s6_addr, ifa_addr->sin6_addr.s6_addr, 16))
                     match = 1;
             }
