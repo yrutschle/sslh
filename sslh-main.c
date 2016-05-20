@@ -235,10 +235,6 @@ static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items,
     const char * config_item;
     char** sni_hostname_list;
 
-    if(!config_items || !config_setting_is_array(config_items)) {
-        fprintf(stderr, "%s: no %s specified\n", p->description, name);
-        return;
-    }
     num_probes = config_setting_length(config_items);
     if (!num_probes) {
         fprintf(stderr, "%s: no %s specified\n", p->description, name);
@@ -264,12 +260,22 @@ static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items,
     p->data = (void*)tls_data_set_list(p->data, alpn, sni_hostname_list);
 }
 
-static void setup_sni_alpn(struct proto *p, config_setting_t* sni_hostnames, config_setting_t* alpn_protocols)
+static void setup_sni_alpn(struct proto *p, config_setting_t* prot)
 {
+    config_setting_t *sni_hostnames, *alpn_protocols;
+
     p->data = (void*)new_tls_data();
-    p->probe = get_probe("sni_alpn");
-    setup_sni_alpn_list(p, sni_hostnames, "sni_hostnames", 0);
-    setup_sni_alpn_list(p, alpn_protocols, "alpn_protocols", 1);
+    sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
+    alpn_protocols = config_setting_get_member(prot, "alpn_protocols");
+
+    if(sni_hostnames && config_setting_is_array(sni_hostnames)) {
+        p->probe = get_probe("sni_alpn");
+        setup_sni_alpn_list(p, sni_hostnames, "sni_hostnames", 0);
+    }
+    if(alpn_protocols && config_setting_is_array(alpn_protocols)) {
+        p->probe = get_probe("sni_alpn");
+        setup_sni_alpn_list(p, alpn_protocols, "alpn_protocols", 1);
+    }
 }
 #endif
 
@@ -279,7 +285,7 @@ static void setup_sni_alpn(struct proto *p, config_setting_t* sni_hostnames, con
 #ifdef LIBCONFIG
 static int config_protocols(config_t *config, struct proto **prots)
 {
-    config_setting_t *setting, *prot, *patterns, *sni_hostnames, *alpn_protocols;
+    config_setting_t *setting, *prot, *patterns;
     const char *hostname, *port, *name;
     int i, num_prots;
     struct proto *p, *prev = NULL;
@@ -324,12 +330,7 @@ static int config_protocols(config_t *config, struct proto **prots)
 
                 /* Probe-specific options: SNI/ALPN */
                 if (!strcmp(name, "tls")) {
-                    sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
-                    alpn_protocols = config_setting_get_member(prot, "alpn_protocols");
-
-                    if((sni_hostnames && config_setting_is_array(sni_hostnames)) || (alpn_protocols && config_setting_is_array(alpn_protocols))) {
-                        setup_sni_alpn(p, sni_hostnames, alpn_protocols);
-                    }
+                    setup_sni_alpn(p, prot);
                 }
 
             }
