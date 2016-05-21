@@ -777,7 +777,7 @@ void set_capabilities(void) {
     int ncap = 0;
 
     if (cfg.transparent)
-        cap_list[ncap++] = CAP_NET_ADMIN;
+        cap_list[ncap++] = CAP_NET_RAW;
 
     caps = cap_init();
 
