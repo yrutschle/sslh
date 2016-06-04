@@ -40,6 +40,7 @@ static int is_xmpp_protocol(const char *p, int len, struct proto*);
 static int is_http_protocol(const char *p, int len, struct proto*);
 static int is_tls_protocol(const char *p, int len, struct proto*);
 static int is_adb_protocol(const char *p, int len, struct proto*);
+static int is_smtp_protocol(const char *p, int len, struct proto*);
 static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -54,6 +55,7 @@ static struct proto builtins[] = {
     { "ssl",         NULL,     NULL,  1,        0,         is_tls_protocol },
     { "tls",         NULL,     NULL,  1,        0,         is_tls_protocol },
     { "adb",         NULL,     NULL,  1,        0,         is_adb_protocol },
+    { "smtp",        NULL,     NULL,  1,        0,         is_smtp_protocol },
     { "anyprot",     NULL,     NULL,  1,        0,         is_true }
 };
 
@@ -260,6 +262,14 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
      * a packet >= 30 bytes long will have "something" in the payload field.
      */
     return !memcmp(&p[0], "CNXN", 4) && !memcmp(&p[24], "host:", 5);
+}
+
+static int is_smtp_protocol(const char *p, int len, struct proto *proto)
+{
+    if (len < 5)
+        return PROBE_AGAIN;
+
+    return !strncmp(p, "HELO ", 5) || !strncmp(p, "EHLO ", 5);
 }
 
 static int regex_probe(const char *p, int len, struct proto *proto)
