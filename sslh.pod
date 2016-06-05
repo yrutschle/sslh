@@ -14,7 +14,7 @@ B<sslh> accepts connections on specified ports, and forwards
 them further based on tests performed on the first data
 packet sent by the remote client.
 
-Probes for HTTP, SSL, SSH, OpenVPN, tinc, XMPP are
+Probes for HTTP, SSL, SSH, OpenVPN, tinc, XMPP, SMTP are
 implemented, and any other protocol that can be tested using
 a regular expression, can be recognised. A typical use case
 is to allow serving several services on port 443 (e.g. to
@@ -145,6 +145,11 @@ typically I<localhost:5222>.
 
 Interface and port on which to forward HTTP connections,
 typically I<localhost:80>.
+
+=item B<--smtp> I<target address>
+
+Interface and port on which to forward SMTP connections,
+typically I<localhost:25>.
 
 =item B<--tinc> I<target address>
 
