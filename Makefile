@@ -27,6 +27,8 @@ CFLAGS ?=-Wall -g $(CFLAGS_COV)
 LIBS=
 OBJS=common.o sslh-main.o probe.o tls.o
 
+CONDITIONAL_TARGETS=
+
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
 	CPPFLAGS+=-DLIBWRAP
@@ -54,10 +56,11 @@ endif
 ifneq ($(strip $(USESYSTEMD)),)
         LIBS:=$(LIBS) -lsystemd
         CPPFLAGS+=-DSYSTEMD
+	CONDITIONAL_TARGETS+=systemd-sslh-generator
 endif
 
 
-all: sslh $(MAN) echosrv
+all: sslh $(MAN) echosrv $(CONDITIONAL_TARGETS)
 
 .c.o: *.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
