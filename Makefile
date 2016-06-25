@@ -59,7 +59,7 @@ endif
 
 all: sslh $(MAN) echosrv
 
-.c.o: *.h
+.c.o: *.h version.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 version.h:
@@ -78,7 +78,7 @@ sslh-select: version.h $(OBJS) sslh-select.o Makefile common.h
 systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
-echosrv: $(OBJS) echosrv.o
+echosrv: version.h $(OBJS) echosrv.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
