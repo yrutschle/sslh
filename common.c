@@ -165,6 +165,8 @@ int bind_peer(int fd, int fd_from)
     struct sockaddr_storage ss;
     int res, trans = 1;
 
+	fprintf(stderr, "Starting bind_peer\n");
+
     memset(&from, 0, sizeof(from));
     from.ai_addr = (struct sockaddr*)&ss;
     from.ai_addrlen = sizeof(ss);
@@ -207,6 +209,7 @@ int bind_peer(int fd, int fd_from)
     }
 
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
+	fprintf(stderr, "IP_TRANSPARENT\n");
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt");
 #else
@@ -220,6 +223,7 @@ int bind_peer(int fd, int fd_from)
 #endif /* IPV6_BINDANY */
     }
 #endif /* IP_TRANSPARENT / IP_BINDANY */
+	fprintf(stderr, "bind\n");
     res = bind(fd, from.ai_addr, from.ai_addrlen);
     CHECK_RES_RETURN(res, "bind");
 
