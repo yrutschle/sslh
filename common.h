@@ -102,7 +102,7 @@ void log_connection(struct connection *cnx);
 int check_access_rights(int in_socket, const char* service);
 void setup_signals(void);
 void setup_syslog(const char* bin_name);
-void drop_privileges(const char* user_name);
+void drop_privileges(const char* user_name, const char* chroot_path);
 void write_pid_file(const char* pidfile);
 void log_message(int type, char* msg, ...);
 void dump_connection(struct connection *cnx);
@@ -118,7 +118,7 @@ extern int probing_timeout, verbose, inetd, foreground,
 extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
-extern const char* user_name, *pid_file, *facility;
+extern const char* user_name, *pid_file, *chroot_path, *facility;
 extern const char* server_type;
 
 /* sslh-fork.c */

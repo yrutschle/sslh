@@ -40,7 +40,7 @@ const char* USAGE_STRING =
 "sslh " VERSION "\n" \
 "usage:\n" \
 "\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F<file>]\n"
-"\t[-t <timeout>] [-P <pidfile>] -u <username> -p <add> [-p <addr> ...] \n" \
+"\t[-t <timeout>] [-P <pidfile>] [-u <username>] [-C <chroot>] -p <add> [-p <addr> ...] \n" \
 "%s\n\n" /* Dynamically built list of builtin protocols */  \
 "\t[--on-timeout <addr>]\n" \
 "-v: verbose\n" \
@@ -48,6 +48,7 @@ const char* USAGE_STRING =
 "-f: foreground\n" \
 "-n: numeric output\n" \
 "-u: specify under which user to run\n" \
+"-C: specify under which chroot path to run\n" \
 "--transparent: behave as a transparent proxy\n" \
 "-F: use configuration file (warning: no space between -F and file name!)\n" \
 "--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
@@ -71,6 +72,7 @@ static struct option const_options[] = {
     { "user",       required_argument,      0,              'u' },
     { "config",     optional_argument,      0,              'F' },
     { "pidfile",    required_argument,      0,              'P' },
+    { "chroot",     required_argument,      0,              'C' },
     { "timeout",    required_argument,      0,              't' },
     { "on-timeout", required_argument,      0,              OPT_ONTIMEOUT },
     { "listen",     required_argument,      0,              'p' },
@@ -78,7 +80,7 @@ static struct option const_options[] = {
 };
 static struct option* all_options;
 static struct proto* builtins;
-static const char *optstr = "vt:T:p:VP:F::";
+static const char *optstr = "vt:T:p:VP:C:F::";
 
 
 
@@ -399,6 +401,7 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
 
     config_lookup_string(&config, "user", &user_name);
     config_lookup_string(&config, "pidfile", &pid_file);
+    config_lookup_string(&config, "chroot", &chroot_path);
 
     config_lookup_string(&config, "syslog_facility", &facility);
 
@@ -561,6 +564,10 @@ next_arg:
             pid_file = optarg;
             break;
 
+        case 'C':
+            chroot_path = optarg;
+            break;
+
         case 'v':
             verbose++;
             break;
@@ -605,6 +612,7 @@ int main(int argc, char *argv[])
    /* Init defaults */
    pid_file = NULL;
    user_name = NULL;
+   chroot_path = NULL;
 
    cmdline_config(argc, argv, &protocols);
    parse_cmdline(argc, argv, protocols);
@@ -643,12 +651,11 @@ int main(int argc, char *argv[])
    if (pid_file)
        write_pid_file(pid_file);
 
-   if (user_name)
-       drop_privileges(user_name);
-
-
-   /* Open syslog connection */
+   /* Open syslog connection before we drop privs/chroot */
    setup_syslog(argv[0]);
+
+   if (user_name || chroot_path)
+       drop_privileges(user_name, chroot_path);
 
    if (verbose)
        printcaps();

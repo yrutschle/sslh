@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [B<-F>I<config file>] [ B<-t> I<num> ] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [B<-F>I<config file>] [B<-t> I<num>] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-C> I<chroot>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
@@ -183,6 +183,10 @@ Prints B<sslh> version.
 =item B<-u> I<username>, B<--user> I<username>
 
 Requires to run under the specified username. 
+
+=item B<-C> I<chroot>, B<--chroot> I<chroot>
+
+Requires to run under the specified chroot.
 
 =item B<-P> I<pidfile>, B<--pidfile> I<pidfile>
 
