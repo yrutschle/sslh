@@ -37,7 +37,6 @@ int probing_timeout = 2;
 int inetd = 0;
 int foreground = 0;
 int background = 0;
-int transparent = 0;
 int numeric = 0;
 const char *user_name, *pid_file;
 
@@ -252,7 +251,7 @@ int connect_addr(struct connection *cnx, int fd_from)
 
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
-        if (transparent && a->ai_family != from.ai_addr->sa_family)
+        if (cnx->proto->transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
         if (verbose)
             fprintf(stderr, "connecting to %s family %d len %d\n",
@@ -265,7 +264,7 @@ int connect_addr(struct connection *cnx, int fd_from)
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
                         cnx->proto->description, strerror(errno));
         } else {
-            if (transparent) {
+            if (cnx->proto->transparent) {
                 res = bind_peer(fd, fd_from);
                 CHECK_RES_RETURN(res, "bind_peer");
             }

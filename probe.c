@@ -45,16 +45,16 @@ static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 /* Table of protocols that have a built-in probe
  */
 static struct proto builtins[] = {
-    /* description   service  saddr  log_level  keepalive  probe  */
-    { "ssh",         "sshd",   NULL,  1,        0,         is_ssh_protocol},
-    { "openvpn",     NULL,     NULL,  1,        0,         is_openvpn_protocol },
-    { "tinc",        NULL,     NULL,  1,        0,         is_tinc_protocol },
-    { "xmpp",        NULL,     NULL,  1,        0,         is_xmpp_protocol },
-    { "http",        NULL,     NULL,  1,        0,         is_http_protocol },
-    { "ssl",         NULL,     NULL,  1,        0,         is_tls_protocol },
-    { "tls",         NULL,     NULL,  1,        0,         is_tls_protocol },
-    { "adb",         NULL,     NULL,  1,        0,         is_adb_protocol },
-    { "anyprot",     NULL,     NULL,  1,        0,         is_true }
+    /* description   service  saddr  log_level keepalive transparent  probe  */
+    { "ssh",         "sshd",   NULL,  1,        0,      0,         is_ssh_protocol},
+    { "openvpn",     NULL,     NULL,  1,        0,      0,         is_openvpn_protocol },
+    { "tinc",        NULL,     NULL,  1,        0,      0,         is_tinc_protocol },
+    { "xmpp",        NULL,     NULL,  1,        0,      0,         is_xmpp_protocol },
+    { "http",        NULL,     NULL,  1,        0,      0,         is_http_protocol },
+    { "ssl",         NULL,     NULL,  1,        0,      0,         is_tls_protocol },
+    { "tls",         NULL,     NULL,  1,        0,      0,         is_tls_protocol },
+    { "adb",         NULL,     NULL,  1,        0,      0,         is_adb_protocol },
+    { "anyprot",     NULL,     NULL,  1,        0,      0,         is_true }
 };
 
 static struct proto *protocols;
