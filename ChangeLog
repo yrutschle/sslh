@@ -1,4 +1,23 @@
-vNEXT: 
+v1.18:	29MAR2016
+	Added USELIBPCRE to make use of regex engine
+	optional.
+
+	Added support for RFC4366 SNI and RFC7301 ALPN
+	(Travis Burtrum)
+
+	Changed connection log to include the name of the probe that
+	triggered.
+
+	Changed configuration file format: 'probe' field is
+	no longer required, 'name' field can now contain
+	'tls' or 'regex', with corresponding options (see
+	example.cfg)
+	Added 'log_level' option to each protocol, which
+	allows to turn off generation of log at each
+	connection.
+	Added 'keepalive' option.
+
+v1.17: 	09MAR2015
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
 
 	Transparant proxy support for FreeBSD.

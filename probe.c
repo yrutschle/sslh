@@ -1,27 +1,33 @@
 /*
 # probe.c: Code for probing protocols
 #
-# Copyright (C) 2007-2012  Yves Rutschle
-# 
+# Copyright (C) 2007-2015  Yves Rutschle
+#
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
 # License as published by the Free Software Foundation; either
 # version 2 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be
 # useful, but WITHOUT ANY WARRANTY; without even the implied
 # warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # The full text for the General Public License is here:
 # http://www.gnu.org/licenses/gpl.html
 */
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#ifdef ENABLE_REGEX
+#ifdef LIBPCRE
+#include <pcreposix.h>
+#else
 #include <regex.h>
+#endif
+#endif
 #include <ctype.h>
 #include "probe.h"
 
@@ -33,20 +39,22 @@ static int is_tinc_protocol(const char *p, int len, struct proto*);
 static int is_xmpp_protocol(const char *p, int len, struct proto*);
 static int is_http_protocol(const char *p, int len, struct proto*);
 static int is_tls_protocol(const char *p, int len, struct proto*);
+static int is_adb_protocol(const char *p, int len, struct proto*);
 static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
  */
 static struct proto builtins[] = {
-    /* description   service  saddr   probe  */
-    { "ssh",         "sshd",   NULL,   is_ssh_protocol},
-    { "openvpn",     NULL,     NULL,   is_openvpn_protocol },
-    { "tinc",        NULL,     NULL,   is_tinc_protocol },
-    { "xmpp",        NULL,     NULL,   is_xmpp_protocol },
-    { "http",        NULL,     NULL,   is_http_protocol },
-    { "ssl",         NULL,     NULL,   is_tls_protocol },
-    { "tls",         NULL,     NULL,   is_tls_protocol },
-    { "anyprot",     NULL,     NULL,   is_true }
+    /* description   service  saddr  log_level keepalive transparent  probe  */
+    { "ssh",         "sshd",   NULL,  1,        0,      0,         is_ssh_protocol},
+    { "openvpn",     NULL,     NULL,  1,        0,      0,         is_openvpn_protocol },
+    { "tinc",        NULL,     NULL,  1,        0,      0,         is_tinc_protocol },
+    { "xmpp",        NULL,     NULL,  1,        0,      0,         is_xmpp_protocol },
+    { "http",        NULL,     NULL,  1,        0,      0,         is_http_protocol },
+    { "ssl",         NULL,     NULL,  1,        0,      0,         is_tls_protocol },
+    { "tls",         NULL,     NULL,  1,        0,      0,         is_tls_protocol },
+    { "adb",         NULL,     NULL,  1,        0,      0,         is_adb_protocol },
+    { "anyprot",     NULL,     NULL,  1,        0,      0,         is_true }
 };
 
 static struct proto *protocols;
@@ -67,10 +75,10 @@ void set_ontimeout(const char* name)
     CHECK_RES_DIE(res, "asprintf");
 }
 
-/* Returns the protocol to connect to in case of timeout; 
- * if not found, return the first protocol specified 
+/* Returns the protocol to connect to in case of timeout;
+ * if not found, return the first protocol specified
  */
-struct proto* timeout_protocol(void) 
+struct proto* timeout_protocol(void)
 {
     struct proto* p = get_first_protocol();
     for (; p && strcmp(p->description, on_timeout); p = p->next);
@@ -113,7 +121,7 @@ void hexdump(const char *mem, unsigned int len)
                 if(j >= len) /* end of block, not really printing */
                     putchar(' ');
                 else if(isprint(mem[j])) /* printable char */
-                    putchar(0xFF & mem[j]);        
+                    putchar(0xFF & mem[j]);
                 else /* other char */
                     putchar('.');
             }
@@ -153,7 +161,8 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
 }
 
 /* Is the buffer the beginning of a tinc connections?
- * (protocol is undocumented, but starts with "0 " in 1.0.15)
+ * Protocol is documented here: http://www.tinc-vpn.org/documentation/tinc.pdf
+ * First connection starts with "0 " in 1.0.15)
  * */
 static int is_tinc_protocol( const char *p, int len, struct proto *proto)
 {
@@ -169,7 +178,10 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
  * */
 static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 {
-    if (len < 6)
+    /* sometimes the word 'jabber' shows up late in the initial string,
+       sometimes after a newline. this makes sure we snarf the entire preamble
+       and detect it. (fixed for adium/pidgin) */
+    if (len < 50)
         return PROBE_AGAIN;
 
     return memmem(p, len, "jabber", 6) ? 1 : 0;
@@ -209,6 +221,19 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
     return PROBE_NEXT;
 }
 
+static int is_sni_alpn_protocol(const char *p, int len, struct proto *proto)
+{
+    int valid_tls;
+
+    valid_tls = parse_tls_header(proto->data, p, len);
+
+    if(valid_tls < 0)
+        return -1 == valid_tls ? PROBE_AGAIN : PROBE_NEXT;
+
+    /* There *was* a valid match */
+    return PROBE_MATCH;
+}
+
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
     if (len < 3)
@@ -221,8 +246,25 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
     return p[0] == 0x16 && p[1] == 0x03 && ( p[2] >= 0 && p[2] <= 0x03);
 }
 
+static int is_adb_protocol(const char *p, int len, struct proto *proto)
+{
+    if (len < 30)
+        return PROBE_AGAIN;
+
+    /* The initial ADB host->device packet has a command type of CNXN, and a
+     * data payload starting with "host:".  Note that current versions of the
+     * client hardcode "host::" (with empty serialno and banner fields) but
+     * other clients may populate those fields.
+     *
+     * We aren't checking amessage.data_length, under the assumption that
+     * a packet >= 30 bytes long will have "something" in the payload field.
+     */
+    return !memcmp(&p[0], "CNXN", 4) && !memcmp(&p[24], "host:", 5);
+}
+
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
+#ifdef ENABLE_REGEX
     char *str;
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
@@ -240,11 +282,16 @@ static int regex_probe(const char *p, int len, struct proto *proto)
         /* try them all */;
     free(str);
     return (*probe != NULL);
+#else
+    /* Should never happen as we check when loading config file */
+    fprintf(stderr, "FATAL: regex probe called but not built in\n");
+    exit(5);
+#endif
 }
 
-/* 
+/*
  * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. 
+ * it's a known protocol.
  * Return PROBE_AGAIN if not enough data, or PROBE_MATCH if it succeeded in
  * which case cnx->proto is set to the appropriate protocol.
  */
@@ -276,9 +323,9 @@ int probe_client_protocol(struct connection *cnx)
             return res;
     }
 
-    if (verbose) 
-        fprintf(stderr, 
-                "all probes failed, connecting to first protocol: %s\n", 
+    if (verbose)
+        fprintf(stderr,
+                "all probes failed, connecting to first protocol: %s\n",
                 protocols->description);
 
     /* If none worked, return the first one affected (that's completely
@@ -301,7 +348,7 @@ static struct proto* get_protocol(const char* description)
 }
 
 /* Returns the probe for specified protocol:
- * parameter is the description in builtins[], or "regex" 
+ * parameter is the description in builtins[], or "regex"
  * */
 T_PROBE* get_probe(const char* description) {
     struct proto* p = get_protocol(description);
@@ -315,7 +362,14 @@ T_PROBE* get_probe(const char* description) {
     if (!strcmp(description, "regex"))
         return regex_probe;
 
+    /* Special case of "sni/alpn" probe for same reason as above*/
+    if (!strcmp(description, "sni_alpn"))
+        return is_sni_alpn_protocol;
+
+    /* Special case of "timeout" is allowed as a probe name in the
+     * configuration file even though it's not really a probe */
+    if (!strcmp(description, "timeout"))
+        return is_true;
+
     return NULL;
 }
-
-

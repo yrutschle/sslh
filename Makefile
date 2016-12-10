@@ -1,11 +1,16 @@
 # Configuration
 
 VERSION=$(shell ./genver.sh -r)
+ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
+USELIBPCRE=	# Use libpcre? (needed for regex on musl)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
+USESYSTEMD=     # Make use of systemd socket activation
 COV_TEST= 	# Perform test coverage?
-PREFIX=/usr/local
+PREFIX?=/usr
+BINDIR?=$(PREFIX)/sbin
+MANDIR?=$(PREFIX)/share/man/man8
 
 MAN=sslh.8.gz	# man page name
 
@@ -20,11 +25,20 @@ CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
 LIBS=
-OBJS=common.o sslh-main.o probe.o
+OBJS=common.o sslh-main.o probe.o tls.o
 
 ifneq ($(strip $(USELIBWRAP)),)
 	LIBS:=$(LIBS) -lwrap
 	CPPFLAGS+=-DLIBWRAP
+endif
+
+ifneq ($(strip $(ENABLE_REGEX)),)
+	CPPFLAGS+=-DENABLE_REGEX
+endif
+
+ifneq ($(strip $(USELIBPCRE)),)
+	CPPFLAGS+=-DLIBPCRE
+	LIBS:=$(LIBS) -lpcre
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
@@ -36,6 +50,12 @@ ifneq ($(strip $(USELIBCAP)),)
 	LIBS:=$(LIBS) -lcap
 	CPPFLAGS+=-DLIBCAP
 endif
+
+ifneq ($(strip $(USESYSTEMD)),)
+        LIBS:=$(LIBS) -lsystemd
+        CPPFLAGS+=-DSYSTEMD
+endif
+
 
 all: sslh $(MAN) echosrv
 
@@ -55,8 +75,11 @@ sslh-select: version.h $(OBJS) sslh-select.o Makefile common.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	#strip sslh-select
 
+systemd-sslh-generator: systemd-sslh-generator.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
+
 echosrv: $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
@@ -68,8 +91,10 @@ release:
 
 # generic install: install binary and man page
 install: sslh $(MAN)
-	install -pD sslh-fork $(DESTDIR)$(PREFIX)/sbin/sslh
-	install -pD -m 0644 $(MAN) $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN)
+	mkdir -p $(DESTDIR)/$(BINDIR)
+	mkdir -p $(DESTDIR)/$(MANDIR)
+	install -p sslh-fork $(DESTDIR)/$(BINDIR)/sslh
+	install -p -m 0644 $(MAN) $(DESTDIR)/$(MANDIR)/$(MAN)
 
 # "extended" install for Debian: install startup script
 install-debian: install sslh $(MAN)
@@ -78,14 +103,14 @@ install-debian: install sslh $(MAN)
 	update-rc.d sslh defaults
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/sbin/sslh $(DESTDIR)$(PREFIX)/share/man/man8/$(MAN) $(DESTDIR)/etc/init.d/sslh $(DESTDIR)/etc/default/sslh
+	rm -f $(DESTDIR)$(BINDIR)/sslh $(DESTDIR)$(MANDIR)/$(MAN) $(DESTDIR)/etc/init.d/sslh $(DESTDIR)/etc/default/sslh
 	update-rc.d sslh remove
 
 distclean: clean
 	rm -f tags cscope.*
 
 clean:
-	rm -f sslh-fork sslh-select echosrv version.h $(MAN) *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
+	rm -f sslh-fork sslh-select echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
 
 tags:
 	ctags --globals -T *.[ch]
@@ -96,4 +121,3 @@ cscope:
 
 test:
 	./t
-

@@ -40,8 +40,8 @@ fi
 
 
 if [ $QUIET -ne 1 ]; then
-	printf "#ifndef _VERSION_H_ \n"
-	printf "#define _VERSION_H_ \n\n"
+	printf "#ifndef VERSION_H \n"
+	printf "#define VERSION_H \n\n"
 	printf "#define VERSION \"$release\"\n"
 	printf "#endif\n"
 else

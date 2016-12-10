@@ -59,6 +59,8 @@ of the Makefile:
   file. You will need `libconfig` headers to compile
   (`libconfig8-dev` in Debian).
 
+*  `USESYSTEMD` compiles support for using systemd socket activation.
+   You will need `systemd` headers to compile (`systemd-devel` in Fedora).
 
 Binaries
 --------
@@ -102,7 +104,7 @@ Installation
 	
 * For CentOS:
 
-		cp scripts/etc.rc.d.init.d.sslh /etc/rc.d/init.d/sslh
+		cp scripts/etc.rc.d.init.d.sslh.centos /etc/rc.d/init.d/sslh
 
 
 You might need to create links in /etc/rc<x>.d so that the server
@@ -217,7 +219,7 @@ Transparent proxy support
 -------------------------
 
 On Linux and FreeBSD you can use the `--transparent` option to
-request transparent proying. This means services behind `sslh`
+request transparent proxying. This means services behind `sslh`
 (Apache, `sshd` and so on) will see the external IP and ports
 as if the external world connected directly to them. This
 simplifies IP-based access control (or makes it possible at
@@ -303,6 +305,90 @@ explicit IP addresses (or names):
 This will not work:
 
 	sslh --listen 192.168.0.1:443 --ssh 127.0.0.1:22 --ssl 127.0.0.1:4443
+    
+Transparent proxying means the target server sees the real
+origin address, so it means if the client connects using
+IPv6, the server must also support IPv6. It is easy to
+support both IPv4 and IPv6 by configuring the server
+accordingly, and setting `sslh` to connect to a name that
+resolves to both IPv4 and IPv6, e.g.:
+
+        sslh --transparent --listen <extaddr>:443 --ssh insideaddr:22
+
+        /etc/hosts:
+        192.168.0.1  insideaddr
+        201::::2     insideaddr
+
+Upon incoming IPv6 connection, `sslh` will first try to
+connect to the IPv4 address (which will fail), then connect
+to the IPv6 address.
+
+Systemd Socket Activation
+-------------------------
+If compiled with `USESYSTEMD` then it is possible to activate 
+the service on demand and avoid running any code as root.
+
+In this mode any listen configuration options are ignored and 
+the sockets are passed by systemd to the service.
+
+Example socket unit:
+
+	[Unit]
+	Before=sslh.service
+	
+	[Socket]
+	ListenStream=1.2.3.4:443
+	ListenStream=5.6.7.8:444
+	ListenStream=9.10.11.12:445
+	FreeBind=true
+
+	[Install]
+	WantedBy=sockets.target
+
+Example service unit:
+
+	[Unit]
+	PartOf=sslh.socket
+	
+	[Service]
+	ExecStart=/usr/sbin/sslh -v -f --ssh 127.0.0.1:22 --ssl 127.0.0.1:443
+	KillMode=process
+	CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_SETGID CAP_SETUID
+	PrivateTmp=true
+	PrivateDevices=true
+	ProtectSystem=full
+	ProtectHome=true
+	User=sslh
+
+
+With this setup only the socket needs to be enabled. The sslh service 
+will be started on demand and does not need to run as root to bind the 
+sockets as systemd has already bound and passed them over. If the sslh
+service is started on its own without the sockets being passed by systemd
+then it will look to use those defined on the command line or config
+file as usual. Any number of ListenStreams can be defined in the socket
+file and systemd will pass them all over to sslh to use as usual.
+
+To avoid inconsistency between starting via socket and starting directly
+via the service Requires=sslh.socket can be added to the service unit to
+mandate the use of the socket configuration.
+
+Rather than overwriting the entire socket file drop in values can be placed
+in /etc/systemd/system/sslh.socket.d/<name>.conf with additional ListenStream
+values that will be merged.
+
+In addition to the above with manual .socket file configuration there is an
+optional systemd generator which can be compiled - systemd-sslh-generator 
+
+This parses the /etc/sslh.cfg (or /etc/sslh/sslh.cfg file if that exists 
+instead) configuration file and dynamically generates a socket file to use.
+
+This will also merge with any sslh.socket.d drop in configuration but will be 
+overriden by a /etc/systemd/system/sslh.socket file.
+
+To use the generator place it in /usr/lib/systemd/system-generators and then
+call systemctl daemon-reload after any changes to /etc/sslh.cfg to generate 
+the new dynamic socket unit.
 
 Fail2ban
 --------

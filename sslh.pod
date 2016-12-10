@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [B<-F> I<config file>] [ B<-t> I<num> ] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [B<-F>I<config file>] [ B<-t> I<num> ] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...] [B<--ssl> I<target address for SSL>] [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
@@ -51,13 +51,9 @@ and the list of protocols).
 
 The configuration file makes it possible to specify
 protocols using regular expressions: a list of regular
-expressions is given as the I<probe> parameter, and if the
+expressions is given as the I<regex_patterns> parameter, and if the
 first packet received from the client matches any of these
 expressions, B<sslh> connects to that protocol.
-
-Alternatively, the I<probe> parameter can be set to
-"builtin", to use the compiled probes which are much faster
-than regular expressions.
 
 =head2 Probing protocols
 
@@ -82,11 +78,14 @@ connections and LOG_ERR for failures.
 
 =over 4
 
-=item B<-F> I<filename>, B<--config> I<filename>
+=item B<-F>I<filename>, B<--config> I<filename>
 
 Uses I<filename> has configuration file. If other
 command-line options are specified, they will override the
 configuration file's settings.
+
+When using the shorthand version, make sure there should be
+no space between B<-F> and the I<filename>.
 
 =item B<-t> I<num>, B<--timeout> I<num>
 

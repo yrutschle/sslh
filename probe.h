@@ -1,9 +1,10 @@
 /* API for probe.c */
 
-#ifndef __PROBE_H_
-#define __PROBE_H_
+#ifndef PROBE_H
+#define PROBE_H
 
 #include "common.h"
+#include "tls.h"
 
 typedef enum {
     PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */
@@ -19,11 +20,17 @@ struct proto {
     const char* description;  /* a string that says what it is (for logging and command-line parsing) */
     const char* service;      /* service name to do libwrap checks */
     struct addrinfo *saddr; /* list of addresses to try and switch that protocol */
+    int log_level;  /* 0: No logging of connection
+                     * 1: Log incoming connection
+                     */
+    int keepalive; /* 0: No keepalive ; 1: Set Keepalive for this connection */
+    int transparent; /* 0: opaque proxy ; 1: transparent proxy */
 
     /* function to probe that protocol; parameters are buffer and length
      * containing the data to probe, and a pointer to the protocol structure */
     T_PROBE* probe;
-    void* data;     /* opaque pointer ; used to pass list of regex to regex probe */
+    /* opaque pointer ; used to pass list of regex to regex probe, or TLSProtocol struct to sni/alpn probe */
+    void* data;
     struct proto *next; /* pointer to next protocol in list, NULL if last */
 };
 
