@@ -135,7 +135,7 @@ i.e. that that is not `127.0.0.1` in the output of
 Libwrap support
 ---------------
 
-Sslh can optionnaly perform `libwrap` checks for the sshd
+Sslh can optionally perform `libwrap` checks for the sshd
 service: because the connection to `sshd` will be coming
 locally from `sslh`, `sshd` cannot determine the IP of the
 client.
@@ -145,10 +145,10 @@ OpenVPN support
 
 OpenVPN clients connecting to OpenVPN running with
 `-port-share` reportedly take more than one second between
-the time the TCP connexion is established and the time they
+the time the TCP connection is established and the time they
 send the first data packet. This results in `sslh` with
-default settings timing out and assuming an SSH connexion.
-To support OpenVPN connexions reliably, it is necessary to
+default settings timing out and assuming an SSH connection.
+To support OpenVPN connections reliably, it is necessary to
 increase `sslh`'s timeout to 5 seconds.
 
 Instead of using OpenVPN's port sharing, it is more reliable
@@ -396,8 +396,8 @@ Fail2ban
 If using transparent proxying, just use the standard ssh
 rules. If you can't or don't want to use transparent
 proxying, you can set `fail2ban` rules to block repeated ssh
-connections from a same IP address (obviously this depends
-on the site, there might be legimite reasons you would get
+connections from an IP address (obviously this depends
+on the site, there might be legitimate reasons you would get
 many connections to ssh from the same IP address...)
 
 See example files in scripts/fail2ban.
