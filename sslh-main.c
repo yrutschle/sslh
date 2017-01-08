@@ -39,7 +39,7 @@
 const char* USAGE_STRING =
 "sslh " VERSION "\n" \
 "usage:\n" \
-"\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F <file>]\n"
+"\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F<file>]\n"
 "\t[-t <timeout>] [-P <pidfile>] -u <username> -p <add> [-p <addr> ...] \n" \
 "%s\n\n" /* Dynamically built list of builtin protocols */  \
 "\t[--on-timeout <addr>]\n" \
@@ -49,7 +49,7 @@ const char* USAGE_STRING =
 "-n: numeric output\n" \
 "-u: specify under which user to run\n" \
 "--transparent: behave as a transparent proxy\n" \
-"-F: use configuration file\n" \
+"-F: use configuration file (warning: no space between -F and file name!)\n" \
 "--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
 "-t: seconds to wait before connecting to --on-timeout address.\n" \
 "-p: address and port to listen on.\n    Can be used several times to bind to several addresses.\n" \
