@@ -48,8 +48,13 @@ struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 int allow_severity =0, deny_severity = 0;
 #endif
 
+typedef enum {
+    CR_DIE,
+    CR_WARN
+} CR_ACTION;
+
 /* check result and die, printing the offending address and error */
-void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
+void check_res_dump(CR_ACTION act, int res, struct addrinfo *addr, char* syscall)
 {
     char buf[NI_MAXHOST];
 
@@ -58,7 +63,9 @@ void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
                 sprintaddr(buf, sizeof(buf), addr),
                 syscall,
                 strerror(errno));
-        exit(1);
+
+        if (act == CR_DIE)
+            exit(1);
     }
 }
 
@@ -119,32 +126,28 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        saddr = (struct sockaddr_storage*)addr->ai_addr;
 
        (*sockfd)[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
-       check_res_dumpdie((*sockfd)[i], addr, "socket");
+       check_res_dump(CR_DIE, (*sockfd)[i], addr, "socket");
 
        one = 1;
        res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
-       check_res_dumpdie(res, addr, "setsockopt(SO_REUSEADDR)");
+       check_res_dump(CR_DIE, res, addr, "setsockopt(SO_REUSEADDR)");
 
        if (addr->ai_flags & SO_KEEPALIVE) {
            res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
-           check_res_dumpdie(res, addr, "setsockopt(SO_KEEPALIVE)");
+           check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
            printf("set up keepalive\n");
        }
 
        if (IP_FREEBIND) {
            res = setsockopt((*sockfd)[i], IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
-           if (res == -1) {
-               fprintf(stderr, "%s:%s: %s\n",
-                       sprintaddr(buf, sizeof(buf), addr),
-                       syscall,
-                       strerror(errno));
+           check_res_dump(CR_WARN, res, addr, "setsockopt(IP_FREEBIND)");
            }
 
        res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
-       check_res_dumpdie(res, addr, "bind");
+       check_res_dump(CR_DIE, res, addr, "bind");
 
        res = listen ((*sockfd)[i], 50);
-       check_res_dumpdie(res, addr, "listen");
+       check_res_dump(CR_DIE, res, addr, "listen");
 
    }
 
