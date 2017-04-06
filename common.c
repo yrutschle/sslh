@@ -133,8 +133,12 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
 
        if (IP_FREEBIND) {
            res = setsockopt((*sockfd)[i], IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
-           check_res_dumpdie(res, addr, "setsockopt(IP_FREEBIND)");
-       }
+           if (res == -1) {
+               fprintf(stderr, "%s:%s: %s\n",
+                       sprintaddr(buf, sizeof(buf), addr),
+                       syscall,
+                       strerror(errno));
+           }
 
        res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
        check_res_dumpdie(res, addr, "bind");
