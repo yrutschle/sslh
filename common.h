@@ -106,7 +106,7 @@ void drop_privileges(const char* user_name);
 void write_pid_file(const char* pidfile);
 void log_message(int type, char* msg, ...);
 void dump_connection(struct connection *cnx);
-int resolve_split_name(struct addrinfo **out, const char* hostname, const char* port);
+int resolve_split_name(struct addrinfo **out, char* hostname, const char* port);
 
 int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 

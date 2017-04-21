@@ -442,15 +442,30 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 
 /* Turns a hostname and port (or service) into a list of struct addrinfo
  * returns 0 on success, -1 otherwise and logs error
+ *
+ * *host gets modified
  **/
-int resolve_split_name(struct addrinfo **out, const char* host, const char* serv)
+int resolve_split_name(struct addrinfo **out, char* host, const char* serv)
 {
    struct addrinfo hint;
+   char *end;
    int res;
 
    memset(&hint, 0, sizeof(hint));
    hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
+
+   /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
+    * around IP address */
+   if (host[0] == '[') {
+       end = strrchr(host, ']');
+       if (!end) {
+           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
+       }
+       host++; /* skip first bracket */
+       *end = 0; /* remove last bracket */
+   }
+
 
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
@@ -464,7 +479,7 @@ fullname: input string -- it gets clobbered
 */
 void resolve_name(struct addrinfo **out, char* fullname)
 {
-   char *serv, *host, *end;
+   char *serv, *host;
    int res;
 
    /* Find port */
@@ -477,17 +492,6 @@ void resolve_name(struct addrinfo **out, char* fullname)
    *sep = 0;
 
    host = fullname;
-
-   /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
-    * around IP address */
-   if (host[0] == '[') {
-       end = strrchr(host, ']');
-       if (!end) {
-           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
-       }
-       host++; /* skip first bracket */
-       *end = 0; /* remove last bracket */
-   }
 
    res = resolve_split_name(out, host, serv);
    if (res) {
