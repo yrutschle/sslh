@@ -2,19 +2,19 @@
 # probe.c: Code for probing protocols
 #
 # Copyright (C) 2007-2015  Yves Rutschle
-# 
+#
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
 # License as published by the Free Software Foundation; either
 # version 2 of the License, or (at your option) any later
 # version.
-# 
+#
 # This program is distributed in the hope that it will be
 # useful, but WITHOUT ANY WARRANTY; without even the implied
 # warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE.  See the GNU General Public License for more
 # details.
-# 
+#
 # The full text for the General Public License is here:
 # http://www.gnu.org/licenses/gpl.html
 */
@@ -75,10 +75,10 @@ void set_ontimeout(const char* name)
     CHECK_RES_DIE(res, "asprintf");
 }
 
-/* Returns the protocol to connect to in case of timeout; 
- * if not found, return the first protocol specified 
+/* Returns the protocol to connect to in case of timeout;
+ * if not found, return the first protocol specified
  */
-struct proto* timeout_protocol(void) 
+struct proto* timeout_protocol(void)
 {
     struct proto* p = get_first_protocol();
     for (; p && strcmp(p->description, on_timeout); p = p->next);
@@ -121,7 +121,7 @@ void hexdump(const char *mem, unsigned int len)
                 if(j >= len) /* end of block, not really printing */
                     putchar(' ');
                 else if(isprint(mem[j])) /* printable char */
-                    putchar(0xFF & mem[j]);        
+                    putchar(0xFF & mem[j]);
                 else /* other char */
                     putchar('.');
             }
@@ -265,12 +265,22 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
 #ifdef ENABLE_REGEX
+    char *str;
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
-
-    for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
+    int i;
+    str = (char *)malloc(len+1);
+    str[len] = 0;
+    for(i=0;i<len;i++){
+      if (p[i]){
+        str[i] = p[i];
+      } else {
+        str[i] = 0xff;
+      }
+    }
+    for (; *probe && regexec(*probe, str, 0, &pos, REG_STARTEND); probe++)
         /* try them all */;
-
+    free(str);
     return (*probe != NULL);
 #else
     /* Should never happen as we check when loading config file */
@@ -279,9 +289,9 @@ static int regex_probe(const char *p, int len, struct proto *proto)
 #endif
 }
 
-/* 
+/*
  * Read the beginning of data coming from the client connection and check if
- * it's a known protocol. 
+ * it's a known protocol.
  * Return PROBE_AGAIN if not enough data, or PROBE_MATCH if it succeeded in
  * which case cnx->proto is set to the appropriate protocol.
  */
@@ -313,9 +323,9 @@ int probe_client_protocol(struct connection *cnx)
             return res;
     }
 
-    if (verbose) 
-        fprintf(stderr, 
-                "all probes failed, connecting to first protocol: %s\n", 
+    if (verbose)
+        fprintf(stderr,
+                "all probes failed, connecting to first protocol: %s\n",
                 protocols->description);
 
     /* If none worked, return the first one affected (that's completely
@@ -338,7 +348,7 @@ static struct proto* get_protocol(const char* description)
 }
 
 /* Returns the probe for specified protocol:
- * parameter is the description in builtins[], or "regex" 
+ * parameter is the description in builtins[], or "regex"
  * */
 T_PROBE* get_probe(const char* description) {
     struct proto* p = get_protocol(description);
@@ -363,5 +373,3 @@ T_PROBE* get_probe(const char* description) {
 
     return NULL;
 }
-
-
