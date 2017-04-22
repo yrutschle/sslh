@@ -268,7 +268,7 @@ static int regex_probe(const char *p, int len, struct proto *proto)
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
 
-    for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
+    for (; *probe && regexec(*probe, p, 0, &pos, 0); probe++)
         /* try them all */;
 
     return (*probe != NULL);
