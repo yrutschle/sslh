@@ -37,6 +37,7 @@ int probing_timeout = 2;
 int inetd = 0;
 int foreground = 0;
 int background = 0;
+int transparent = 0;
 int numeric = 0;
 const char *user_name, *pid_file;
 
@@ -47,8 +48,13 @@ struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 int allow_severity =0, deny_severity = 0;
 #endif
 
+typedef enum {
+    CR_DIE,
+    CR_WARN
+} CR_ACTION;
+
 /* check result and die, printing the offending address and error */
-void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
+void check_res_dump(CR_ACTION act, int res, struct addrinfo *addr, char* syscall)
 {
     char buf[NI_MAXHOST];
 
@@ -57,7 +63,9 @@ void check_res_dumpdie(int res, struct addrinfo *addr, char* syscall)
                 sprintaddr(buf, sizeof(buf), addr),
                 syscall,
                 strerror(errno));
-        exit(1);
+
+        if (act == CR_DIE)
+            exit(1);
     }
 }
 
@@ -118,28 +126,28 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        saddr = (struct sockaddr_storage*)addr->ai_addr;
 
        (*sockfd)[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
-       check_res_dumpdie((*sockfd)[i], addr, "socket");
+       check_res_dump(CR_DIE, (*sockfd)[i], addr, "socket");
 
        one = 1;
        res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
-       check_res_dumpdie(res, addr, "setsockopt(SO_REUSEADDR)");
+       check_res_dump(CR_DIE, res, addr, "setsockopt(SO_REUSEADDR)");
 
        if (addr->ai_flags & SO_KEEPALIVE) {
            res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
-           check_res_dumpdie(res, addr, "setsockopt(SO_KEEPALIVE)");
+           check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
            printf("set up keepalive\n");
        }
 
        if (IP_FREEBIND) {
            res = setsockopt((*sockfd)[i], IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
-           check_res_dumpdie(res, addr, "setsockopt(IP_FREEBIND)");
-       }
+           check_res_dump(CR_WARN, res, addr, "setsockopt(IP_FREEBIND)");
+           }
 
        res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
-       check_res_dumpdie(res, addr, "bind");
+       check_res_dump(CR_DIE, res, addr, "bind");
 
        res = listen ((*sockfd)[i], 50);
-       check_res_dumpdie(res, addr, "listen");
+       check_res_dump(CR_DIE, res, addr, "listen");
 
    }
 
@@ -236,7 +244,7 @@ int connect_addr(struct connection *cnx, int fd_from)
 
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
-        if (cnx->proto->transparent && a->ai_family != from.ai_addr->sa_family)
+        if (transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
         if (verbose)
             fprintf(stderr, "connecting to %s family %d len %d\n",
@@ -249,7 +257,7 @@ int connect_addr(struct connection *cnx, int fd_from)
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
                         cnx->proto->description, strerror(errno));
         } else {
-            if (cnx->proto->transparent) {
+            if (transparent) {
                 res = bind_peer(fd, fd_from);
                 CHECK_RES_RETURN(res, "bind_peer");
             }
@@ -434,15 +442,30 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 
 /* Turns a hostname and port (or service) into a list of struct addrinfo
  * returns 0 on success, -1 otherwise and logs error
+ *
+ * *host gets modified
  **/
-int resolve_split_name(struct addrinfo **out, const char* host, const char* serv)
+int resolve_split_name(struct addrinfo **out, char* host, const char* serv)
 {
    struct addrinfo hint;
+   char *end;
    int res;
 
    memset(&hint, 0, sizeof(hint));
    hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
+
+   /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
+    * around IP address */
+   if (host[0] == '[') {
+       end = strrchr(host, ']');
+       if (!end) {
+           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
+       }
+       host++; /* skip first bracket */
+       *end = 0; /* remove last bracket */
+   }
+
 
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
@@ -456,7 +479,7 @@ fullname: input string -- it gets clobbered
 */
 void resolve_name(struct addrinfo **out, char* fullname)
 {
-   char *serv, *host, *end;
+   char *serv, *host;
    int res;
 
    /* Find port */
@@ -469,17 +492,6 @@ void resolve_name(struct addrinfo **out, char* fullname)
    *sep = 0;
 
    host = fullname;
-
-   /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
-    * around IP address */
-   if (host[0] == '[') {
-       end = strrchr(host, ']');
-       if (!end) {
-           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
-       }
-       host++; /* skip first bracket */
-       *end = 0; /* remove last bracket */
-   }
 
    res = resolve_split_name(out, host, serv);
    if (res) {

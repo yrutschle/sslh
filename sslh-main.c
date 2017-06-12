@@ -61,14 +61,11 @@ const char* USAGE_STRING =
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
 
-/* Global setting for transparent proxying */
-int g_transparent = 0;  
-
 static struct option const_options[] = {
     { "inetd",      no_argument,            &inetd,         1 },
     { "foreground", no_argument,            &foreground,    1 },
     { "background", no_argument,            &background,    1 },
-    { "transparent", no_argument,           &g_transparent,   1 },
+    { "transparent", no_argument,           &transparent,   1 },
     { "numeric",    no_argument,            &numeric,       1 },
     { "verbose",    no_argument,            &verbose,       1 },
     { "user",       required_argument,      0,              'u' },
@@ -126,16 +123,14 @@ static void printsettings(void)
     
     for (p = get_first_protocol(); p; p = p->next) {
         fprintf(stderr,
-                "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s%s]\n", 
+                "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s]\n", 
                 p->description, 
                 sprintaddr(buf, sizeof(buf), p->saddr), 
                 p->service,
                 p->log_level,
                 p->saddr->ai_family,
                 p->saddr->ai_addr->sa_family,
-                p->keepalive ? "keepalive " : "",
-                p->transparent ? "transparent" : ""
-                );
+                p->keepalive ? "keepalive" : "");
     }
     fprintf(stderr, "listening on:\n");
     for (a = addr_listen; a; a = a->ai_next) {
@@ -312,7 +307,6 @@ static int config_protocols(config_t *config, struct proto **prots)
                 p->description = name;
                 config_setting_lookup_string(prot, "service", &(p->service));
                 config_setting_lookup_bool(prot, "keepalive", &p->keepalive);
-                config_setting_lookup_bool(prot, "transparent", &p->transparent);
 
                 if (config_setting_lookup_int(prot, "log_level", &p->log_level) == CONFIG_FALSE) {
                     p->log_level = 1;
@@ -382,7 +376,7 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
     config_lookup_bool(&config, "inetd", &inetd);
     config_lookup_bool(&config, "foreground", &foreground);
     config_lookup_bool(&config, "numeric", &numeric);
-    config_lookup_bool(&config, "transparent", &g_transparent);
+    config_lookup_bool(&config, "transparent", &transparent);
 
     if (config_lookup_int(&config, "timeout", (int *)&timeout) == CONFIG_TRUE) {
         probing_timeout = timeout;
