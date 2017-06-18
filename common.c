@@ -173,7 +173,7 @@ int bind_peer(int fd, int fd_from)
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername");
     
-    // if the destination is the same machine, there's no need to do bind
+    /* if the destination is the same machine, there's no need to do bind */
     struct ifaddrs *ifaddrs_p = NULL, *ifa;
 
     getifaddrs(&ifaddrs_p);
@@ -201,7 +201,7 @@ int bind_peer(int fd, int fd_from)
                     match = 1;
             }
         }
-        if (match)  // the destination is the same as the source, should not create a transparent bind
+        if (match)  /* the destination is the same as the source, should not create a transparent bind */
             return 0;
     }
 
