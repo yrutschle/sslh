@@ -333,6 +333,9 @@ static int config_protocols(config_t *config, struct proto **prots)
                     setup_sni_alpn(p, prot);
                 }
 
+            } else {
+                fprintf(stderr, "line %d: Illegal protocol description (missing name, host or port)\n", config_setting_source_line(prot));
+                exit(1);
             }
         }
     }
