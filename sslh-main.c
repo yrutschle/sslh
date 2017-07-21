@@ -392,6 +392,8 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
     config_lookup_string(&config, "user", &user_name);
     config_lookup_string(&config, "pidfile", &pid_file);
 
+    config_lookup_string(&config, "syslog_facility", &facility);
+
     config_listen(&config, listen);
     config_protocols(&config, prots);
 

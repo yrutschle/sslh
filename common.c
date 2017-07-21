@@ -4,6 +4,7 @@
  * No code here should assume whether sockets are blocking or not.
  **/
 
+#define SYSLOG_NAMES
 #define _GNU_SOURCE
 #include <stdarg.h>
 #include <grp.h>
@@ -39,7 +40,7 @@ int foreground = 0;
 int background = 0;
 int transparent = 0;
 int numeric = 0;
-const char *user_name, *pid_file;
+const char *user_name, *pid_file, *facility = "auth";
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
@@ -639,12 +640,21 @@ void setup_signals(void)
  * banner is made up of basename(bin_name)+"[pid]" */
 void setup_syslog(const char* bin_name) {
     char *name1, *name2;
-    int res;
+    int res, fn;
 
     name1 = strdup(bin_name);
     res = asprintf(&name2, "%s[%d]", basename(name1), getpid());
     CHECK_RES_DIE(res, "asprintf");
-    openlog(name2, LOG_CONS, LOG_AUTH);
+
+    for (fn = 0; facilitynames[fn].c_val != -1; fn++)
+        if (strcmp(facilitynames[fn].c_name, facility) == 0)
+            break;
+    if (fn == -1) {
+        fprintf(stderr, "Unknown facility %s\n", facility);
+        exit(1);
+    }
+
+    openlog(name2, LOG_CONS, fn);
     free(name1);
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
 
