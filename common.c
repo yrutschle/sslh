@@ -654,7 +654,7 @@ void setup_syslog(const char* bin_name) {
         exit(1);
     }
 
-    openlog(name2, LOG_CONS, fn);
+    openlog(name2, LOG_CONS, facilitynames[fn].c_val);
     free(name1);
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
 
