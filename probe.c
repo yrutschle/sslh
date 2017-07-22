@@ -107,25 +107,25 @@ void hexdump(const char *mem, unsigned int len)
     {
         /* print offset */
         if(i % HEXDUMP_COLS == 0)
-            printf("0x%06x: ", i);
+            fprintf(stderr, "0x%06x: ", i);
 
         /* print hex data */
         if(i < len)
-            printf("%02x ", 0xFF & mem[i]);
+            fprintf(stderr, "%02x ", 0xFF & mem[i]);
         else /* end of block, just aligning for ASCII dump */
-            printf("   ");
+            fprintf(stderr, "   ");
 
         /* print ASCII dump */
         if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1)) {
             for(j = i - (HEXDUMP_COLS - 1); j <= i; j++) {
                 if(j >= len) /* end of block, not really printing */
-                    putchar(' ');
+                    fputc(' ', stderr);
                 else if(isprint(mem[j])) /* printable char */
-                    putchar(0xFF & mem[j]);        
+                    fputc(0xFF & mem[j], stderr);
                 else /* other char */
-                    putchar('.');
+                    fputc('.', stderr);
             }
-            putchar('\n');
+            fputc('\n', stderr);
         }
     }
 }
