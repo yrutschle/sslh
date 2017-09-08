@@ -254,15 +254,12 @@ void main_loop(int listen_sockets[], int num_addr_listen)
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i], &readfds)) {
                 in_socket = accept_new_connection(listen_sockets[i], &cnx, &num_cnx);
-                if (in_socket != -1)
-                    num_probing++;
-
                 if (in_socket > 0) {
+                    num_probing++;
                     FD_SET(in_socket, &fds_r);
                     if (in_socket >= max_fd)
                         max_fd = in_socket + 1;;
                 }
-                FD_CLR(listen_sockets[i], &readfds);
             }
         }
 
