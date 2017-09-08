@@ -182,6 +182,93 @@ void shovel(struct connection *cnx, int active_fd,
     }
 }
 
+/* shovels data from one fd to the other and vice-versa
+   returns after one socket closed
+ */
+void shovel_single(struct connection *cnx)
+{
+   fd_set fds_r, fds_w;
+   int res, i;
+   int max_fd = MAX(cnx->q[0].fd, cnx->q[1].fd) + 1;
+
+   FD_ZERO(&fds_r);
+   FD_ZERO(&fds_w);
+   while (1) {
+      for (i = 0; i < 2; i++) {
+         if (cnx->q[i].deferred_data_size) {
+            FD_SET(cnx->q[i].fd, &fds_w);
+            FD_CLR(cnx->q[1-i].fd, &fds_r);
+         } else {
+            FD_CLR(cnx->q[i].fd, &fds_w);
+            FD_SET(cnx->q[1-i].fd, &fds_r);
+         }
+      }
+
+      res = select(
+                   max_fd,
+                   &fds_r,
+                   &fds_w,
+                   NULL,
+                   NULL
+                  );
+      CHECK_RES_DIE(res, "select");
+
+      for (i = 0; i < 2; i++) {
+          if (FD_ISSET(cnx->q[i].fd, &fds_w)) {
+              res = flush_deferred(&cnx->q[i]);
+              if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
+                  if (verbose)
+                      fprintf(stderr, "%s socket closed\n", i ? "server" : "client");
+                  return;
+              }
+          }
+          if (FD_ISSET(cnx->q[i].fd, &fds_r)) {
+              res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
+              if (!res) {
+                  if (verbose)
+                      fprintf(stderr, "socket closed\n");
+                  return;
+              }
+          }
+      }
+   }
+}
+
+/* Child process that makes internal connection and proxies
+ */
+void connect_proxy(struct connection *cnx)
+{
+    int in_socket;
+    int out_socket;
+
+    /* Minimize the file descriptor value to help select() */
+    in_socket = dup(cnx->q[0].fd);
+    if (in_socket == -1) {
+        in_socket = cnx->q[0].fd;
+    } else {
+        close(cnx->q[0].fd);
+        cnx->q[0].fd = in_socket;
+    }
+
+    /* Connect the target socket */
+    out_socket = connect_addr(cnx, in_socket);
+    CHECK_RES_DIE(out_socket, "connect");
+
+    cnx->q[1].fd = out_socket;
+
+    log_connection(cnx);
+
+    shovel_single(cnx);
+
+    close(in_socket);
+    close(out_socket);
+
+    if (verbose)
+        fprintf(stderr, "connection closed down\n");
+
+    exit(0);
+}
+
 /* returns true if specified fd is initialised and present in fd_set */
 int is_fd_active(int fd, fd_set* set)
 {
@@ -323,22 +410,21 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             res = -1;
                         } else if (cnx[i].proto->fork) {
                             if (!fork()) {
-                                struct connection *cnx_i = &cnx[i];
-                                for (i = 0; i < num_addr_listen; i++) {
-                                    FD_CLR(listen_sockets[i], &fds_r);
+                                struct connection *pcnx_i = &cnx[i];
+                                struct connection cnx_i = *pcnx_i;
+                                for (i = 0; i < num_addr_listen; i++)
                                     close(listen_sockets[i]);
-                                }
-                                num_addr_listen = 0;
                                 for (i = 0; i < num_cnx; i++)
-                                    if (&cnx[i] != cnx_i)
-                                        tidy_connection(&cnx[i], &fds_r, &fds_w);
-                                num_probing = 0;
-                                res = connect_queue(cnx_i, &fds_r, &fds_w);
-                                max_fd = MAX(cnx_i->q[0].fd, cnx_i->q[1].fd) + 1;
-                            } else {
-                                tidy_connection(&cnx[i], &fds_r, &fds_w);
-                                res = -1;
+                                    if (&cnx[i] != pcnx_i)
+                                        for (j = 0; j < 2; j++)
+                                            if (cnx[i].q[j].fd != -1)
+                                                close(cnx[i].q[j].fd);
+                                free(cnx);
+                                connect_proxy(&cnx_i);
+                                exit(0);
                             }
+                            tidy_connection(&cnx[i], &fds_r, &fds_w);
+                            res = -1;
                         } else {
                             res = connect_queue(&cnx[i], &fds_r, &fds_w);
                         }
