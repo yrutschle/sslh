@@ -61,9 +61,9 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
             if (verbose)
                 fprintf(stderr, "closing fd %d\n", cnx->q[i].fd);
 
-            close(cnx->q[i].fd);
             FD_CLR(cnx->q[i].fd, fds);
             FD_CLR(cnx->q[i].fd, fds2);
+            close(cnx->q[i].fd);
             if (cnx->q[i].deferred_data)
                 free(cnx->q[i].deferred_data);
         }
