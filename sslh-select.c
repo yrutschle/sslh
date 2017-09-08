@@ -93,11 +93,16 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
     in_socket = accept(listen_socket, 0, 0);
     CHECK_RES_RETURN(in_socket, "accept");
 
-    if (!fd_is_in_range(in_socket))
+    if (!fd_is_in_range(in_socket)) {
+        close(in_socket);
         return -1;
+    }
 
     res = set_nonblock(in_socket);
-    if (res == -1) return -1;
+    if (res == -1) {
+        close(in_socket);
+        return -1;
+    }
 
     /* Find an empty slot */
     for (free = 0; (free < *cnx_size) && ((*cnx)[free].q[0].fd != -1); free++) {
@@ -109,6 +114,7 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
         new = realloc(*cnx, (*cnx_size + cnx_num_alloc) * sizeof((*cnx)[0]));
         if (!new) {
             log_message(LOG_ERR, "unable to realloc -- dropping connection\n");
+            close(in_socket);
             return -1;
         }
         *cnx = new;
