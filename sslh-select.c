@@ -27,6 +27,8 @@
 
 const char* server_type = "sslh-select";
 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 /* cnx_num_alloc is the number of connection to allocate at once (at start-up,
  * and then every time we get too many simultaneous connections: e.g. start
  * with 100 slots, then if we get more than 100 connections allocate another
@@ -319,6 +321,24 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             check_access_rights(in_socket, cnx[i].proto->service)) {
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;
+                        } else if (cnx[i].proto->fork) {
+                            if (!fork()) {
+                                struct connection *cnx_i = &cnx[i];
+                                for (i = 0; i < num_addr_listen; i++) {
+                                    FD_CLR(listen_sockets[i], &fds_r);
+                                    close(listen_sockets[i]);
+                                }
+                                num_addr_listen = 0;
+                                for (i = 0; i < num_cnx; i++)
+                                    if (&cnx[i] != cnx_i)
+                                        tidy_connection(&cnx[i], &fds_r, &fds_w);
+                                num_probing = 0;
+                                res = connect_queue(cnx_i, &fds_r, &fds_w);
+                                max_fd = MAX(cnx_i->q[0].fd, cnx_i->q[1].fd) + 1;
+                            } else {
+                                tidy_connection(&cnx[i], &fds_r, &fds_w);
+                                res = -1;
+                            }
                         } else {
                             res = connect_queue(&cnx[i], &fds_r, &fds_w);
                         }
