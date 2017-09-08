@@ -58,7 +58,7 @@ expressions, B<sslh> connects to that protocol.
 =head2 Probing protocols
 
 When receiving an incoming connection, B<sslh> will read the
-first bytes sent be the connecting client. It will then
+first bytes sent by the connecting client. It will then
 probe for the protocol in the order specified on the command
 line (or the configuration file). Therefore B<--anyprot>
 should alway be used last, as it always succeeds and further
@@ -80,7 +80,7 @@ connections and LOG_ERR for failures.
 
 =item B<-F>I<filename>, B<--config> I<filename>
 
-Uses I<filename> has configuration file. If other
+Uses I<filename> as configuration file. If other
 command-line options are specified, they will override the
 configuration file's settings.
 
@@ -126,7 +126,7 @@ inside your network to just connect directly to B<httpd>.
 
 Also, B<sslh> probes for SSLv3 (or TLSv1) handshake and will
 reject connections from clients requesting SSLv2. This is
-compliant to RFC6176 which prohibits the usage of SSLv2. If
+compliant with RFC6176 which prohibits the usage of SSLv2. If
 you wish to accept SSLv2, use B<--default> instead.
 
 =item B<--ssh> I<target address>
@@ -229,10 +229,10 @@ detailed explanation of the variables used by B<sslh>.
 
 =head1 SEE ALSO
 
-Last version available from
+The latest version is available from
 L<http://www.rutschle.net/tech/sslh>, and can be tracked
 from L<http://freecode.com/projects/sslh>.
 
 =head1 AUTHOR
 
-Written by Yves Rutschle
+Written by Yves Rutschle.

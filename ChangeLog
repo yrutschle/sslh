@@ -1,3 +1,6 @@
+	Added 'syslog_facility' configuration option to
+	specify where to log.
+
 v1.18:	29MAR2016
 	Added USELIBPCRE to make use of regex engine
 	optional.

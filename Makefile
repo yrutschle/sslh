@@ -67,6 +67,8 @@ version.h:
 
 sslh: sslh-fork sslh-select
 
+$(OBJS): version.h
+
 sslh-fork: version.h $(OBJS) sslh-fork.o Makefile common.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	#strip sslh-fork
