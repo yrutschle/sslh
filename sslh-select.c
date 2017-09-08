@@ -140,9 +140,9 @@ int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
         flush_deferred(q);
         if (q->deferred_data) {
             FD_SET(q->fd, fds_w);
-        } else {
-            FD_SET(q->fd, fds_r);
+            FD_CLR(cnx->q[0].fd, fds_r);
         }
+        FD_SET(q->fd, fds_r);
         return q->fd;
     } else {
         tidy_connection(cnx, fds_r, fds_w);
