@@ -291,7 +291,7 @@ has_match(char** list, const char* name, size_t name_len) {
 
     for (item = list; *item; item++) {
         if (verbose) fprintf(stderr, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
-        if(!fnmatch(*item, name, 0)) {
+        if (fnmatch(*item, name, 0)) {
             return 1;
         }
     }
