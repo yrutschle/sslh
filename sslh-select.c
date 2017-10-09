@@ -305,6 +305,8 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                          * data so probe the protocol */
                         if ((cnx[i].probe_timeout < time(NULL))) {
                             cnx[i].proto = timeout_protocol();
+                            if (verbose)
+                                fprintf(stderr, "timeout, forwarding to %s\n", cnx[i].proto->description);
                         } else {
                             res = probe_client_protocol(&cnx[i]);
                             if (res == PROBE_AGAIN)
