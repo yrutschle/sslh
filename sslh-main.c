@@ -333,6 +333,9 @@ static int config_protocols(config_t *config, struct proto **prots)
                     setup_sni_alpn(p, prot);
                 }
 
+            } else {
+                fprintf(stderr, "line %d: Illegal protocol description (missing name, host or port)\n", config_setting_source_line(prot));
+                exit(1);
             }
         }
     }
@@ -388,6 +391,8 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
 
     config_lookup_string(&config, "user", &user_name);
     config_lookup_string(&config, "pidfile", &pid_file);
+
+    config_lookup_string(&config, "syslog_facility", &facility);
 
     config_listen(&config, listen);
     config_protocols(&config, prots);

@@ -30,6 +30,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h> /* malloc() */
+#include <fnmatch.h> /* fnmatch() */
 #include "tls.h"
 
 #define TLS_HEADER_LEN 5
@@ -290,7 +291,7 @@ has_match(char** list, const char* name, size_t name_len) {
 
     for (item = list; *item; item++) {
         if (verbose) fprintf(stderr, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
-        if(!strncmp(*item, name, name_len)) {
+        if(!fnmatch(*item, name, 0)) {
             return 1;
         }
     }
