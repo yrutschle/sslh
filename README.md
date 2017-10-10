@@ -236,30 +236,60 @@ The example connects to HTTPS on 4443 -- adapt to your needs ;
 I don't think it is possible to have `httpd` listen to 443 in
 this scheme -- let me know if you manage that:
 
-	# iptables -t mangle -N SSLH
-	# iptables -t mangle -A  OUTPUT --protocol tcp --out-interface eth0 --sport 22 --jump SSLH
-	# iptables -t mangle -A OUTPUT --protocol tcp --out-interface eth0 --sport 4443 --jump SSLH
-	# iptables -t mangle -A SSLH --jump MARK --set-mark 0x1
-	# iptables -t mangle -A SSLH --jump ACCEPT
-	# ip rule add fwmark 0x1 lookup 100
-	# ip route add local 0.0.0.0/0 dev lo table 100
+	# Set route_localnet = 1 on all interfaces so that ssl can use "localhost" as destination
+	$ sysctl -w net.ipv4.conf.default.route_localnet=1
+	$ sysctl -w net.ipv4.conf.all.route_localnet=1
+
+	# DROP martian packets as they would have been if route_localnet was zero
+	# Note: packets not leaving the server aren't affected by this, thus sslh will still work
+	$ iptables -t raw -A PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
+	$ iptables -t mangle -A POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
+
+	# Mark all connections made by ssl for special treatment (here sslh is run as user "sslh")
+	$ iptables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
+
+	# Outgoing packets that should go to sslh instead have to be rerouted, so mark them accordingly (copying over the connection mark)
+	$ iptables -t mangle -A OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f
+
+	# Configure routing for those marked packets
+	$ ip rule add fwmark 0x1 lookup 100
+	$ ip route add local 0.0.0.0/0 dev lo table 100
 
 Tranparent proxying with IPv6 is similarly set up as follows:
 
-        # ip6tables -t mangle -N SSLH
-        # ip6tables -t mangle -A  OUTPUT --protocol tcp --out-interface eth0 --sport 22 --jump SSLH
-        # ip6tables -t mangle -A OUTPUT --protocol tcp --out-interface eth0 --sport 4443 --jump SSLH
-        # ip6tables -t mangle -A SSLH --jump MARK --set-mark 0x1
-        # ip6tables -t mangle -A SSLH --jump ACCEPT
-        # ip -6 rule add fwmark 0x1 lookup 100
-        # ip -6 route add local ::/0 dev lo table 100
+	# Set route_localnet = 1 on all interfaces so that ssl can use "localhost" as destination
+	$ sysctl -w net.ipv4.conf.default.route_localnet=1
+	$ sysctl -w net.ipv4.conf.all.route_localnet=1
 
-Note that these rules will prevent from connecting directly
-to ssh on the port 22, as packets coming out of sshd will be
-tagged. If you need to retain direct access to ssh on port
-22 as well as through sslh, you can make sshd listen to
-22 AND another port (e.g. 2222), and change the above rules
-accordingly.
+	# DROP martian packets as they would have been if route_localnet was zero
+	# Note: packets not leaving the server aren't affected by this, thus sslh will still work
+	$ ip6tables -t raw -A PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
+	$ ip6tables -t mangle -A POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
+
+	# Mark all connections made by ssl for special treatment (here sslh is run as user "sslh")
+	$ ip6tables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
+
+	# Outgoing packets that should go to sslh instead have to be rerouted, so mark them accordingly (copying over the connection mark)
+	$ ip6tables -t mangle -A OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f
+
+	# Configure routing for those marked packets
+	$ ip -6 rule add fwmark 0x1 lookup 100
+	$ ip -6 route add local 0.0.0.0/0 dev lo table 100
+
+Explanation:
+To be able to use `localhost` as destination in your sslh config along with transparent proxying
+you have to allow routing of loopback addresses as done above.
+This is something you usually should not do (see [this stakoverflow post](https://serverfault.com/questions/656279/how-to-force-linux-to-accept-packet-with-loopback-ip/656484#656484))
+The two `DROP` iptables rules emulate the behaviour of `route_localnet` set to off (with one small difference:
+allowing the reroute-check to happen after the fwmark is set on packets destined for sslh).
+See [this diagram](https://upload.wikimedia.org/wikipedia/commons/3/37/Netfilter-packet-flow.svg) for a good visualisation
+showing how packets will traverse the iptables chains.
+
+Note:
+You have to run `sslh` as dedicated user (in this example named `sslh`, too), to not mess up with your normal networking.
+
+These rules will allow you to connect directly to ssh on port
+22 (or to any other service behind sslh) as well as through sslh on port 443.
 
 FreeBSD:
 
