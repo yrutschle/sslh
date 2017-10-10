@@ -257,13 +257,14 @@ this scheme -- let me know if you manage that:
 Tranparent proxying with IPv6 is similarly set up as follows:
 
 	$ # Set route_localnet = 1 on all interfaces so that ssl can use "localhost" as destination
+	$ # Not sure if this is needed for ipv6 though
 	$ sysctl -w net.ipv4.conf.default.route_localnet=1
 	$ sysctl -w net.ipv4.conf.all.route_localnet=1
 
 	$ # DROP martian packets as they would have been if route_localnet was zero
 	$ # Note: packets not leaving the server aren't affected by this, thus sslh will still work
-	$ ip6tables -t raw -A PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
-	$ ip6tables -t mangle -A POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
+	$ ip6tables -t raw -A PREROUTING ! -i lo -d ::1/128 -j DROP
+	$ ip6tables -t mangle -A POSTROUTING ! -o lo -s ::1/128 -j DROP
 
 	$ # Mark all connections made by ssl for special treatment (here sslh is run as user "sslh")
 	$ ip6tables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
@@ -273,7 +274,7 @@ Tranparent proxying with IPv6 is similarly set up as follows:
 
 	$ # Configure routing for those marked packets
 	$ ip -6 rule add fwmark 0x1 lookup 100
-	$ ip -6 route add local 0.0.0.0/0 dev lo table 100
+	$ ip -6 route add local ::/0 dev lo table 100
 
 Explanation:
 To be able to use `localhost` as destination in your sslh config along with transparent proxying
