@@ -261,6 +261,12 @@ tagged. If you need to retain direct access to ssh on port
 22 AND another port (e.g. 2222), and change the above rules
 accordingly.
 
+Also remember that iptables configuration and ip routes and 
+rules won't be necessarily persisted after you reboot. Make 
+sure to save them properly. For example in CentOS7, you would 
+do `iptables-save > /etc/sysconfig/iptables`, and add both 
+`ip` commands to your `/etc/rc.local`.
+
 FreeBSD:
 
 Given you have no firewall defined yet, you can use the following configuration
