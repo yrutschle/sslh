@@ -236,14 +236,30 @@ static int is_sni_alpn_protocol(const char *p, int len, struct proto *proto)
 
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
-    if (len < 3)
+    if (len < 6)
         return PROBE_AGAIN;
 
-    /* TLS packet starts with a record "Hello" (0x16), followed by version
-     * (0x03 0x00-0x03) (RFC6101 A.1)
-     * This means we reject SSLv2 and lower, which is actually a good thing (RFC6176)
+    /* TLS packet starts with a record "Hello" (0x16), followed by the number of
+     * the highest version of SSL/TLS supported.
+     *
+     * A SSLv2 record header contains a two or three byte length code. If the
+     * most significant bit is set in the first byte of the record length code
+     * then the record has no padding and the total header length will be 2
+     * bytes,  otherwise the record has padding and the total header length will
+     * be 3 bytes. Next, a 1 char sized client-hello (0x01) is expected,
+     * followed by a 2 char sized version that indicates the highest version of
+     * TLS/SSL supported by the sender. [SSL2] Hickman, Kipp, "The SSL Protocol"
+     *
+     * We're checking the highest version of TLS/SSL supported against
+     * (0x03 0x00-0x03) (RFC6101 A.1). This means we reject the usage of SSLv2
+     * and lower, which is actually a good thing (RFC6176).
      */
-    return p[0] == 0x16 && p[1] == 0x03 && ( p[2] >= 0 && p[2] <= 0x03);
+    if (p[0] == 0x16) // TLS client-hello
+        return p[1] == 0x03 && ( p[2] >= 0 && p[2] <= 0x03);
+    if ((p[0] & 0x80) != 0) // SSLv2 client-hello, no padding
+        return p[2] == 0x01 && p[3] == 0x03 && ( p[4] >= 0 && p[4] <= 0x03);
+    else // SSLv2 client-hello, padded
+        return p[3] == 0x01 && p[4] == 0x03 && ( p[5] >= 0 && p[5] <= 0x03);
 }
 
 static int is_adb_protocol(const char *p, int len, struct proto *proto)
