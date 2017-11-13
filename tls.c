@@ -288,13 +288,18 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
 static int
 has_match(char** list, const char* name, size_t name_len) {
     char **item;
+    char *name_nullterminated = malloc(name_len+1);
+    memcpy(name_nullterminated, name, name_len);
+    name_nullterminated[name_len]='\0';
 
     for (item = list; *item; item++) {
         if (verbose) fprintf(stderr, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
-        if(!fnmatch(*item, name, 0)) {
+        if(!fnmatch(*item, name_nullterminated, 0)) {
+            free(name_nullterminated);
             return 1;
         }
     }
+    free(name_nullterminated);
     return 0;
 }
 
