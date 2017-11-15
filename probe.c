@@ -297,6 +297,13 @@ int probe_client_protocol(struct connection *cnx)
      * happens, we just connect to the default protocol so the caller of this
      * function does not have to deal with a specific  failure condition (the
      * connection will just fail later normally). */
+
+    /* Dump hex values of the packet */
+    if (verbose) {
+        fprintf(stderr, "hexdump of incoming packet:\n");
+        hexdump(buffer, n);
+    }
+    
     if (n > 0) {
         int res = PROBE_NEXT;
 
