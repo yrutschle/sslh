@@ -24,7 +24,7 @@ endif
 CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
-LIBS=
+LIBS=-Wl,--as-needed
 OBJS=common.o sslh-main.o probe.o tls.o
 
 ifneq ($(strip $(USELIBWRAP)),)
@@ -38,7 +38,7 @@ endif
 
 ifneq ($(strip $(USELIBPCRE)),)
 	CPPFLAGS+=-DLIBPCRE
-	LIBS:=$(LIBS) -lpcreposix
+	LIBS:=$(LIBS) -Wl,-Bstatic -lpcreposix -Wl,-Bdynamic -lpcre
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
@@ -52,7 +52,7 @@ ifneq ($(strip $(USELIBCAP)),)
 endif
 
 ifneq ($(strip $(USESYSTEMD)),)
-        LIBS:=$(LIBS) -lsystemd
+        LIBS:=$(LIBS) -Wl,-Bstatic -lsystemd -Wl,-Bdynamic
         CPPFLAGS+=-DSYSTEMD
 endif
 
