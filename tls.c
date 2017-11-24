@@ -193,7 +193,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
                         last_matched = 1;
                     }
                 } else {
-                    // both can't match
+                    /* both can't match */
                     return -2;
                 }
             } else if (extension_type == 0x10) { /* ALPN */
@@ -207,7 +207,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
                         last_matched = 1;
                     }
                 } else {
-                    // both can't match
+                    /* both can't match */
                     return -2;
                 }
             }
