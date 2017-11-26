@@ -136,7 +136,6 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        if (addr->ai_flags & SO_KEEPALIVE) {
            res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
            check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
-           printf("set up keepalive\n");
        }
 
        if (IP_FREEBIND) {
@@ -272,7 +271,6 @@ int connect_addr(struct connection *cnx, int fd_from)
                     one = 1;
                     res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
                     CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)");
-                    printf("set up keepalive\n");
                 }
                 return fd;
             }
