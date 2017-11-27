@@ -299,7 +299,7 @@ int probe_client_protocol(struct connection *cnx)
      * connection will just fail later normally). */
 
     /* Dump hex values of the packet */
-    if (verbose) {
+    if (verbose>1) {
         fprintf(stderr, "hexdump of incoming packet:\n");
         hexdump(buffer, n);
     }

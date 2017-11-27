@@ -375,7 +375,10 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
         return 1;
     }
 
-    config_lookup_bool(&config, "verbose", &verbose);
+    if(config_lookup_bool(&config, "verbose", &verbose) == CONFIG_FALSE) {
+	config_lookup_int(&config, "verbose", &verbose);
+    }
+
     config_lookup_bool(&config, "inetd", &inetd);
     config_lookup_bool(&config, "foreground", &foreground);
     config_lookup_bool(&config, "numeric", &numeric);
