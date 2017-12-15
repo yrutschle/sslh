@@ -212,7 +212,7 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
     for (i = 0; i < num_probes; i++) {
         probe_list[i] = malloc(sizeof(*(probe_list[i])));
         expr = config_setting_get_string_elem(probes, i);
-        res = regcomp(probe_list[i], expr, 0);
+        res = regcomp(probe_list[i], expr, REG_EXTENDED);
         if (res) {
             err = malloc(errsize = regerror(res, probe_list[i], NULL, 0));
             regerror(res, probe_list[i], err, errsize);
@@ -375,7 +375,10 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
         return 1;
     }
 
-    config_lookup_bool(&config, "verbose", &verbose);
+    if(config_lookup_bool(&config, "verbose", &verbose) == CONFIG_FALSE) {
+	config_lookup_int(&config, "verbose", &verbose);
+    }
+
     config_lookup_bool(&config, "inetd", &inetd);
     config_lookup_bool(&config, "foreground", &foreground);
     config_lookup_bool(&config, "numeric", &numeric);

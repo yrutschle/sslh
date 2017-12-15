@@ -136,7 +136,6 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        if (addr->ai_flags & SO_KEEPALIVE) {
            res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
            check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
-           printf("set up keepalive\n");
        }
 
        if (IP_FREEBIND) {
@@ -186,7 +185,7 @@ int bind_peer(int fd, int fd_from)
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername");
     
-    // if the destination is the same machine, there's no need to do bind
+    /* if the destination is the same machine, there's no need to do bind */
     struct ifaddrs *ifaddrs_p = NULL, *ifa;
 
     getifaddrs(&ifaddrs_p);
@@ -214,7 +213,7 @@ int bind_peer(int fd, int fd_from)
                     match = 1;
             }
         }
-        if (match)  // the destination is the same as the source, should not create a transparent bind
+        if (match)  /* the destination is the same as the source, should not create a transparent bind */
             return 0;
     }
 
@@ -287,7 +286,6 @@ int connect_addr(struct connection *cnx, int fd_from)
                     one = 1;
                     res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
                     CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)");
-                    printf("set up keepalive\n");
                 }
                 return fd;
             }
