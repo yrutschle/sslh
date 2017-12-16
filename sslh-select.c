@@ -61,9 +61,9 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
             if (verbose)
                 fprintf(stderr, "closing fd %d\n", cnx->q[i].fd);
 
-            close(cnx->q[i].fd);
             FD_CLR(cnx->q[i].fd, fds);
             FD_CLR(cnx->q[i].fd, fds2);
+            close(cnx->q[i].fd);
             if (cnx->q[i].deferred_data)
                 free(cnx->q[i].deferred_data);
         }
@@ -93,11 +93,16 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
     in_socket = accept(listen_socket, 0, 0);
     CHECK_RES_RETURN(in_socket, "accept");
 
-    if (!fd_is_in_range(in_socket))
+    if (!fd_is_in_range(in_socket)) {
+        close(in_socket);
         return -1;
+    }
 
     res = set_nonblock(in_socket);
-    if (res == -1) return -1;
+    if (res == -1) {
+        close(in_socket);
+        return -1;
+    }
 
     /* Find an empty slot */
     for (free = 0; (free < *cnx_size) && ((*cnx)[free].q[0].fd != -1); free++) {
@@ -109,6 +114,7 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
         new = realloc(*cnx, (*cnx_size + cnx_num_alloc) * sizeof((*cnx)[0]));
         if (!new) {
             log_message(LOG_ERR, "unable to realloc -- dropping connection\n");
+            close(in_socket);
             return -1;
         }
         *cnx = new;
@@ -140,9 +146,9 @@ int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
         flush_deferred(q);
         if (q->deferred_data) {
             FD_SET(q->fd, fds_w);
-        } else {
-            FD_SET(q->fd, fds_r);
+            FD_CLR(cnx->q[0].fd, fds_r);
         }
+        FD_SET(q->fd, fds_r);
         return q->fd;
     } else {
         tidy_connection(cnx, fds_r, fds_w);
@@ -248,15 +254,12 @@ void main_loop(int listen_sockets[], int num_addr_listen)
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i], &readfds)) {
                 in_socket = accept_new_connection(listen_sockets[i], &cnx, &num_cnx);
-                if (in_socket != -1)
-                    num_probing++;
-
                 if (in_socket > 0) {
+                    num_probing++;
                     FD_SET(in_socket, &fds_r);
                     if (in_socket >= max_fd)
                         max_fd = in_socket + 1;;
                 }
-                FD_CLR(listen_sockets[i], &readfds);
             }
         }
 

@@ -6,6 +6,7 @@
 
 #define SYSLOG_NAMES
 #define _GNU_SOURCE
+#include <stddef.h>
 #include <stdarg.h>
 #include <grp.h>
 
@@ -283,17 +284,19 @@ int connect_addr(struct connection *cnx, int fd_from)
 int defer_write(struct queue *q, void* data, int data_size)
 {
     char *p;
+    ptrdiff_t data_offset = q->deferred_data - q->begin_deferred_data;
     if (verbose)
         fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
-    p = realloc(q->begin_deferred_data, q->deferred_data_size + data_size);
+    p = realloc(q->begin_deferred_data, data_offset + q->deferred_data_size + data_size);
     if (!p) {
         perror("realloc");
         exit(1);
     }
 
-    q->deferred_data = q->begin_deferred_data = p;
-    p += q->deferred_data_size;
+    q->begin_deferred_data = p;
+    q->deferred_data = p + data_offset;
+    p += data_offset + q->deferred_data_size;
     q->deferred_data_size += data_size;
     memcpy(p, data, data_size);
 
