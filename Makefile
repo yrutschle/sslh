@@ -24,7 +24,7 @@ endif
 CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
-LIBS=-Wl,--as-needed
+LIBS=
 OBJS=common.o sslh-main.o probe.o tls.o
 
 CONDITIONAL_TARGETS=
@@ -40,7 +40,7 @@ endif
 
 ifneq ($(strip $(USELIBPCRE)),)
 	CPPFLAGS+=-DLIBPCRE
-	LIBS:=$(LIBS) -Wl,-Bstatic -lpcreposix -Wl,-Bdynamic -lpcre
+	LIBS:=$(LIBS) -lpcreposix
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
@@ -54,7 +54,7 @@ ifneq ($(strip $(USELIBCAP)),)
 endif
 
 ifneq ($(strip $(USESYSTEMD)),)
-        LIBS:=$(LIBS) -Wl,-Bstatic -lsystemd -Wl,-Bdynamic
+        LIBS:=$(LIBS) -lsystemd
         CPPFLAGS+=-DSYSTEMD
 	CONDITIONAL_TARGETS+=systemd-sslh-generator
 endif
