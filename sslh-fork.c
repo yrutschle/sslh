@@ -94,6 +94,8 @@ void start_shoveler(int in_socket)
        } else {
            /* Timed out: it's necessarily SSH */
            cnx.proto = timeout_protocol();
+           if (verbose)
+               fprintf(stderr, "timeout, forwarding to %s\n", cnx.proto->description);
            break;
        }
    }
