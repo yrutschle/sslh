@@ -312,7 +312,10 @@ static int config_protocols(config_t *config, struct proto **prots)
                     p->log_level = 1;
                 }
 
-                resolve_split_name(&(p->saddr), hostname, port);
+                if (resolve_split_name(&(p->saddr), hostname, port)) {
+                    fprintf(stderr, "line %d: cannot resolve %s:%s\n", config_setting_source_line(prot), hostname, port);
+                    exit(1);
+                }
 
                 p->probe = get_probe(name);
                 if (!p->probe || !strcmp(name, "sni_alpn")) {
