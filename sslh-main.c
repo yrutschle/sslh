@@ -25,12 +25,10 @@
 #ifdef LIBCONFIG
 #include <libconfig.h>
 #endif
-#ifdef ENABLE_REGEX
-#ifdef LIBPCRE
-#include <pcreposix.h>
-#else
+#if defined(LIBPCRE)
+#include <pcre.h>
+#elif defined(ENABLE_REGEX)
 #include <regex.h>
-#endif
 #endif
 
 #include "common.h"
@@ -193,7 +191,37 @@ static int config_listen(config_t *config, struct addrinfo **listen)
 #ifdef LIBCONFIG
 static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 {
-#ifdef ENABLE_REGEX
+#if defined(LIBPCRE)
+    int num_probes, i, erroffset;
+    const char *expr, *error;
+    pcre** probe_list;
+
+    num_probes = config_setting_length(probes);
+    if (!num_probes) {
+        fprintf(stderr, "%s: no probes specified\n", p->description);
+        exit(1);
+    }
+
+    p->probe = get_probe("regex");
+    probe_list = calloc(num_probes + 1, sizeof(*probe_list));
+    p->data = (void*)probe_list;
+
+    for (i = 0; i < num_probes; i++) {
+        expr = config_setting_get_string_elem(probes, i);
+	probe_list[i] = pcre_compile(
+			  expr,        /* the pattern */
+			  0,           /* default options */
+			  &error,      /* for error message */
+			  &erroffset,  /* for error offset */
+			  NULL);       /* use default character tables */
+
+        if (!probe_list[i]) {
+            fprintf(stderr, "%s ot offset %d of %s\n", error, erroffset, expr);
+            exit(1);
+        }
+    }
+
+#elif defined(ENABLE_REGEX)
     int num_probes, errsize, i, res;
     char *err;
     const char * expr;

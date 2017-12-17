@@ -21,12 +21,10 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#ifdef ENABLE_REGEX
-#ifdef LIBPCRE
-#include <pcreposix.h>
-#else
+#if defined(LIBPCRE)
+#include <pcre.h>
+#elif defined(ENABLE_REGEX)
 #include <regex.h>
-#endif
 #endif
 #include <ctype.h>
 #include "probe.h"
@@ -280,7 +278,28 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
 
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
-#ifdef ENABLE_REGEX
+#if defined(LIBPCRE)
+    enum { OVECCOUNT=30 };    /* should be a multiple of 3 */
+    int ovector[OVECCOUNT];
+
+    pcre **probe = proto->data;
+    for (; *probe ; probe++) {
+	int rc = pcre_exec(
+	  *probe,               /* the compiled pattern */
+	  NULL,                 /* no extra data - we didn't study the pattern */
+	  p,                    /* the subject string */
+	  len,                  /* the length of the subject */
+	  0,                    /* start at offset 0 in the subject */
+	  0,                    /* default options */
+	  ovector,              /* output vector for substring information */
+	  OVECCOUNT);           /* number of elements in the output vector */
+
+	if (rc>=0) break;
+    }
+
+    return (*probe != NULL);
+
+#elif defined(ENABLE_REGEX)
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
 
