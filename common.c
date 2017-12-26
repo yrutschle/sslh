@@ -144,11 +144,22 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
            check_res_dump(CR_WARN, res, addr, "setsockopt(IP_FREEBIND)");
            }
 
+	   /* If transparent proxy enabled and ipv6 address then only listen on IPv6 port.
+		* Transparent proxying fails if you don't.
+		* */
+       if (transparent && saddr->ss_family == AF_INET6)
+	   {
+//fprintf(stderr, "Transparent set and IPv6\n");
+			   res = setsockopt((*sockfd)[i], IPPROTO_IPV6, IPV6_V6ONLY, (char*)&one, sizeof(one));
+			   check_res_dumpdie(res, addr, "setsockopt(IPV6_V6ONLY)");
+       }
+
        res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
        check_res_dump(CR_DIE, res, addr, "bind");
 
        res = listen ((*sockfd)[i], 50);
        check_res_dump(CR_DIE, res, addr, "listen");
+//fprintf(stderr, "here\n");
 
    }
 
@@ -163,6 +174,8 @@ int bind_peer(int fd, int fd_from)
     struct addrinfo from;
     struct sockaddr_storage ss;
     int res, trans = 1;
+
+	//fprintf(stderr, "Starting bind_peer\n");
 
     memset(&from, 0, sizeof(from));
     from.ai_addr = (struct sockaddr*)&ss;
@@ -206,6 +219,7 @@ int bind_peer(int fd, int fd_from)
     }
 
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
+//fprintf(stderr, "IP_TRANSPARENT\n");
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt");
 #else
@@ -219,6 +233,7 @@ int bind_peer(int fd, int fd_from)
 #endif /* IPV6_BINDANY */
     }
 #endif /* IP_TRANSPARENT / IP_BINDANY */
+//	fprintf(stderr, "bind\n");
     res = bind(fd, from.ai_addr, from.ai_addrlen);
     CHECK_RES_RETURN(res, "bind");
 

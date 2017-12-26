@@ -99,6 +99,7 @@ install: sslh $(MAN)
 	mkdir -p $(DESTDIR)/$(BINDIR)
 	mkdir -p $(DESTDIR)/$(MANDIR)
 	install -p sslh-fork $(DESTDIR)/$(BINDIR)/sslh
+	install -p sslh-select $(DESTDIR)/$(BINDIR)/sslh-select
 	install -p -m 0644 $(MAN) $(DESTDIR)/$(MANDIR)/$(MAN)
 
 # "extended" install for Debian: install startup script
