@@ -262,20 +262,53 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
         return p[3] == 0x01 && p[4] == 0x03 && ( p[5] >= 0 && p[5] <= 0x03);
 }
 
-static int is_adb_protocol(const char *p, int len, struct proto *proto)
+static int probe_adb_cnxn_message(const char *p)
 {
-    if (len < 30)
-        return PROBE_AGAIN;
-
     /* The initial ADB host->device packet has a command type of CNXN, and a
      * data payload starting with "host:".  Note that current versions of the
      * client hardcode "host::" (with empty serialno and banner fields) but
      * other clients may populate those fields.
-     *
-     * We aren't checking amessage.data_length, under the assumption that
-     * a packet >= 30 bytes long will have "something" in the payload field.
      */
     return !memcmp(&p[0], "CNXN", 4) && !memcmp(&p[24], "host:", 5);
+}
+
+static int is_adb_protocol(const char *p, int len, struct proto *proto)
+{
+    /* amessage.data_length is not being checked, under the assumption that
+     * a packet >= 30 bytes will have "something" in the payload field.
+     *
+     * 24 bytes for the message header and 5 bytes for the "host:" tag.
+     *
+     * ADB protocol:
+     * https://android.googlesource.com/platform/system/adb/+/master/protocol.txt
+     */
+    static const unsigned int min_data_packet_size = 30;
+
+    if (len < min_data_packet_size)
+        return PROBE_AGAIN;
+
+    if (probe_adb_cnxn_message(&p[0]) == PROBE_MATCH)
+        return PROBE_MATCH;
+
+    /* In ADB v26.0.0 rc1-4321094, the initial host->device packet sends an
+     * empty message before sending the CNXN command type. This was an
+     * unintended side effect introduced in
+     * https://android-review.googlesource.com/c/342653, and will be reverted for
+     * a future release.
+     */
+    static const unsigned char empty_message[] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+    };
+
+    if (len < min_data_packet_size + sizeof(empty_message))
+        return PROBE_AGAIN;
+
+    if (memcmp(&p[0], empty_message, sizeof(empty_message)))
+        return PROBE_NEXT;
+
+    return probe_adb_cnxn_message(&p[sizeof(empty_message)]);
 }
 
 static int regex_probe(const char *p, int len, struct proto *proto)
