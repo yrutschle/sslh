@@ -82,8 +82,9 @@ int get_fd_sockets(int *sockfd[])
       exit(1);
     }
     if (sd > 0) {
+      int i;
       *sockfd = malloc(sd * sizeof(*sockfd[0]));
-      for (int i = 0; i < sd; i++) {
+      for (i = 0; i < sd; i++) {
         (*sockfd)[i] = SD_LISTEN_FDS_START + i;
       }
     }
