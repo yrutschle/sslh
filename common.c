@@ -145,6 +145,11 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
            check_res_dump(CR_WARN, res, addr, "setsockopt(IP_FREEBIND)");
            }
 
+       if (addr->ai_addr->sa_family == AF_INET6) {
+           res = setsockopt((*sockfd)[i], IPPROTO_IPV6, IPV6_V6ONLY, (char*)&one, sizeof(one));
+           check_res_dump(CR_WARN, res, addr, "setsockopt(IPV6_V6ONLY)");
+       }
+
        res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
        check_res_dump(CR_DIE, res, addr, "bind");
 
