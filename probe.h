@@ -24,6 +24,7 @@ struct proto {
                      * 1: Log incoming connection
                      */
     int keepalive; /* 0: No keepalive ; 1: Set Keepalive for this connection */
+    int fork; /* 0: Connection can run within shared process ; 1: Separate process required for this connection */
 
     /* function to probe that protocol; parameters are buffer and length
      * containing the data to probe, and a pointer to the protocol structure */
