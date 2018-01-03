@@ -41,7 +41,7 @@ int foreground = 0;
 int background = 0;
 int transparent = 0;
 int numeric = 0;
-const char *user_name, *pid_file, *facility = "auth";
+const char *user_name, *pid_file, *chroot_path, *facility = "auth";
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
@@ -719,33 +719,47 @@ void set_capabilities(void) {
 }
 
 /* We don't want to run as root -- drop privileges if required */
-void drop_privileges(const char* user_name)
+void drop_privileges(const char* user_name, const char* chroot_path)
 {
     int res;
-    struct passwd *pw = getpwnam(user_name);
-    if (!pw) {
-        fprintf(stderr, "%s: not found\n", user_name);
-        exit(2);
+    struct passwd *pw = NULL;
+
+    if (user_name) {
+        pw = getpwnam(user_name);
+        if (!pw) {
+            fprintf(stderr, "%s: not found\n", user_name);
+            exit(2);
+        }
+        if (verbose)
+            fprintf(stderr, "turning into %s\n", user_name);
     }
-    if (verbose)
-        fprintf(stderr, "turning into %s\n", user_name);
 
-    set_keepcaps(1);
+    if (chroot_path) {
+        if (verbose)
+            fprintf(stderr, "chrooting into %s\n", chroot_path);
 
-    /* remove extraneous groups in case we belong to several extra groups that
-     * may have unwanted rights. If non-root when calling setgroups(), it
-     * fails, which is fine because... we have no unwanted rights
-     * (see POS36-C for security context)
-     * */
-    setgroups(0, NULL);
+        res = chroot(chroot_path);
+        CHECK_RES_DIE(res, "chroot");
+    }
 
-    res = setgid(pw->pw_gid);
-    CHECK_RES_DIE(res, "setgid");
-    res = setuid(pw->pw_uid);
-    CHECK_RES_DIE(res, "setuid");
+    if (user_name) {
+        set_keepcaps(1);
 
-    set_capabilities();
-    set_keepcaps(0);
+        /* remove extraneous groups in case we belong to several extra groups
+         * that may have unwanted rights. If non-root when calling setgroups(),
+         * it fails, which is fine because... we have no unwanted rights
+         * (see POS36-C for security context)
+         * */
+        setgroups(0, NULL);
+
+        res = setgid(pw->pw_gid);
+        CHECK_RES_DIE(res, "setgid");
+        res = setuid(pw->pw_uid);
+        CHECK_RES_DIE(res, "setuid");
+
+        set_capabilities();
+        set_keepcaps(0);
+    }
 }
 
 /* Writes my PID */
