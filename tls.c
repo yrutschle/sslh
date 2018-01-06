@@ -215,6 +215,9 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
         } else if (extension_type == 0x00 && tls_data->use_alpn == 0) { /* Server Name */
             return parse_server_name_extension(tls_data, data + pos + 4, len);
         } else if (extension_type == 0x10 && tls_data->use_alpn == 1) { /* ALPN */
+            if (parse_alpn_extension(tls_data, data + pos + 4, len) > 0) {
+                return 1;
+            }
             return parse_alpn_extension(tls_data, data + pos + 4, len);
         }
 
