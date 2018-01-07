@@ -450,18 +450,24 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 
 /* Turns a hostname and port (or service) into a list of struct addrinfo
  * returns 0 on success, -1 otherwise and logs error
- *
- * *host gets modified
- **/
-int resolve_split_name(struct addrinfo **out, char* host, const char* serv)
+ */
+int resolve_split_name(struct addrinfo **out, const char* ct_host, const char* serv)
 {
    struct addrinfo hint;
    char *end;
    int res;
+   char* host;
 
    memset(&hint, 0, sizeof(hint));
    hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
+
+   /* Copy parameter so not to clobber data in libconfig */
+   res = asprintf(&host, "%s", ct_host);
+   if (res == -1) {
+       log_message(LOG_ERR, "asprintf: cannot allocate memory");
+       return -1;
+   }
 
    /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
     * around IP address */
@@ -474,10 +480,10 @@ int resolve_split_name(struct addrinfo **out, char* host, const char* serv)
        *end = 0; /* remove last bracket */
    }
 
-
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
       log_message(LOG_ERR, "%s `%s:%s'\n", gai_strerror(res), host, serv);
+   free(host);
    return res;
 }
 
