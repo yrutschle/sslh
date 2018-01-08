@@ -275,6 +275,18 @@ void connect_proxy(struct connection *cnx)
     exit(0);
 }
 
+/* Close all connection fd except one (used when forking) */
+void keep_cnx(int index, struct connection* cnx, int num_cnx)
+{
+    int i, j;
+
+    for (i = 0; i < num_cnx; i++)
+        if (i != index)
+            for (j = 0; j < 2; j++)
+                if (cnx[i].q[j].fd != -1)
+                    close(cnx[i].q[j].fd);
+}
+
 /* returns true if specified fd is initialised and present in fd_set */
 int is_fd_active(int fd, fd_set* set)
 {
@@ -416,19 +428,17 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;
                         } else if (cnx[i].proto->fork) {
-                            if (!fork()) {
-                                struct connection *pcnx_i = &cnx[i];
-                                struct connection cnx_i = *pcnx_i;
-                                for (i = 0; i < num_addr_listen; i++)
-                                    close(listen_sockets[i]);
-                                for (i = 0; i < num_cnx; i++)
-                                    if (&cnx[i] != pcnx_i)
-                                        for (j = 0; j < 2; j++)
-                                            if (cnx[i].q[j].fd != -1)
-                                                close(cnx[i].q[j].fd);
-                                free(cnx);
-                                connect_proxy(&cnx_i);
-                                exit(0);
+                            switch (fork()) {
+                            case 0: break;
+                            case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+                                     break;
+                            default:
+                                     for (i = 0; i < num_addr_listen; i++)
+                                         close(listen_sockets[i]);
+                                     keep_cnx(i, cnx, num_cnx);
+                                     free(cnx);
+                                     connect_proxy(&cnx[i]);
+                                     exit(0);
                             }
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
                             res = -1;

@@ -148,8 +148,13 @@ void main_loop(int listen_sockets[], int num_addr_listen)
 
     /* Start one process for each listening address */
     for (i = 0; i < num_addr_listen; i++) {
-        if (!(listener_pid[i] = fork())) {
+        listener_pid[i] = fork();
+        switch(listener_pid[i]) {
+        case 0: break;
+        case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+                 break;
 
+        default:
             /* Listening process just accepts a connection, forks, and goes
              * back to listening */
             while (1)
@@ -157,8 +162,15 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                 in_socket = accept(listen_sockets[i], 0, 0);
                 if (verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
-                if (!fork())
-                {
+                switch(fork()) {
+                case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+                         break;
+
+                /* In parent process */
+                case 0: break;
+
+                /* In child process */
+                default:
                     for (i = 0; i < num_addr_listen; ++i)
                         close(listen_sockets[i]);
                     start_shoveler(in_socket);
