@@ -37,13 +37,14 @@
 
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) {    \
+       fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
        perror(str);     \
        exit(1);         \
     }
 
 #define CHECK_RES_RETURN(res, str) \
     if (res == -1) {                                    \
-        log_message(LOG_CRIT, "%s:%d:%s\n", str, errno, strerror(errno));  \
+        log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
         return res;                                     \
     } 
 
