@@ -1,5 +1,19 @@
+v1.19: 20JAN2018
 	Added 'syslog_facility' configuration option to
 	specify where to log.
+
+	TLS now supports SNI and ALPN (Travis Burtrum),
+	including support for Let's Encrypt challenges
+	(Jonathan McCrohan)
+
+	ADB probe. (Mike Frysinger)
+
+	Added per-protocol 'fork' option. (Oleg Oshmyan)
+
+	Added chroot option. (Mike Frysinger)
+
+	A truckload of bug fixes and documentation
+	improvements (Various contributors)
 
 v1.18:	29MAR2016
 	Added USELIBPCRE to make use of regex engine
