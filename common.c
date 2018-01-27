@@ -456,18 +456,20 @@ int resolve_split_name(struct addrinfo **out, const char* ct_host, const char* s
    struct addrinfo hint;
    char *end;
    int res;
-   char* host;
+   char* host, *host_base;
 
    memset(&hint, 0, sizeof(hint));
    hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
 
    /* Copy parameter so not to clobber data in libconfig */
-   res = asprintf(&host, "%s", ct_host);
+   res = asprintf(&host_base, "%s", ct_host);
    if (res == -1) {
        log_message(LOG_ERR, "asprintf: cannot allocate memory");
        return -1;
    }
+
+   host = host_base;
 
    /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
     * around IP address */
@@ -483,7 +485,7 @@ int resolve_split_name(struct addrinfo **out, const char* ct_host, const char* s
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
       log_message(LOG_ERR, "%s `%s:%s'\n", gai_strerror(res), host, serv);
-   free(host);
+   free(host_base);
    return res;
 }
 
