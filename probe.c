@@ -40,6 +40,7 @@ static int is_xmpp_protocol(const char *p, int len, struct proto*);
 static int is_http_protocol(const char *p, int len, struct proto*);
 static int is_tls_protocol(const char *p, int len, struct proto*);
 static int is_adb_protocol(const char *p, int len, struct proto*);
+static int is_socks5_protocol(const char *p, int len, struct proto*);
 static int is_true(const char *p, int len, struct proto* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -54,6 +55,7 @@ static struct proto builtins[] = {
     { "ssl",         NULL,     NULL,  1,        0,         0,    is_tls_protocol },
     { "tls",         NULL,     NULL,  1,        0,         0,    is_tls_protocol },
     { "adb",         NULL,     NULL,  1,        0,         0,    is_adb_protocol },
+    { "socks5",      NULL,     NULL,  1,        0,         0,    is_socks5_protocol },
     { "anyprot",     NULL,     NULL,  1,        0,         0,    is_true }
 };
 
@@ -309,6 +311,34 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
         return PROBE_NEXT;
 
     return probe_adb_cnxn_message(&p[sizeof(empty_message)]);
+}
+
+static int is_socks5_protocol(const char *p, int len, struct proto *proto)
+{
+    if (len < 2)
+        return PROBE_AGAIN;
+
+    /* First byte should be socks protocol version */
+    if (p[0] != 5)
+        return PROBE_NEXT;
+
+    /* Second byte should be number of supported 
+     * authentication methods, assuming maximum of 10,
+     * as defined in https://www.iana.org/assignments/socks-methods/socks-methods.xhtml
+     */
+    char m_count = p[1];
+    if (m_count < 1 || m_count > 10)
+        return PROBE_NEXT;
+
+    if (len < 2 + m_count)
+        return PROBE_AGAIN;
+
+    /* Each authentication method number should be in range 0..9 */
+    for (unsigned char i = 0; i < m_count; i++) {
+        if (p[3 + i] < 0 || p[3 + i] > 9)
+            return PROBE_NEXT;
+    }
+    return PROBE_MATCH;
 }
 
 static int regex_probe(const char *p, int len, struct proto *proto)
