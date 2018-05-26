@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 EnvironmentFile=/etc/conf.d/sslh
-ExecStart=/usr/bin/sslh --foreground $DAEMON_OPTS
+ExecStart=/usr/sbin/sslh --foreground $DAEMON_OPTS
 KillMode=process
 #Hardening
 PrivateTmp=true
