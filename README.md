@@ -30,13 +30,13 @@ It can be found on [Docker Hub](https://hub.docker.com/r/riftbit/sslh/)
 **Example with --net host**
 
 ```
-docker run --name sslh -d --env SSLH_OPTS='-p 0.0.0.0:443 --anyprot 192.168.0.1:8443' --net host --restart always riftbit/sslh
+docker run --name sslh -d --env SSLH_OPTS='-p 0.0.0.0:443 --anyprot 192.168.0.1:8443' --net host --privileged --restart always riftbit/sslh
 ```
 
 **Example with exposed ports**
 
 ```
-docker run --name sslh -d --env SSLH_OPTS='-p 0.0.0.0:7443 --anyprot 172.16.0.10:8443' -p 443:7443 --restart always riftbit/sslh
+docker run --name sslh -d  -p 443:7443 --env SSLH_OPTS='-p 0.0.0.0:7443 --anyprot 172.16.0.10:8443' --privileged --restart always riftbit/sslh
 ```
 
 Dependencies
