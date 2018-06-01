@@ -23,7 +23,7 @@ Compile and install
 Docker container
 ----------------
 
-For easy installation added docker container. 
+For easy installation and usage added docker container that built with libwrap and libcap support. 
 It can be found on [Docker Hub](https://hub.docker.com/r/riftbit/sslh/)
 
 **Example usage**
