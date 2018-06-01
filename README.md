@@ -20,6 +20,18 @@ serve SSH and HTTPS on the same port.
 Compile and install
 ===================
 
+Docker container
+----------------
+
+For easy installation added docker container. 
+It can be found on [Docker Hub](https://hub.docker.com/r/riftbit/sslh/)
+
+**Example usage**
+
+```
+docker run --name sslh -d --env SSLH_OPTS='-p 0.0.0.0:443 --anyprot 192.168.0.1:8443' --net host --restart always riftbit/sslh
+```
+
 Dependencies
 ------------
 
