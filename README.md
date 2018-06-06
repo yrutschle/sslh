@@ -5,7 +5,7 @@ sslh -- A ssl/ssh multiplexer
 them further based on tests performed on the first data
 packet sent by the remote client.
 
-Probes for HTTP, SSL, SSH, OpenVPN, tinc, XMPP are
+Probes for HTTP, SSL, SSH, OpenVPN, tinc, XMPP, SOCKS5 are
 implemented, and any other protocol that can be tested using
 a regular expression, can be recognised. A typical use case
 is to allow serving several services on port 443 (e.g. to
