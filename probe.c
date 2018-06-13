@@ -336,7 +336,9 @@ static int is_socks5_protocol(const char *p_in, int len, struct proto *proto)
     if (len < 2 + m_count)
         return PROBE_AGAIN;
 
-    /* Each authentication method number should be in range 0..9 */
+    /* Each authentication method number should be in range 0..9 
+     * (https://www.iana.org/assignments/socks-methods/socks-methods.xhtml)
+     */
     for (i = 0; i < m_count; i++) {
         if (p[2 + i] > 9)
             return PROBE_NEXT;
