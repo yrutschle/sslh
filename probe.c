@@ -313,8 +313,11 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
     return probe_adb_cnxn_message(&p[sizeof(empty_message)]);
 }
 
-static int is_socks5_protocol(const char *p, int len, struct proto *proto)
+static int is_socks5_protocol(const char *p_in, int len, struct proto *proto)
 {
+    unsigned char* p = (unsigned char*)p_in;
+    int i;
+
     if (len < 2)
         return PROBE_AGAIN;
 
@@ -334,8 +337,8 @@ static int is_socks5_protocol(const char *p, int len, struct proto *proto)
         return PROBE_AGAIN;
 
     /* Each authentication method number should be in range 0..9 */
-    for (unsigned char i = 0; i < m_count; i++) {
-        if (p[3 + i] < 0 || p[3 + i] > 9)
+    for (i = 0; i < m_count; i++) {
+        if (p[2 + i] > 9)
             return PROBE_NEXT;
     }
     return PROBE_MATCH;
