@@ -40,7 +40,7 @@ const char* USAGE_STRING =
 "sslh " VERSION "\n" \
 "usage:\n" \
 "\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F<file>]\n"
-"\t[-t <timeout>] [-P <pidfile>] [-u <username>] [-C <chroot>] -p <add> [-p <addr> ...] \n" \
+"\t[-t <timeout>] [-P <pidfile>] [-u <username>] [-C <chroot>] -p <addr> [-p <addr> ...] \n" \
 "%s\n\n" /* Dynamically built list of builtin protocols */  \
 "\t[--on-timeout <addr>]\n" \
 "-v: verbose\n" \
