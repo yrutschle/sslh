@@ -496,6 +496,7 @@ int resolve_split_name(struct addrinfo **out, const char* ct_host, const char* s
        end = strrchr(host, ']');
        if (!end) {
            fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
+           return -1;
        }
        host++; /* skip first bracket */
        *end = 0; /* remove last bracket */
