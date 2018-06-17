@@ -116,6 +116,11 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
    for (addr = addr_list; addr; addr = addr->ai_next)
        num_addr++;
 
+   if (num_addr == 0) {
+       fprintf(stderr, "FATAL: No available addresses.\n");
+       exit(1);
+   }
+
    if (verbose)
        fprintf(stderr, "listening to %d addresses\n", num_addr);
 
