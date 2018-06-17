@@ -301,7 +301,8 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     fd_set fds_r, fds_w;  /* reference fd sets (used to init the next 2) */
     fd_set readfds, writefds; /* working read and write fd sets */
     struct timeval tv;
-    int max_fd, in_socket, i, j, res;
+    int max_fd, i, j, res;
+    int in_socket = 0;
     struct connection *cnx;
     int num_cnx;  /* Number of connections in *cnx */
     int num_probing = 0; /* Number of connections currently probing 
