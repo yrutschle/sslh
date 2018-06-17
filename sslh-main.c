@@ -235,7 +235,7 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items, const char* name, int alpn)
 {
     int num_probes, i, max_server_name_len, server_name_len;
-    const char * config_item;
+    const char * config_item, *server_name;
     char** sni_hostname_list;
 
     num_probes = config_setting_length(config_items);
@@ -246,7 +246,12 @@ static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items,
 
     max_server_name_len = 0;
     for (i = 0; i < num_probes; i++) {
-        server_name_len = strlen(config_setting_get_string_elem(config_items, i));
+        server_name = config_setting_get_string_elem(config_items, i);
+        if (server_name == NULL) {
+            fprintf(stderr, "%s: invalid %s specified\n", p->description, name);
+            exit(1);
+        }
+        server_name_len = strlen(server_name);
         if(server_name_len > max_server_name_len)
             max_server_name_len = server_name_len;
     }
