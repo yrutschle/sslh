@@ -84,6 +84,7 @@ int get_fd_sockets(int *sockfd[])
     if (sd > 0) {
       int i;
       *sockfd = malloc(sd * sizeof(*sockfd[0]));
+      CHECK_ALLOC(*sockfd, "malloc");
       for (i = 0; i < sd; i++) {
         (*sockfd)[i] = SD_LISTEN_FDS_START + i;
       }
@@ -125,6 +126,7 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        fprintf(stderr, "listening to %d addresses\n", num_addr);
 
    *sockfd = malloc(num_addr * sizeof(*sockfd[0]));
+   CHECK_ALLOC(*sockfd, "malloc");
 
    for (i = 0, addr = addr_list; i < num_addr && addr; i++, addr = addr->ai_next) {
        if (!addr) {
@@ -314,10 +316,7 @@ int defer_write(struct queue *q, void* data, int data_size)
         fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
     p = realloc(q->begin_deferred_data, data_offset + q->deferred_data_size + data_size);
-    if (!p) {
-        perror("realloc");
-        exit(1);
-    }
+    CHECK_ALLOC(p, "realloc");
 
     q->begin_deferred_data = p;
     q->deferred_data = p + data_offset;

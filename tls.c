@@ -292,6 +292,7 @@ static int
 has_match(char** list, const char* name, size_t name_len) {
     char **item;
     char *name_nullterminated = malloc(name_len+1);
+    CHECK_ALLOC(name_nullterminated, "malloc");
     memcpy(name_nullterminated, name, name_len);
     name_nullterminated[name_len]='\0';
 
@@ -309,9 +310,8 @@ has_match(char** list, const char* name, size_t name_len) {
 struct TLSProtocol *
 new_tls_data() {
     struct TLSProtocol *tls_data = malloc(sizeof(struct TLSProtocol));
-    if (tls_data != NULL) {
-        tls_data->use_alpn = -1;
-    }
+    CHECK_ALLOC(tls_data, "malloc");
+    tls_data->use_alpn = -1;
 
     return tls_data;
 }

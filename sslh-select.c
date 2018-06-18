@@ -322,6 +322,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
 
     num_cnx = cnx_num_alloc; /* Start with a set pool of slots */
     cnx = malloc(num_cnx * sizeof(struct connection));
+    CHECK_ALLOC(cnx, "malloc");
     for (i = 0; i < num_cnx; i++)
         init_cnx(&cnx[i]);
 

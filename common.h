@@ -48,6 +48,13 @@
         return res;                                     \
     } 
 
+#define CHECK_ALLOC(a, str) \
+    if (!a) { \
+        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+        perror(str); \
+        exit(1); \
+    }
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 #if 1
