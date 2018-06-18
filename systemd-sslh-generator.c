@@ -7,7 +7,8 @@
 static char* resolve_listen(const char *hostname, const char *port) {
     /* Need room in the strcat for \0 and :
      * the format in the socket unit file is hostname:port */
-    char *conn = (char*)malloc(strlen(hostname)+strlen(port)+2);
+    char *conn = malloc(strlen(hostname)+strlen(port)+2);
+    CHECK_ALLOC(conn, "malloc");
     strcpy(conn, hostname);
     strcat(conn, ":");
     strcat(conn, port);
@@ -41,6 +42,7 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
 	    int i;
             len = config_setting_length(setting);
             *listen = malloc(len * sizeof(**listen));
+            CHECK_ALLOC(*listen, "malloc");
             for (i = 0; i < len; i++) {
                 addr = config_setting_get_elem(setting, i);
                 if (! (config_setting_lookup_string(addr, "host", &hostname) &&
@@ -51,6 +53,7 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
                     return -1;
                 } else {
                     (*listen)[i] = malloc(strlen(resolve_listen(hostname, port)));
+                    CHECK_ALLOC((*listen)[i], "malloc");
                     strcpy((*listen)[i], resolve_listen(hostname, port));
                 }
             }
@@ -115,6 +118,7 @@ static int gen_sslh_config(char *runtime_unit_dir) {
         size_t uf_len = strlen(unit_file);
         size_t runtime_len = strlen(runtime_unit_dir) + uf_len + 1;
         char *runtime_conf = malloc(runtime_len);
+        CHECK_ALLOC(runtime_conf, "malloc");
         strcpy(runtime_conf, runtime_unit_dir);
         strcat(runtime_conf, unit_file);
         runtime_conf_fd = fopen(runtime_conf, "w");

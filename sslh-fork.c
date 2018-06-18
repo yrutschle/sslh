@@ -145,6 +145,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
 
     listener_pid_number = num_addr_listen;
     listener_pid = malloc(listener_pid_number * sizeof(listener_pid[0]));
+    CHECK_ALLOC(listener_pid, "malloc");
 
     /* Start one process for each listening address */
     for (i = 0; i < num_addr_listen; i++) {

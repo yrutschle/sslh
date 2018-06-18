@@ -210,14 +210,21 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 
     p->probe = get_probe("regex");
     probe_list = calloc(num_probes + 1, sizeof(*probe_list));
+    CHECK_ALLOC(probe_list, "calloc");
     p->data = (void*)probe_list;
 
     for (i = 0; i < num_probes; i++) {
         probe_list[i] = malloc(sizeof(*(probe_list[i])));
+        CHECK_ALLOC(probe_list[i], "malloc");
         expr = config_setting_get_string_elem(probes, i);
+        if (expr == NULL) {
+            fprintf(stderr, "%s: invalid probe specified\n", p->description);
+            exit(1);
+        }
         res = regcomp(probe_list[i], expr, REG_EXTENDED);
         if (res) {
             err = malloc(errsize = regerror(res, probe_list[i], NULL, 0));
+            CHECK_ALLOC(err, "malloc");
             regerror(res, probe_list[i], err, errsize);
             fprintf(stderr, "%s:%s\n", expr, err);
             free(err);
@@ -235,7 +242,7 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items, const char* name, int alpn)
 {
     int num_probes, i, max_server_name_len, server_name_len;
-    const char * config_item;
+    const char * config_item, *server_name;
     char** sni_hostname_list;
 
     num_probes = config_setting_length(config_items);
@@ -246,16 +253,27 @@ static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items,
 
     max_server_name_len = 0;
     for (i = 0; i < num_probes; i++) {
-        server_name_len = strlen(config_setting_get_string_elem(config_items, i));
+        server_name = config_setting_get_string_elem(config_items, i);
+        if (server_name == NULL) {
+            fprintf(stderr, "%s: invalid %s specified\n", p->description, name);
+            exit(1);
+        }
+        server_name_len = strlen(server_name);
         if(server_name_len > max_server_name_len)
             max_server_name_len = server_name_len;
     }
 
     sni_hostname_list = calloc(num_probes + 1, ++max_server_name_len);
+    CHECK_ALLOC(sni_hostname_list, "calloc");
 
     for (i = 0; i < num_probes; i++) {
         config_item = config_setting_get_string_elem(config_items, i);
+        if (config_item == NULL) {
+            fprintf(stderr, "%s: invalid %s specified\n", p->description, name);
+            exit(1);
+        }
         sni_hostname_list[i] = malloc(max_server_name_len);
+        CHECK_ALLOC(sni_hostname_list[i], "malloc");
         strcpy (sni_hostname_list[i], config_item);
         if(verbose) fprintf(stderr, "%s: %s[%d]: %s\n", p->description, name, i, sni_hostname_list[i]);
     }
@@ -298,6 +316,7 @@ static int config_protocols(config_t *config, struct proto **prots)
         num_prots = config_setting_length(setting);
         for (i = 0; i < num_prots; i++) {
             p = calloc(1, sizeof(*p));
+            CHECK_ALLOC(p, "calloc");
             if (i == 0) *prots = p;
             if (prev) prev->next = p;
             prev = p;
@@ -438,6 +457,7 @@ static void make_alloptions(void)
     /* Create all_options, composed of const_options followed by one option per
      * known protocol */
     all_options = calloc(ARRAY_SIZE(const_options) + get_num_builtins(), sizeof(struct option));
+    CHECK_ALLOC(all_options, "calloc");
     memcpy(all_options, const_options, sizeof(const_options));
     append_protocols(all_options, ARRAY_SIZE(const_options) - 1, builtins, get_num_builtins());
 }
@@ -516,8 +536,10 @@ next_arg:
             if (!prots) {
                 /* No protocols yet -- create the list */
                 p = prots = calloc(1, sizeof(*p));
+                CHECK_ALLOC(p, "calloc");
             } else {
                 p->next = calloc(1, sizeof(*p));
+                CHECK_ALLOC(p->next, "calloc");
                 p = p->next;
             }
             memcpy(p, &builtins[c-PROT_SHIFT], sizeof(*p));
