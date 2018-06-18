@@ -217,6 +217,10 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
         probe_list[i] = malloc(sizeof(*(probe_list[i])));
         CHECK_ALLOC(probe_list[i], "malloc");
         expr = config_setting_get_string_elem(probes, i);
+        if (expr == NULL) {
+            fprintf(stderr, "%s: invalid probe specified\n", p->description);
+            exit(1);
+        }
         res = regcomp(probe_list[i], expr, REG_EXTENDED);
         if (res) {
             err = malloc(errsize = regerror(res, probe_list[i], NULL, 0));
@@ -264,6 +268,10 @@ static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items,
 
     for (i = 0; i < num_probes; i++) {
         config_item = config_setting_get_string_elem(config_items, i);
+        if (config_item == NULL) {
+            fprintf(stderr, "%s: invalid %s specified\n", p->description, name);
+            exit(1);
+        }
         sni_hostname_list[i] = malloc(max_server_name_len);
         CHECK_ALLOC(sni_hostname_list[i], "malloc");
         strcpy (sni_hostname_list[i], config_item);
