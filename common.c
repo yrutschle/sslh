@@ -683,7 +683,7 @@ void setup_syslog(const char* bin_name) {
     for (fn = 0; facilitynames[fn].c_val != -1; fn++)
         if (strcmp(facilitynames[fn].c_name, facility) == 0)
             break;
-    if (fn == -1) {
+    if (facilitynames[fn].c_val == -1) {
         fprintf(stderr, "Unknown facility %s\n", facility);
         exit(1);
     }
