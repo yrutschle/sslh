@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "common.h"
 
 
 static char* resolve_listen(const char *hostname, const char *port) {
