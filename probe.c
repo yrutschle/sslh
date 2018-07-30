@@ -406,7 +406,7 @@ int probe_client_protocol(struct connection *cnx)
         if (res != PROBE_NEXT)
             return res;
     } else {
-        for (p = cnx->proto; p ; p = p->next) {
+        for (p = cnx->proto; p; p = p->next) {
             if (strcmp(p->description, "anyprot") == 0) {
                 cnx->proto = p;
                 return PROBE_MATCH;
