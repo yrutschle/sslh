@@ -393,15 +393,22 @@ int probe_client_protocol(struct connection *cnx)
 
     if (n > 0) {
         int res = PROBE_NEXT;
+        int again = 0;
 
         defer_write(&cnx->q[1], buffer, n);
 
-        for (p = cnx->proto; p && res == PROBE_NEXT; p = p->next) {
+        for (p = cnx->proto; p && res != PROBE_MATCH; p = p->next) {
             if (! p->probe) continue;
             if (verbose) fprintf(stderr, "probing for %s\n", p->description);
 
             cnx->proto = p;
-            res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
+            if (again == 1 && (strcmp(p->description, "anyprot") == 0 || strcmp(p->description, "timeout") == 0)) {
+                res = PROBE_AGAIN;
+            } else {
+                res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
+                if (res == PROBE_AGAIN)
+                    again = 1;
+            }
         }
         if (res != PROBE_NEXT)
             return res;
