@@ -349,14 +349,14 @@ static int is_socks5_protocol(const char *p_in, int len, struct proto *proto)
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
 #ifdef ENABLE_REGEX
-    if (len < 2)
-        return PROBE_AGAIN;
-
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
 
     for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
         /* try them all */;
+
+    if (*probe == NULL && len < 5)
+        return PROBE_AGAIN;
 
     return (*probe != NULL);
 #else
