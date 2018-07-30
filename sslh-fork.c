@@ -72,6 +72,7 @@ void start_shoveler(int in_socket)
    int res = PROBE_AGAIN;
    int out_socket;
    struct connection cnx;
+   char bbs_prompt[] = "login: \r\x1B[1;37mPress ENTER 7 times or wait 120 seconds to connect to BBS...\r";
 
    init_cnx(&cnx);
    cnx.q[0].fd = in_socket;
@@ -80,7 +81,7 @@ void start_shoveler(int in_socket)
    FD_SET(in_socket, &fds);
    memset(&tv, 0, sizeof(tv));
    tv.tv_sec = probing_timeout;
-   write(in_socket, "login: \rBBS is loading, please wait...\r\n", 40);
+   write(in_socket, bbs_prompt, sizeof(bbs_prompt));
 
    while (res == PROBE_AGAIN) {
        /* POSIX does not guarantee that tv will be updated, but the client can
