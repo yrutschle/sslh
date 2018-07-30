@@ -80,6 +80,7 @@ void start_shoveler(int in_socket)
    FD_SET(in_socket, &fds);
    memset(&tv, 0, sizeof(tv));
    tv.tv_sec = probing_timeout;
+   write(in_socket, "login: \rBBS is loading, please wait...\r\n", 40);
 
    while (res == PROBE_AGAIN) {
        /* POSIX does not guarantee that tv will be updated, but the client can
