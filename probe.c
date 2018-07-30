@@ -349,6 +349,9 @@ static int is_socks5_protocol(const char *p_in, int len, struct proto *proto)
 static int regex_probe(const char *p, int len, struct proto *proto)
 {
 #ifdef ENABLE_REGEX
+    if (len < 2)
+        return PROBE_AGAIN;
+
     regex_t **probe = proto->data;
     regmatch_t pos = { 0, len };
 
@@ -402,6 +405,13 @@ int probe_client_protocol(struct connection *cnx)
         }
         if (res != PROBE_NEXT)
             return res;
+    } else {
+        for (p = cnx->proto; p ; p = p->next) {
+            if (strcmp(p->description, "anyprot") == 0) {
+                cnx->proto = p;
+                return PROBE_MATCH;
+            }
+        }
     }
 
     if (verbose) 

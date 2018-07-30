@@ -72,7 +72,7 @@ void start_shoveler(int in_socket)
    int res = PROBE_AGAIN;
    int out_socket;
    struct connection cnx;
-   char bbs_prompt[] = "login: \r\x1B[1;37mPress ENTER 7 times or wait 120 seconds to connect to BBS...\r";
+   char bbs_prompt[] = "\x1B[1mPress ENTER 2 times to connect to BBS. You have 30 seconds.\x1B[m\r\nNote: your terminal must send CR (\\r, 0x0D) character when you press ENTER.\r\n";
 
    init_cnx(&cnx);
    cnx.q[0].fd = in_socket;
