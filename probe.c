@@ -397,30 +397,40 @@ int probe_client_protocol(struct connection *cnx)
 
         defer_write(&cnx->q[1], buffer, n);
 
-        for (p = cnx->proto; p && res != PROBE_MATCH; p = p->next) {
+        for (p = cnx->proto; p; p = p->next) {
             if (! p->probe) continue;
             if (verbose) fprintf(stderr, "probing for %s\n", p->description);
 
-            if (again == 1 && (strcmp(p->description, "anyprot") == 0 || strcmp(p->description, "timeout") == 0)) {
-                res = PROBE_AGAIN;
-            } else {
-                res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
-                switch(res) {
-                    case PROBE_AGAIN:
-                        again = 1;
-                        break;
-                    case PROBE_NEXT:
-                        if (again == 0) {
-                            cnx->proto = p;
-                        } else {
-                            res = PROBE_AGAIN;
-                        }
-                        break;
-                    default:
+            res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
+
+            switch(res) {
+                case PROBE_AGAIN:
+                    again = 1;
+                    continue;
+                    break;
+                case PROBE_NEXT:
+                    if (again == 0) {
                         cnx->proto = p;
-                }
+                    } else {
+                        res = PROBE_AGAIN;
+                    }
+                    continue;
+                    break;
             }
+
+            /* Break the for loop if we got PROBE_MATCH now because we don't want p = p->next to be executed */
+            break;
         }
+
+        /* If we got PROBE_MATCH from anyprot or timeout probes and there were probes that returned PROBE_AGAIN,
+         * return PROBE_AGAIN instead and do not update cnx->proto so it will keep pointing to first probe
+         * that returned PROBE_AGAIN  */
+        if (res == PROBE_MATCH) {
+            if (again == 1 && (strcmp(p->description, "anyprot") == 0 || strcmp(p->description, "timeout") == 0))
+                return PROBE_AGAIN;
+            cnx->proto = p;
+        }
+
         if (res != PROBE_NEXT)
             return res;
     } else {
