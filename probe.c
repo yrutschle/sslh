@@ -401,13 +401,24 @@ int probe_client_protocol(struct connection *cnx)
             if (! p->probe) continue;
             if (verbose) fprintf(stderr, "probing for %s\n", p->description);
 
-            cnx->proto = p;
             if (again == 1 && (strcmp(p->description, "anyprot") == 0 || strcmp(p->description, "timeout") == 0)) {
                 res = PROBE_AGAIN;
             } else {
                 res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
-                if (res == PROBE_AGAIN)
-                    again = 1;
+                switch(res) {
+                    case PROBE_AGAIN:
+                        again = 1;
+                        break;
+                    case PROBE_NEXT:
+                        if (again == 0) {
+                            cnx->proto = p;
+                        } else {
+                            res = PROBE_AGAIN;
+                        }
+                        break;
+                    default:
+                        cnx->proto = p;
+                }
             }
         }
         if (res != PROBE_NEXT)
