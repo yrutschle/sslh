@@ -409,11 +409,10 @@ int probe_client_protocol(struct connection *cnx)
                     continue;
                     break;
                 case PROBE_NEXT:
-                    if (again == 0) {
+                    if (again == 0)
                         cnx->proto = p;
-                    } else {
+                    else
                         res = PROBE_AGAIN;
-                    }
                     continue;
                     break;
             }
