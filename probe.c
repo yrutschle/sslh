@@ -432,23 +432,17 @@ int probe_client_protocol(struct connection *cnx)
 
         if (res != PROBE_NEXT)
             return res;
-    } else {
-        for (p = cnx->proto; p; p = p->next) {
-            if (strcmp(p->description, "anyprot") == 0) {
-                cnx->proto = p;
-                return PROBE_MATCH;
-            }
-        }
     }
+
+    /* If none worked, return the last defined protocol */
+    while (cnx->proto->next)
+        cnx->proto = cnx->proto->next;
 
     if (verbose) 
         fprintf(stderr, 
-                "all probes failed, connecting to first protocol: %s\n", 
-                protocols->description);
+                "all probes failed, connecting to last protocol: %s\n",
+                cnx->proto->description);
 
-    /* If none worked, return the first one affected (that's completely
-     * arbitrary) */
-    cnx->proto = protocols;
     return PROBE_MATCH;
 }
 
