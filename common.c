@@ -271,6 +271,9 @@ int connect_addr(struct connection *cnx, int fd_from)
     CHECK_RES_RETURN(res, "getpeername");
 
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
+        /* A hack to just skip connection to specific address:port */
+        if (strcmp(sprintaddr(buf, sizeof(buf), a), "127.127.127.127:65535") == 0)
+            continue;
         /* When transparent, make sure both connections use the same address family */
         if (transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
