@@ -2,17 +2,23 @@
 
 # Test script for sslh
 
+# Uses Conf::Libconfig to read sslh config file: install
+# with:
+# cpan Conf::Libconfig
+
 use strict;
 use IO::Socket::INET6;
 use Test::More qw/no_plan/;
+use Conf::Libconfig;
 
-# We use ports 9000, 9001 and 9002 -- hope that won't clash
-# with anything...
-my $ssh_address = "ip6-localhost:9000";
-my $ssl_address = "ip6-localhost:9001";
-my $sslh_port = 9002;
-my $no_listen = 9003;  # Port on which no-one listens
-my $pidfile = "/tmp/sslh_test.pid";
+my $conf = new Conf::Libconfig;
+$conf->read_file("test.cfg");
+
+
+my $no_listen = 8083;  # Port on which no-one listens
+my $pidfile = $conf->lookup_value("pidfile");
+my $sslh_port = $conf->fetch_array("listen")->[0]->{port};
+my $user = (getpwuid $<)[0]; # Run under current username
 
 # Which tests do we run
 my $SSL_CNX =           1;
@@ -21,8 +27,6 @@ my $SSH_BOLD_CNX =      1;
 my $SSH_PROBE_AGAIN =   1;
 my $SSL_MIX_SSH =       1;
 my $SSH_MIX_SSL =       1;
-my $BIG_MSG =           0; # This test is unreliable
-my $STALL_CNX =         0; # This test needs fixing
 
 # Robustness tests. These are mostly to achieve full test
 # coverage, but do not necessarily result in an actual test
@@ -32,21 +36,25 @@ my $RB_CNX_NOSERVER =           1;
 my $RB_PARAM_NOHOST =           1;
 my $RB_WRONG_USERNAME =         1;
 my $RB_OPEN_PID_FILE =          1;
-my $RB_BIND_ADDRESS =           1;
 my $RB_RESOLVE_ADDRESS =        1;
 
 `lcov --directory . --zerocounters`;
 
+sub verbose_exec
+{
+    my ($cmd) = @_;
 
-my ($ssh_pid, $ssl_pid);
-
-if (!($ssh_pid = fork)) {
-    exec "./echosrv --listen $ssh_address --prefix 'ssh: '";
+    warn "$cmd\n";
+    if (!fork) {
+        exec $cmd;
+    }
 }
 
-if (!($ssl_pid = fork)) {
-    exec "./echosrv --listen $ssl_address --prefix 'ssl: '";
+# Start an echoserver for each service
+foreach my $s (@{$conf->fetch_array("protocols")}) {
+    verbose_exec "./echosrv --listen $s->{host}:$s->{port} --prefix '$s->{name}: '";
 }
+
 
 my @binaries = ('sslh-select', 'sslh-fork');
 for my $binary (@binaries) {
@@ -56,10 +64,10 @@ for my $binary (@binaries) {
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        my $cmd = "./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
-        warn "$cmd\n";
-        #exec $cmd;
-        exec "valgrind --leak-check=full ./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
+        #my $cmd = "./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
+        my $cmd = "./$binary -v -f -u $user -Ftest.cfg";
+        verbose_exec $cmd;
+        #exec "valgrind --leak-check=full ./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
         exit 0;
     }
     warn "spawned $sslh_pid\n";
@@ -124,7 +132,6 @@ for my $binary (@binaries) {
         }
     }
 
-
 # Test: One SSL half-started then one SSH
     if ($SSL_MIX_SSH) {
         print "***Test: One SSL half-started then one SSH\n";
@@ -168,55 +175,6 @@ for my $binary (@binaries) {
     }
 
 
-# Test: Big messages (careful: don't go over echosrv's buffer limit (1M))
-    if ($BIG_MSG) {
-        print "***Test: big message\n";
-        my $cnx_l = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless $cnx_l;
-        my $rept = 1000;
-        my $test_data2 = $ssl_test_data . ("helloworld"x$rept);
-        if (defined $cnx_l) {
-            my $n = syswrite $cnx_l, $test_data2;
-            my ($data);
-            $n = sysread $cnx_l, $data, 1 << 20;
-            is($data, "ssl: ". $test_data2, "Big message");
-        }
-    }
-
-# Test: Stalled connection
-# Create two connections, stall one, check the other one
-# works, unstall first and check it works fine
-# This test needs fixing.
-# Now that echosrv no longer works on "lines" (finishing
-# with '\n'), it may cut blocks randomly with prefixes.
-# The whole thing needs to be re-thought as it'll only
-# work by chance.
-    if ($STALL_CNX) {
-        print "***Test: Stalled connection\n";
-        my $cnx_1 = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless defined $cnx_1;
-        my $cnx_2 = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless defined $cnx_2;
-        my $test_data2 = "helloworld";
-        sleep 4;
-        my $rept = 1000;
-        if (defined $cnx_1 and defined $cnx_2) {
-            print $cnx_1 ($test_data2 x $rept);
-            print $cnx_1 "\n";
-            print $cnx_2 ($test_data2 x $rept);
-            print $cnx_2 "\n";
-            my $data = <$cnx_2>;
-            is($data, "ssh: " . ($test_data2 x $rept) . "\n", "Stalled connection (1)");
-            print $cnx_2 ($test_data2 x $rept);
-            print $cnx_2 "\n";
-            $data = <$cnx_2>;
-            is($data, "ssh: " . ($test_data2 x $rept) . "\n", "Stalled connection (2)");
-            $data = <$cnx_1>;
-            is($data, "ssh: " . ($test_data2 x $rept) . "\n", "Stalled connection (3)");
-
-        }
-    }
-
     my $pid = `cat $pidfile`;
     warn "killing $pid\n";
     kill TERM => $pid or warn "kill process: $!\n";
@@ -228,7 +186,6 @@ if ($RB_CNX_NOSERVER) {
     print "***Test: Connecting to non-existant server\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        my $user = (getpwuid $<)[0]; # Run under current username
         exec "./sslh-select -v -f -u $user --listen localhost:$sslh_port --ssh localhost:$no_listen --ssl localhost:$no_listen -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
@@ -249,12 +206,18 @@ if ($RB_CNX_NOSERVER) {
 }
 
 
+my $ssh_conf = (grep { $_->{name} eq "ssh" } @{$conf->fetch_array("protocols")})[0];
+my $ssh_address = $ssh_conf->{host} . ":" .  $ssh_conf->{port};
+
+my $ssl_conf = (grep { $_->{name} eq "ssl" } @{$conf->fetch_array("protocols")})[0];
+my $ssl_address = $ssl_conf->{host} . ":" .  $ssl_conf->{port};
+
+
 # Robustness: No hostname in address
 if ($RB_PARAM_NOHOST) {
     print "***Test: No hostname in address\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        my $user = (getpwuid $<)[0]; # Run under current username
         exec "./sslh-select -v -f -u $user --listen $sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
@@ -269,7 +232,6 @@ if ($RB_WRONG_USERNAME) {
     print "***Test: Changing to non-existant username\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        my $user = (getpwuid $<)[0]; # Run under current username
         exec "./sslh-select -v -f -u ${user}_doesnt_exist --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
@@ -284,7 +246,6 @@ if ($RB_OPEN_PID_FILE) {
     print "***Test: Can't open PID file\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        my $user = (getpwuid $<)[0]; # Run under current username
         exec "./sslh-select -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P /dont_exist/$pidfile";
         # You don't have a /dont_exist/ directory, do you?!
     }
