@@ -36,10 +36,11 @@
 #include "version.h"
 
 #define CHECK_RES_DIE(res, str) \
-    if (res == -1) {    \
-       fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
-       perror(str);     \
-       exit(1);         \
+    if (res == -1) { \
+        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+        if (verbose) \
+            perror(str); \
+        exit(1); \
     }
 
 #define CHECK_RES_RETURN(res, str) \
