@@ -37,9 +37,10 @@
 
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) { \
-        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
-        if (verbose) \
+        if (verbose) { \
+            fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
             perror(str); \
+        } \
         exit(1); \
     }
 
