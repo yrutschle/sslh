@@ -46,7 +46,8 @@
 
 #define CHECK_RES_RETURN(res, str) \
     if (res == -1) {                                    \
-        log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
+        if (verbose)                                    \
+            log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
         return res;                                     \
     } 
 
