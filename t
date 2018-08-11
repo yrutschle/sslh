@@ -25,6 +25,7 @@ my $SSL_CNX =           1;
 my $SSH_SHY_CNX =       1;
 my $SSH_BOLD_CNX =      1;
 my $SSH_PROBE_AGAIN =   1;
+my $PROBES =            1;
 my $SSL_MIX_SSH =       1;
 my $SSH_MIX_SSL =       1;
 
@@ -174,6 +175,52 @@ for my $binary (@binaries) {
         }
     }
 
+
+    # Test: probes. For each probe, write one byte at a time
+    # and check we get connected to the right server. 
+    if ($PROBES) {
+        my @probes = @{$conf->fetch_array("protocols")};
+        foreach my $p (@probes) {
+            my %protocols = (
+                'ssh' => { data => "SSH-2.0 tester" },
+                'socks5' => { data => "\x05\x04\x01\x02\x03\x04" },
+                'http' => { 
+                    data => "GET index.html HTTP/1.1",
+                    no_fragment => 1 },
+                'ssl' => { data => "\x16\x03\x031234" },
+                'openvpn' => { data => "\x00\x00" },
+                'tinc' => { data => "0 hello" },
+                'xmpp' => {data => "I should get a real jabber connection initialisation here" },
+                'adb' => { data => "CNXN....................host:..." },
+                'anyprot' => {data => "hello, this needs to be longer than the longest probe that returns PROBE_AGAIN" },
+            );
+
+            my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+            warn "$!\n" unless $cnx;
+            if (defined $cnx) {
+                my $pattern = $protocols{$p->{name}}->{data};
+                if ($protocols{$p->{name}}->{no_fragment}) {
+                    syswrite $cnx, $pattern;
+                } else {
+                    while (length $pattern) {
+                        syswrite $cnx, (substr $pattern, 0, 1, '');
+                        select undef, undef, undef, .1;
+                    }
+                }
+
+                my $data;
+                my $n = sysread $cnx, $data, 1024;
+                $data =~ /^(.*?): /;
+                my $prefix = $1;
+                $data =~ s/$prefix: //g;
+                print "Received: protocol $prefix data [$data]\n";
+                close $cnx;
+
+                is($prefix, $p->{name});
+                is($data, $protocols{$p->{name}}->{data});
+            }
+        }
+    }
 
     my $pid = `cat $pidfile`;
     warn "killing $pid\n";
