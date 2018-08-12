@@ -21,9 +21,7 @@ my $sslh_port = $conf->fetch_array("listen")->[0]->{port};
 my $user = (getpwuid $<)[0]; # Run under current username
 
 # Which tests do we run
-my $SSL_CNX =           1;
 my $SSH_SHY_CNX =       1;
-my $SSH_BOLD_CNX =      1;
 my $SSH_PROBE_AGAIN =   1;
 my $PROBES =            1;
 my $SSL_MIX_SSH =       1;
@@ -79,19 +77,6 @@ for my $binary (@binaries) {
 #    my $ssl_test_data = (pack 'n', ((length $test_data) + 2)) .  $test_data;
     my $ssl_test_data = "\x16\x03\x03$test_data\n";
 
-# Test: SSL connection
-    if ($SSL_CNX) {
-        print "***Test: SSL connection\n";
-        my $cnx_l = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless $cnx_l;
-        if (defined $cnx_l) {
-            print $cnx_l $ssl_test_data;
-            my $data;
-            my $n = sysread $cnx_l, $data, 1024;
-            is($data, "ssl: $ssl_test_data", "SSL connection");
-        }
-    }
-
 # Test: Shy SSH connection
     if ($SSH_SHY_CNX) {
         print "***Test: Shy SSH connection\n";
@@ -102,34 +87,6 @@ for my $binary (@binaries) {
             print $cnx_h $test_data;
             my $data = <$cnx_h>;
             is($data, "ssh: $test_data", "Shy SSH connection");
-        }
-    }
-
-# Test: Bold SSH connection
-    if ($SSH_BOLD_CNX) {
-        print "***Test: Bold SSH connection\n";
-        my $cnx_h = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless $cnx_h;
-        if (defined $cnx_h) {
-            my $td = "SSH-2.0 testsuite\t$test_data";
-            print $cnx_h $td;
-            my $data = <$cnx_h>;
-            is($data, "ssh: $td", "Bold SSH connection");
-        }
-    }
-
-# Test: PROBE_AGAIN, incomplete first frame
-    if ($SSH_PROBE_AGAIN) {
-        print "***Test: incomplete SSH first frame\n";
-        my $cnx_h = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless $cnx_h;
-        if (defined $cnx_h) {
-            my $td = "SSH-2.0 testsuite\t$test_data";
-            print $cnx_h substr $td, 0, 2;
-            sleep 1;
-            print $cnx_h substr $td, 2;
-            my $data = <$cnx_h>;
-            is($data, "ssh: $td", "Incomplete first SSH frame");
         }
     }
 
