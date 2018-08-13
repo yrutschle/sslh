@@ -70,7 +70,7 @@ sub test_probes {
             'tinc' => { data => "0 hello" },
             'xmpp' => {data => "I should get a real jabber connection initialisation here" },
             'adb' => { data => "CNXN....................host:..." },
-            'anyprot' => {data => "hello, this needs to be longer than the longest probe that returns PROBE_AGAIN" },
+            'anyprot' => {data => "hello anyprot this needs to be longer than xmpp and adb which expect about 50 characters, which I all have to write before the timeout!" },
         );
 
         my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
@@ -94,8 +94,8 @@ sub test_probes {
             print "Received: protocol $prefix data [$data]\n";
             close $cnx;
 
-            is($prefix, $p->{name});
-            is($data, $protocols{$p->{name}}->{data});
+            is($prefix, $p->{name}, "probe $p->{name} connected correctly");
+            is($data, $protocols{$p->{name}}->{data}, "data shoveled correctly");
         }
     }
 }
