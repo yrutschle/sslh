@@ -414,7 +414,7 @@ int probe_client_protocol(struct connection *cnx)
         if (res == PROBE_AGAIN)
             again++;
     }
-    if (again)
+    if ((again && (n > 0)) || ((n == -1) && (errno == EAGAIN)))
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
