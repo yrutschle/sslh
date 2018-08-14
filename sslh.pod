@@ -95,7 +95,11 @@ protocol (which should usually be SSH). Default is 2s.
 =item B<--on-timeout> I<protocol name>
 
 Name of the protocol to connect to after the timeout period
-is over. Default is 'ssh'.
+is over. Default is to forward to the first specified
+protocol. It usually makes sense to specify 'ssh' as the
+timeout protocol, as the SSH specification does not tell
+who is supposed to speak first and a large number of SSH
+clients wait for the server to send its banner.
 
 =item B<--transparent>
 

@@ -1,3 +1,20 @@
+vNEXT:
+	New probing method:
+	Before, probes were tried in order, repeating on the
+	same probe as long it returned PROBE_AGAIN before
+	moving to the next one. This means a probe which
+	requires a lot of data (i.e. returne PROBE_AGAIN for
+	a long time) could prevent sucessful matches from 
+	subsequent probes. The configuration file needed to
+	take that into account.
+
+	Now, all probes are tried each time new data is
+	found. If any probe matches, use it. If at least one
+	probe requires more data, wait for more. If all
+	probes failed, connect to the last one. So the only
+	thing to know when writing the configuration file is
+	that 'anyprot' needs to be last.
+
 v1.19: 20JAN2018
 	Added 'syslog_facility' configuration option to
 	specify where to log.

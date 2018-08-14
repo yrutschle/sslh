@@ -180,13 +180,16 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
  * */
 static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
 {
+    if (memmem(p, len, "jabber", 6))
+        return PROBE_MATCH;
+
     /* sometimes the word 'jabber' shows up late in the initial string,
        sometimes after a newline. this makes sure we snarf the entire preamble
        and detect it. (fixed for adium/pidgin) */
     if (len < 50)
         return PROBE_AGAIN;
 
-    return memmem(p, len, "jabber", 6) ? 1 : 0;
+    return PROBE_NEXT;
 }
 
 static int probe_http_method(const char *p, int len, const char *opt)
@@ -375,8 +378,8 @@ static int regex_probe(const char *p, int len, struct proto *proto)
 int probe_client_protocol(struct connection *cnx)
 {
     char buffer[BUFSIZ];
-    struct proto *p;
-    int n;
+    struct proto *p, *last_p;
+    int n, res, again = 0;
 
     n = read(cnx->q[0].fd, buffer, sizeof(buffer));
     /* It's possible that read() returns an error, e.g. if the client
@@ -385,64 +388,40 @@ int probe_client_protocol(struct connection *cnx)
      * function does not have to deal with a specific  failure condition (the
      * connection will just fail later normally). */
 
-    /* Dump hex values of the packet */
-    if (verbose>1) {
-        fprintf(stderr, "hexdump of incoming packet:\n");
-        hexdump(buffer, n);
-    }
-
     if (n > 0) {
-        int res = PROBE_NEXT;
-        int again = 0;
-
+        if (verbose > 1) {
+            fprintf(stderr, "hexdump of incoming packet:\n");
+            hexdump(buffer, n);
+        }
         defer_write(&cnx->q[1], buffer, n);
-
-        for (p = cnx->proto; p; p = p->next) {
-            if (! p->probe) continue;
-            if (verbose) fprintf(stderr, "probing for %s\n", p->description);
-
-            res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
-
-            switch(res) {
-                case PROBE_AGAIN:
-                    again = 1;
-                    continue;
-                    break;
-                case PROBE_NEXT:
-                    if (again == 0)
-                        cnx->proto = p;
-                    else
-                        res = PROBE_AGAIN;
-                    continue;
-                    break;
-            }
-
-            /* Break the for loop if we got PROBE_MATCH now because we don't want p = p->next to be executed */
-            break;
-        }
-
-        /* If we got PROBE_MATCH from anyprot or timeout probes and there were probes that returned PROBE_AGAIN,
-         * return PROBE_AGAIN instead and do not update cnx->proto so it will keep pointing to first probe
-         * that returned PROBE_AGAIN  */
-        if (res == PROBE_MATCH) {
-            if (again == 1 && (strcmp(p->description, "anyprot") == 0 || strcmp(p->description, "timeout") == 0))
-                return PROBE_AGAIN;
-            cnx->proto = p;
-        }
-
-        if (res != PROBE_NEXT)
-            return res;
     }
 
-    /* If none worked, return the last defined protocol */
-    while (cnx->proto->next)
-        cnx->proto = cnx->proto->next;
+    for (p = cnx->proto; p; p = p->next) {
+        char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};
+        if (! p->probe) continue;
 
-    if (verbose) 
-        fprintf(stderr, 
-                "all probes failed, connecting to last protocol: %s\n",
-                cnx->proto->description);
+        /* Don't probe last protocol if it is anyprot (and store last protocol) */
+        if (! p->next) {
+            last_p = p;
+            if (!strcmp(p->description, "anyprot"))
+                break;
+        }
 
+        res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
+        if (verbose) fprintf(stderr, "probing for %s: %s\n", p->description, probe_str[res]);
+
+        if (res == PROBE_MATCH) {
+            cnx->proto = p;
+            return PROBE_MATCH;
+        }
+        if (res == PROBE_AGAIN)
+            again++;
+    }
+    if (again)
+        return PROBE_AGAIN;
+
+    /* Everything failed: match the last one */
+    cnx->proto = last_p;
     return PROBE_MATCH;
 }
 
