@@ -378,7 +378,7 @@ static int regex_probe(const char *p, int len, struct proto *proto)
 int probe_client_protocol(struct connection *cnx)
 {
     char buffer[BUFSIZ];
-    struct proto *p, *last_p;
+    struct proto *p, *last_p = cnx->proto;
     int n, res, again = 0;
 
     n = read(cnx->q[0].fd, buffer, sizeof(buffer));
@@ -417,7 +417,7 @@ int probe_client_protocol(struct connection *cnx)
         if (res == PROBE_AGAIN)
             again++;
     }
-    if (again)
+    if ((again && (n > 0)) || ((n == -1) && (errno == EAGAIN)))
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
