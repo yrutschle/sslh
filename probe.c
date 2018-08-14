@@ -398,11 +398,7 @@ int probe_client_protocol(struct connection *cnx)
 
     for (p = cnx->proto; p; p = p->next) {
         char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};
-        if (! p->probe) {
-            /* If this check fails for some reason, don't try to return uninitialized pointer later */
-            last_p = p;
-            continue;
-        }
+        if (! p->probe) continue;
 
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
         if (! p->next) {
@@ -421,9 +417,7 @@ int probe_client_protocol(struct connection *cnx)
         if (res == PROBE_AGAIN)
             again++;
     }
-
-    /* Break the loop if n <= 0 because that means that nothing can be read from socket */
-    if (again && n > 0)
+    if (again)
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
