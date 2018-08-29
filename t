@@ -49,6 +49,43 @@ sub verbose_exec
     }
 }
 
+
+
+# Tests one probe: given input data, connect, verify we get
+# the expected server, verify shoveling works
+# Named options:
+# data: what to write
+# expected: expected protocol prefix
+# no_frag: don't print byte-per-byte
+sub test_probe {
+    my (%opts) = @_;
+
+    my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+    warn "$!\n" unless $cnx;
+    return unless $cnx;
+
+    my $pattern = $opts{data};
+    if ($opts{no_frag}) {
+        syswrite $cnx, $pattern;
+    } else {
+        while (length $pattern) {
+            syswrite $cnx, (substr $pattern, 0, 1, '');
+            select undef, undef, undef, .01;
+        }
+    }
+
+    my $data;
+    my $n = sysread $cnx, $data, 1024;
+    $data =~ /^(.*?): /;
+    my $prefix = $1;
+    $data =~ s/$prefix: //g;
+    print "Received: protocol $prefix data [$data]\n";
+    close $cnx;
+
+    is($prefix, $opts{expected}, "probe $opts{expected} connected correctly");
+    is($data, $opts{data}, "data shoveled correctly");
+}
+
 # Test all probes, with or without fragmentation
 # options:
 #     no_frag: write test patterns all at once (also
@@ -66,6 +103,9 @@ sub test_probes {
                 data => "GET index.html HTTP/1.1",
                 no_frag => 1 },
             'ssl' => { data => "\x16\x03\x031234" },
+            # Capture of `openssl s_client -connect server2.org:443 -alpn alpn1 -servername sni1` 
+            'tls' => { data => "\x16\x03\x01\x00\xc4\x01\x00\x00\xc0\x03\x03\x03\x19\x01\x00\x40\x14\x13\xcc\x1b\x94\xad\x20\x5d\x13\x1a\x8d\xd2\x65\x23\x70\xde\xd1\x3c\x5d\x05\x19\xcb\x27\x0d\x7c\x2c\x89\x00\x00\x38\xc0\x2c\xc0\x30\x00\x9f\xcc\xa9\xcc\xa8\xcc\xaa\xc0\x2b\xc0\x2f\x00\x9e\xc0\x24\xc0\x28\x00\x6b\xc0\x23\xc0\x27\x00\x67\xc0\x0a\xc0\x14\x00\x39\xc0\x09\xc0\x13\x00\x33\x00\x9d\x00\x9c\x00\x3d\x00\x3c\x00\x35\x00\x2f\x00\xff\x01\x00\x00\x5f\x00\x00\x00\x09\x00\x07\x00\x00\x04\x73\x6e\x69\x31\x00\x0b\x00\x04\x03\x00\x01\x02\x00\x0a\x00\x0a\x00\x08\x00\x1d\x00\x17\x00\x19\x00\x18\x00\x23\x00\x00\x00\x0d\x00\x20\x00\x1e\x06\x01\x06\x02\x06\x03\x05\x01\x05\x02\x05\x03\x04\x01\x04\x02\x04\x03\x03\x01\x03\x02\x03\x03\x02\x01\x02\x02\x02\x03\x00\x10\x00\x08\x00\x06\x05\x61\x6c\x70\x6e\x31\x00\x16\x00\x00\x00\x17\x00\x00hello alpn"
+            },
             'openvpn' => { data => "\x00\x00" },
             'tinc' => { data => "0 hello" },
             'xmpp' => {data => "I should get a real jabber connection initialisation here" },
@@ -73,40 +113,46 @@ sub test_probes {
             'anyprot' => {data => "hello anyprot this needs to be longer than xmpp and adb which expect about 50 characters, which I all have to write before the timeout!" },
         );
 
-        my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless $cnx;
-        if (defined $cnx) {
-            my $pattern = $protocols{$p->{name}}->{data};
-            if ($opts{no_frag} or $protocols{$p->{name}}->{no_frag}) {
-                syswrite $cnx, $pattern;
-            } else {
-                while (length $pattern) {
-                    syswrite $cnx, (substr $pattern, 0, 1, '');
-                    select undef, undef, undef, .1;
-                }
-            }
+        my $pattern = $protocols{$p->{name}}->{data};
 
-            my $data;
-            my $n = sysread $cnx, $data, 1024;
-            $data =~ /^(.*?): /;
-            my $prefix = $1;
-            $data =~ s/$prefix: //g;
-            print "Received: protocol $prefix data [$data]\n";
-            close $cnx;
-
-            is($prefix, $p->{name}, "probe $p->{name} connected correctly");
-            is($data, $protocols{$p->{name}}->{data}, "data shoveled correctly");
+        # protocol name with SNI/ALPN spec if present
+        my $pname;
+        if ($p->{sni_hostnames} or $p->{alpn_protocols}) {
+            $pname = $p->{name} . ":" . (join ",", @{$p->{sni_hostnames}})
+            .  ";" . (join ",", @{$p->{alpn_protocols}});
         }
+
+        $opts{no_frag} = 1 if $protocols{$p->{name}}->{no_frag};
+        test_probe(
+            data => $pattern,
+            expected => $p->{name},
+            %opts
+        );
+
     }
 }
 
+
 # Start an echoserver for each service
 foreach my $s (@{$conf->fetch_array("protocols")}) {
-    verbose_exec "./echosrv --listen $s->{host}:$s->{port} --prefix '$s->{name}: '";
+    my $prefix = $s->{name};
+
+    # For SNI/ALPN, build a protocol name as such:
+    # tls:sni1,sni2,...;alpn1,alpn2,...
+
+    
+    if ($s->{sni_hostnames} or $s->{alpn_protocols}) {
+        $prefix .= ":" . join ",", @{$s->{sni_hostnames}};
+        $prefix .= ";";
+        $prefix .= join ",", @{$s->{alpn_protocols}};
+    }
+
+    verbose_exec "./echosrv --listen $s->{host}:$s->{port} --prefix '$prefix: '";
 }
 
 
 my @binaries = ('sslh-select', 'sslh-fork');
+@binaries = ('sslh-select');
 for my $binary (@binaries) {
     warn "Testing $binary\n";
 
