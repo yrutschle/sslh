@@ -183,7 +183,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
         if (tls_data->use_alpn == 2) {
             /* we want BOTH alpn and sni to match */
             if (extension_type == 0x00) { /* Server Name */
-                if (parse_server_name_extension(tls_data, data + pos + 4, len)) {
+                if (parse_server_name_extension(tls_data, data + pos + 4, len) > 0) {
                     /* SNI matched */
                     if(last_matched) {
                         /* this is only true if ALPN matched, so return true */
@@ -197,7 +197,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
                     return -2;
                 }
             } else if (extension_type == 0x10) { /* ALPN */
-                if (parse_alpn_extension(tls_data, data + pos + 4, len)) {
+                if (parse_alpn_extension(tls_data, data + pos + 4, len) > 0) {
                     /* ALPN matched */
                     if(last_matched) {
                         /* this is only true if SNI matched, so return true */
