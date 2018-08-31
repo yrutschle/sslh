@@ -49,6 +49,54 @@ sub verbose_exec
     }
 }
 
+
+
+# For SNI/ALPN, build a protocol name as such:
+# tls:sni1,sni2,...;alpn1,alpn2,...
+# input: a protocol entry from Libconfig
+sub make_sni_alpn_name {
+    my ($prot) = @_;
+
+   return "tls:" . (join ",", @{$prot->{sni_hostnames} // []})
+           . ";" . (join ",", @{$prot->{alpn_protocols} // [] });
+}
+
+
+# Tests one probe: given input data, connect, verify we get
+# the expected server, verify shoveling works
+# Named options:
+# data: what to write
+# expected: expected protocol prefix
+# no_frag: don't print byte-per-byte
+sub test_probe {
+    my (%opts) = @_;
+
+    my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+    warn "$!\n" unless $cnx;
+    return unless $cnx;
+
+    my $pattern = $opts{data};
+    if ($opts{no_frag}) {
+        syswrite $cnx, $pattern;
+    } else {
+        while (length $pattern) {
+            syswrite $cnx, (substr $pattern, 0, 1, '');
+            select undef, undef, undef, .01;
+        }
+    }
+
+    my $data;
+    my $n = sysread $cnx, $data, 1024;
+    $data =~ /^(.*?): /;
+    my $prefix = $1;
+    $data =~ s/$prefix: //g;
+    print "Received: protocol $prefix data [$data]\n";
+    close $cnx;
+
+    is($prefix, $opts{expected}, "probe $opts{expected} connected correctly");
+    is($data, $opts{data}, "data shoveled correctly");
+}
+
 # Test all probes, with or without fragmentation
 # options:
 #     no_frag: write test patterns all at once (also
@@ -66,6 +114,14 @@ sub test_probes {
                 data => "GET index.html HTTP/1.1",
                 no_frag => 1 },
             'ssl' => { data => "\x16\x03\x031234" },
+            'tls' => { 
+                # Packet with SNI and ALPN (`openssl s_client -connect localhost:443 -alpn alpn1 -servername sni1`)
+                data_sni_alpn => "\x16\x03\x01\x00\xc4\x01\x00\x00\xc0\x03\x03\x03\x19\x01\x00\x40\x14\x13\xcc\x1b\x94\xad\x20\x5d\x13\x1a\x8d\xd2\x65\x23\x70\xde\xd1\x3c\x5d\x05\x19\xcb\x27\x0d\x7c\x2c\x89\x00\x00\x38\xc0\x2c\xc0\x30\x00\x9f\xcc\xa9\xcc\xa8\xcc\xaa\xc0\x2b\xc0\x2f\x00\x9e\xc0\x24\xc0\x28\x00\x6b\xc0\x23\xc0\x27\x00\x67\xc0\x0a\xc0\x14\x00\x39\xc0\x09\xc0\x13\x00\x33\x00\x9d\x00\x9c\x00\x3d\x00\x3c\x00\x35\x00\x2f\x00\xff\x01\x00\x00\x5f\x00\x00\x00\x09\x00\x07\x00\x00\x04\$sni\x00\x0b\x00\x04\x03\x00\x01\x02\x00\x0a\x00\x0a\x00\x08\x00\x1d\x00\x17\x00\x19\x00\x18\x00\x23\x00\x00\x00\x0d\x00\x20\x00\x1e\x06\x01\x06\x02\x06\x03\x05\x01\x05\x02\x05\x03\x04\x01\x04\x02\x04\x03\x03\x01\x03\x02\x03\x03\x02\x01\x02\x02\x02\x03\x00\x10\x00\x08\x00\x06\x05\$alpn\x00\x16\x00\x00\x00\x17\x00\x00hello sni/alpn",
+                # Packet with SNI alone
+                data_sni => "\x16\x03\x01\x00\xb8\x01\x00\x00\xb4\x03\x03\x97\xe4\xe9\xad\x86\xe1\x21\xfd\xc4\x5b\x27\x0e\xad\x4b\x55\xc2\x50\xe4\x1c\x86\x2f\x37\x25\xde\xe8\x9c\x59\xfc\x1b\xa9\x37\x32\x00\x00\x38\xc0\x2c\xc0\x30\x00\x9f\xcc\xa9\xcc\xa8\xcc\xaa\xc0\x2b\xc0\x2f\x00\x9e\xc0\x24\xc0\x28\x00\x6b\xc0\x23\xc0\x27\x00\x67\xc0\x0a\xc0\x14\x00\x39\xc0\x09\xc0\x13\x00\x33\x00\x9d\x00\x9c\x00\x3d\x00\x3c\x00\x35\x00\x2f\x00\xff\x01\x00\x00\x53\x00\x00\x00\x09\x00\x07\x00\x00\x04\$sni\x00\x0b\x00\x04\x03\x00\x01\x02\x00\x0a\x00\x0a\x00\x08\x00\x1d\x00\x17\x00\x19\x00\x18\x00\x23\x00\x00\x00\x0d\x00\x20\x00\x1e\x06\x01\x06\x02\x06\x03\x05\x01\x05\x02\x05\x03\x04\x01\x04\x02\x04\x03\x03\x01\x03\x02\x03\x03\x02\x01\x02\x02\x02\x03\x00\x16\x00\x00\x00\x17\x00\x00hello sni",
+                # packet with ALPN alone
+                data_alpn => "\x16\x03\x01\x00\xb7\x01\x00\x00\xb3\x03\x03\xe2\x90\xa2\x29\x03\x31\xad\x98\x44\x51\x54\x90\x5b\xd9\x51\x0e\x66\xb5\x3f\xe8\x8b\x09\xc9\xe4\x2b\x97\x24\xef\xad\x56\x06\xc9\x00\x00\x38\xc0\x2c\xc0\x30\x00\x9f\xcc\xa9\xcc\xa8\xcc\xaa\xc0\x2b\xc0\x2f\x00\x9e\xc0\x24\xc0\x28\x00\x6b\xc0\x23\xc0\x27\x00\x67\xc0\x0a\xc0\x14\x00\x39\xc0\x09\xc0\x13\x00\x33\x00\x9d\x00\x9c\x00\x3d\x00\x3c\x00\x35\x00\x2f\x00\xff\x01\x00\x00\x52\x00\x0b\x00\x04\x03\x00\x01\x02\x00\x0a\x00\x0a\x00\x08\x00\x1d\x00\x17\x00\x19\x00\x18\x00\x23\x00\x00\x00\x0d\x00\x20\x00\x1e\x06\x01\x06\x02\x06\x03\x05\x01\x05\x02\x05\x03\x04\x01\x04\x02\x04\x03\x03\x01\x03\x02\x03\x03\x02\x01\x02\x02\x02\x03\x00\x10\x00\x08\x00\x06\x05\$alpn\x00\x16\x00\x00\x00\x17\x00\x00hello alpn",
+            },
             'openvpn' => { data => "\x00\x00" },
             'tinc' => { data => "0 hello" },
             'xmpp' => {data => "I should get a real jabber connection initialisation here" },
@@ -73,36 +129,54 @@ sub test_probes {
             'anyprot' => {data => "hello anyprot this needs to be longer than xmpp and adb which expect about 50 characters, which I all have to write before the timeout!" },
         );
 
-        my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-        warn "$!\n" unless $cnx;
-        if (defined $cnx) {
-            my $pattern = $protocols{$p->{name}}->{data};
-            if ($opts{no_frag} or $protocols{$p->{name}}->{no_frag}) {
-                syswrite $cnx, $pattern;
-            } else {
-                while (length $pattern) {
-                    syswrite $cnx, (substr $pattern, 0, 1, '');
-                    select undef, undef, undef, .1;
+        my $pattern = $protocols{$p->{name}}->{data};
+
+        $opts{no_frag} = 1 if $protocols{$p->{name}}->{no_frag};
+
+        if ($p->{sni_hostnames} or $p->{alpn_protocols}) {
+            my $pname = make_sni_alpn_name($p);
+
+            my @sni = @{$p->{sni_hostnames} // [""] };
+            my @alpn = @{$p->{alpn_protocols} // [""] };
+
+            foreach my $sni ( @sni ) {
+                foreach my $alpn ( @alpn ) {
+                    print "sni: $sni\nalpn: $alpn\n";
+                    $pattern = $protocols{tls}->{
+                        "data". ($sni ?  "_sni" : "") . 
+                                ($alpn ?  "_alpn": "")
+                    };
+                    $pattern =~ s/(\$\w+)/$1/eeg;
+
+                    test_probe(
+                        data => $pattern,
+                        expected => $pname,
+                        %opts
+                    );
                 }
             }
+        } else {
+            test_probe(
+                data => $pattern,
+                expected => $p->{name},
+                %opts
+            );
 
-            my $data;
-            my $n = sysread $cnx, $data, 1024;
-            $data =~ /^(.*?): /;
-            my $prefix = $1;
-            $data =~ s/$prefix: //g;
-            print "Received: protocol $prefix data [$data]\n";
-            close $cnx;
-
-            is($prefix, $p->{name}, "probe $p->{name} connected correctly");
-            is($data, $protocols{$p->{name}}->{data}, "data shoveled correctly");
         }
     }
 }
 
+
+
 # Start an echoserver for each service
 foreach my $s (@{$conf->fetch_array("protocols")}) {
-    verbose_exec "./echosrv --listen $s->{host}:$s->{port} --prefix '$s->{name}: '";
+    my $prefix = $s->{name};
+
+    if ($s->{sni_hostnames} or $s->{alpn_protocols}) {
+        $prefix = make_sni_alpn_name($s);
+    }
+
+    verbose_exec "./echosrv --listen $s->{host}:$s->{port} --prefix '$prefix: '";
 }
 
 

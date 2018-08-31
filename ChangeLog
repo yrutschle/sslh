@@ -15,6 +15,13 @@ vNEXT:
 	thing to know when writing the configuration file is
 	that 'anyprot' needs to be last.
 
+	Test suite heavily refactored; `t` uses `test.cfg`
+	to decide which probes to test and all setup is
+	automatic; probes get tested with 'fast' (entire
+	first message in one packet) and 'slow' (one byte at
+	a time); when SNI/ALPN are defined, all combinations
+	are tested.
+
 v1.19: 20JAN2018
 	Added 'syslog_facility' configuration option to
 	specify where to log.
