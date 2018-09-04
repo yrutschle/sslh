@@ -358,7 +358,7 @@ static int regex_probe(const char *p, int len, struct proto *proto)
     for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
         /* try them all */;
 
-    if (*probe == NULL && len < 15)
+    if (*probe == NULL && len < 6)
         return PROBE_AGAIN;
 
     return (*probe != NULL);
