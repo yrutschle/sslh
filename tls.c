@@ -41,9 +41,13 @@
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
 
+typedef struct {
+    int tls_match_sni : 1;
+    int tls_match_alpn : 1;
+} TLS_MATCHMODE;
 
 struct TLSProtocol {
-    int use_alpn;
+    TLS_MATCHMODE match_mode;
     char** sni_hostname_list;
     char** alpn_protocol_list;
 };
@@ -155,7 +159,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     /* By now we know it's TLS. if SNI/ALPN is set, parse extensions to see if
      * they match. Otherwise, it's a match already */
-    if (tls_data->use_alpn != -1)
+    if (tls_data->match_mode.tls_match_alpn || tls_data->match_mode.tls_match_sni)
         return parse_extensions(tls_data, data + pos, len);
     else
         return 1;
@@ -186,7 +190,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
         /* Check if it's a server name extension */
         /* There can be only one extension of each type, so we break
            our state and move pos to beginning of the extension here */
-        if (tls_data->use_alpn == 2) {
+        if (tls_data->match_mode.tls_match_sni && tls_data->match_mode.tls_match_alpn) {
             /* we want BOTH alpn and sni to match */
             if (extension_type == 0x00) { /* Server Name */
                 if (parse_server_name_extension(tls_data, data + pos + 4, len) > 0) {
@@ -218,9 +222,9 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
                 }
             }
 
-        } else if (extension_type == 0x00 && tls_data->use_alpn == 0) { /* Server Name */
+        } else if (extension_type == 0x00 && tls_data->match_mode.tls_match_sni) { /* Server Name */
             return parse_server_name_extension(tls_data, data + pos + 4, len);
-        } else if (extension_type == 0x10 && tls_data->use_alpn == 1) { /* ALPN */
+        } else if (extension_type == 0x10 && tls_data->match_mode.tls_match_alpn) { /* ALPN */
             if (parse_alpn_extension(tls_data, data + pos + 4, len) > 0) {
                 return 1;
             }
@@ -317,7 +321,8 @@ struct TLSProtocol *
 new_tls_data() {
     struct TLSProtocol *tls_data = malloc(sizeof(struct TLSProtocol));
     CHECK_ALLOC(tls_data, "malloc");
-    tls_data->use_alpn = -1;
+
+    memset(tls_data, 0, sizeof(*tls_data));
 
     return tls_data;
 }
@@ -326,16 +331,10 @@ struct TLSProtocol *
 tls_data_set_list(struct TLSProtocol *tls_data, int alpn, char** list) {
     if (alpn) {
         tls_data->alpn_protocol_list = list;
-        if(tls_data->use_alpn == 0)
-            tls_data->use_alpn = 2;
-        else
-            tls_data->use_alpn = 1;
+        tls_data->match_mode.tls_match_alpn = 1;
     } else {
         tls_data->sni_hostname_list = list;
-        if(tls_data->use_alpn == 1)
-            tls_data->use_alpn = 2;
-        else
-            tls_data->use_alpn = 0;
+        tls_data->match_mode.tls_match_sni = 1;
     }
 
     return tls_data;
