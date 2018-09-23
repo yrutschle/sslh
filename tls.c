@@ -152,7 +152,13 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     if (pos + len > data_len)
         return -5;
-    return parse_extensions(tls_data, data + pos, len);
+
+    /* By now we know it's TLS. if SNI/ALPN is set, parse extensions to see if
+     * they match. Otherwise, it's a match already */
+    if (tls_data->use_alpn != -1)
+        return parse_extensions(tls_data, data + pos, len);
+    else
+        return 1;
 }
 
 static int

@@ -290,11 +290,9 @@ static void setup_sni_alpn(struct proto *p, config_setting_t* prot)
     alpn_protocols = config_setting_get_member(prot, "alpn_protocols");
 
     if(sni_hostnames && config_setting_is_array(sni_hostnames)) {
-        p->probe = get_probe("sni_alpn");
         setup_sni_alpn_list(p, sni_hostnames, "sni_hostnames", 0);
     }
     if(alpn_protocols && config_setting_is_array(alpn_protocols)) {
-        p->probe = get_probe("sni_alpn");
         setup_sni_alpn_list(p, alpn_protocols, "alpn_protocols", 1);
     }
 }
@@ -341,7 +339,7 @@ static int config_protocols(config_t *config, struct proto **prots)
                 }
 
                 p->probe = get_probe(name);
-                if (!p->probe || !strcmp(name, "sni_alpn")) {
+                if (!p->probe) {
                     fprintf(stderr, "line %d: %s: probe unknown\n", config_setting_source_line(prot), name);
                     exit(1);
                 }
