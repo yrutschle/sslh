@@ -197,7 +197,7 @@ static int probe_http_method(const char *p, int len, const char *opt)
     if (len < strlen(opt))
         return PROBE_AGAIN;
 
-    return !strncmp(p, opt, len);
+    return !strncmp(p, opt, strlen(opt));
 }
 
 /* Is the buffer the beginning of an HTTP connection?  */
