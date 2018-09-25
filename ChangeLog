@@ -22,6 +22,10 @@ vNEXT:
 	a time); when SNI/ALPN are defined, all combinations
 	are tested.
 
+	Old 'tls' probe removed, 'sni_alpn' probe renamed as 'tls'.
+	You'll need to change 'sni_alpn' to 'tls' in
+	your configuration file, if ever you used it.
+
 v1.19: 20JAN2018
 	Added 'syslog_facility' configuration option to
 	specify where to log.
