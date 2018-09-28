@@ -233,7 +233,7 @@ static int is_tls_protocol(const char *p, int len, struct proto *proto)
 
     valid_tls = parse_tls_header(proto->data, p, len);
 
-    if(valid_tls < 0)
+    if(valid_tls <= 0)
         return -1 == valid_tls ? PROBE_AGAIN : PROBE_NEXT;
 
     /* There *was* a valid match */
