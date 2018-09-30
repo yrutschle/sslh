@@ -52,7 +52,6 @@ static struct proto builtins[] = {
     { "tinc",        NULL,     NULL,  1,        0,         1,    is_tinc_protocol },
     { "xmpp",        NULL,     NULL,  1,        0,         0,    is_xmpp_protocol },
     { "http",        NULL,     NULL,  1,        0,         0,    is_http_protocol },
-    { "ssl",         NULL,     NULL,  1,        0,         0,    is_tls_protocol },
     { "tls",         NULL,     NULL,  1,        0,         0,    is_tls_protocol },
     { "adb",         NULL,     NULL,  1,        0,         0,    is_adb_protocol },
     { "socks5",      NULL,     NULL,  1,        0,         0,    is_socks5_protocol },

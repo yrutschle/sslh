@@ -147,11 +147,28 @@ static void printsettings(void)
 }
 
 
+/* To removed in v1.21 */
+const char* ssl_err_msg = "Usage of 'ssl' setting is deprecated and will be removed in v1.21. Please use 'tls' instead\n";
 void ssl_to_tls(char* setting)
 {
     if (!strcmp(setting, "ssl")) {
         strcpy(setting, "tls"); /* legacy configuration */
-        log_message(LOG_INFO, "Usage of 'ssl' setting is deprecated and will be removed in v1.21. Please use 'tls' instead\n");
+        log_message(LOG_INFO, ssl_err_msg);
+    }
+}
+
+
+/* Turn 'ssl' command line option to 'tls'. To removed in v1.21 */
+void cmd_ssl_to_tls(int argc, char* argv[])
+{
+    int i;
+    for (i = 0; i < argc; i++) {
+        if (!strcmp(argv[i], "--ssl")) {
+            strcpy(argv[i], "--tls");
+            /* foreground option not parsed yet, syslog not open, just print on
+             * stderr and hope for the best */
+            fprintf(stderr, ssl_err_msg);
+        }
     }
 }
 
@@ -334,8 +351,10 @@ static int config_protocols(config_t *config, struct proto **prots)
                  config_setting_lookup_string(prot, "host", &hostname) &&
                  config_setting_lookup_string(prot, "port", &port)
                 )) {
+                /* To removed in v1.21 */
                 name = strdup(cfg_name);
                 ssl_to_tls(name);
+                /* /remove */
                 p->description = name;
                 config_setting_lookup_string(prot, "service", &(p->service));
                 config_setting_lookup_bool(prot, "keepalive", &p->keepalive);
@@ -484,6 +503,8 @@ static void cmdline_config(int argc, char* argv[], struct proto** prots)
     int c, res;
     char *config_filename;
 #endif
+
+    cmd_ssl_to_tls(argc, argv); /* To remove in v1.21 */
 
     make_alloptions();
 
