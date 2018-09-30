@@ -147,6 +147,15 @@ static void printsettings(void)
 }
 
 
+void ssl_to_tls(char* setting)
+{
+    if (!strcmp(setting, "ssl")) {
+        strcpy(setting, "tls"); /* legacy configuration */
+        log_message(LOG_INFO, "Usage of 'ssl' setting is deprecated and will be removed in v1.21. Please use 'tls' instead\n");
+    }
+}
+
+
 /* Extract configuration on addresses and ports on which to listen.
  * out: newly allocated list of addrinfo to listen to
  */
@@ -305,7 +314,8 @@ static void setup_sni_alpn(struct proto *p, config_setting_t* prot)
 static int config_protocols(config_t *config, struct proto **prots)
 {
     config_setting_t *setting, *prot, *patterns;
-    const char *hostname, *port, *name;
+    const char *hostname, *port, *cfg_name;
+    char* name;
     int i, num_prots;
     struct proto *p, *prev = NULL;
 
@@ -320,10 +330,12 @@ static int config_protocols(config_t *config, struct proto **prots)
             prev = p;
 
             prot = config_setting_get_elem(setting, i);
-            if ((config_setting_lookup_string(prot, "name", &name) &&
+            if ((config_setting_lookup_string(prot, "name", &cfg_name) &&
                  config_setting_lookup_string(prot, "host", &hostname) &&
                  config_setting_lookup_string(prot, "port", &port)
                 )) {
+                name = strdup(cfg_name);
+                ssl_to_tls(name);
                 p->description = name;
                 config_setting_lookup_string(prot, "service", &(p->service));
                 config_setting_lookup_bool(prot, "keepalive", &p->keepalive);
