@@ -64,7 +64,7 @@ void parse_cmdline(int argc, char* argv[])
     };
     struct addrinfo **a;
 
-    while ((c = getopt_long_only(argc, argv, "l:p:", options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "l:p:", options, NULL)) != -1) {
         if (c == 0) continue;
 
         switch (c) {
