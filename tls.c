@@ -61,12 +61,9 @@ static int has_match(char**, const char*, size_t);
  * hello handshake, returning a status code
  *
  * Returns:
- *  >=0  - length of the hostname and updates *hostname
- *         caller is responsible for freeing *hostname
- *  -1   - Incomplete request
- *  -2   - No Host header included in this request
- *  -3   - Invalid hostname pointer
- *  < -4 - Invalid TLS client hello
+ * 0: no match
+ * 1: match
+ *  < 0:  error code (see tls.h)
  */
 int
 parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t data_len) {
@@ -78,12 +75,12 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     /* Check that our TCP payload is at least large enough for a TLS header */
     if (data_len < TLS_HEADER_LEN)
-        return -1;
+        return TLS_ELENGTH;
 
     tls_content_type = data[0];
     if (tls_content_type != TLS_HANDSHAKE_CONTENT_TYPE) {
         if (verbose) fprintf(stderr, "Request did not begin with TLS handshake.\n");
-        return -5;
+        return TLS_EPROTOCOL;
     }
 
     tls_version_major = data[1];
@@ -92,7 +89,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
         if (verbose) fprintf(stderr, "Received SSL %d.%d handshake which cannot be parsed.\n",
               tls_version_major, tls_version_minor);
 
-        return -2;
+        return TLS_EVERSION;
     }
 
     /* TLS record length */
@@ -102,18 +99,18 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     /* Check we received entire TLS record length */
     if (data_len < len)
-        return -1;
+        return TLS_ELENGTH;
 
     /*
      * Handshake
      */
     if (pos + 1 > data_len) {
-        return -5;
+        return TLS_EPROTOCOL;
     }
     if (data[pos] != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
         if (verbose) fprintf(stderr, "Not a client hello\n");
 
-        return -5;
+        return TLS_EPROTOCOL;
     }
 
     /* Skip past fixed length records:
@@ -127,35 +124,35 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     /* Session ID */
     if (pos + 1 > data_len)
-        return -5;
+        return TLS_EPROTOCOL;
     len = (unsigned char)data[pos];
     pos += 1 + len;
 
     /* Cipher Suites */
     if (pos + 2 > data_len)
-        return -5;
+        return TLS_EPROTOCOL;
     len = ((unsigned char)data[pos] << 8) + (unsigned char)data[pos + 1];
     pos += 2 + len;
 
     /* Compression Methods */
     if (pos + 1 > data_len)
-        return -5;
+        return TLS_EPROTOCOL;
     len = (unsigned char)data[pos];
     pos += 1 + len;
 
     if (pos == data_len && tls_version_major == 3 && tls_version_minor == 0) {
         if (verbose) fprintf(stderr, "Received SSL 3.0 handshake without extensions\n");
-        return -2;
+        return TLS_EVERSION;
     }
 
     /* Extensions */
     if (pos + 2 > data_len)
-        return -5;
+        return TLS_EPROTOCOL;
     len = ((unsigned char)data[pos] << 8) + (unsigned char)data[pos + 1];
     pos += 2;
 
     if (pos + len > data_len)
-        return -5;
+        return TLS_EPROTOCOL;
 
     /* By now we know it's TLS. if SNI or ALPN is set, parse extensions to see if
      * they match. Otherwise, it's a match already */
@@ -163,7 +160,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
         (tls_data->match_mode.tls_match_alpn || tls_data->match_mode.tls_match_sni)) {
         return parse_extensions(tls_data, data + pos, len);
     } else {
-        return 1;
+        return TLS_MATCH;
     }
 }
 
@@ -174,7 +171,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
     int sni_match = 0, alpn_match = 0;
 
     if (tls_data == NULL)
-        return -3;
+        return TLS_EINVAL;
 
     /* Parse each 4 bytes for the extension header */
     while (pos + 4 <= data_len) {
@@ -183,7 +180,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
               (unsigned char) data[pos + 3];
 
         if (pos + 4 + len > data_len)
-            return -5;
+            return TLS_EPROTOCOL;
 
         size_t extension_type = ((unsigned char) data[pos] << 8) +
                                 (unsigned char) data[pos + 1];
@@ -201,7 +198,7 @@ parse_extensions(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     /* Check we ended where we expected to */
     if (pos != data_len)
-        return -5;
+        return TLS_EPROTOCOL;
 
     return (sni_match && alpn_match) 
         || (!tls_data->match_mode.tls_match_sni && alpn_match)
@@ -218,14 +215,14 @@ parse_server_name_extension(const struct TLSProtocol *tls_data, const char *data
               (unsigned char)data[pos + 2];
 
         if (pos + 3 + len > data_len)
-            return -5;
+            return TLS_EPROTOCOL;
 
         switch (data[pos]) { /* name type */
             case 0x00: /* host_name */
                 if(has_match(tls_data->sni_hostname_list, data + pos + 3, len)) {
                     return len;
                 } else {
-                    return -2;
+                    return TLS_ENOEXT;
                 }
             default:
                 if (verbose) fprintf(stderr, "Unknown server name extension name type: %d\n",
@@ -235,9 +232,9 @@ parse_server_name_extension(const struct TLSProtocol *tls_data, const char *data
     }
     /* Check we ended where we expected to */
     if (pos != data_len)
-        return -5;
+        return TLS_EPROTOCOL;
 
-    return -2;
+    return TLS_ENOEXT;
 }
 
 static int
@@ -249,7 +246,7 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
         len = (unsigned char)data[pos];
 
         if (pos + 1 + len > data_len)
-            return -5;
+            return TLS_EPROTOCOL;
 
         if (len > 0 && has_match(tls_data->alpn_protocol_list, data + pos + 1, len)) {
             return len;
@@ -260,9 +257,9 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
     }
     /* Check we ended where we expected to */
     if (pos != data_len)
-        return -5;
+        return TLS_EPROTOCOL;
 
-    return -2;
+    return TLS_ENOEXT;
 }
 
 static int

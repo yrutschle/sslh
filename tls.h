@@ -35,4 +35,14 @@ int parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_
 struct TLSProtocol *new_tls_data();
 struct TLSProtocol *tls_data_set_list(struct TLSProtocol *, int, char**);
 
+#define TLS_MATCH       1
+#define TLS_NOMATCH     0
+
+#define TLS_EINVAL      -1 /* Invalid parameter (NULL data pointer) */
+#define TLS_ELENGTH     -2 /* Incomplete request */
+#define TLS_EVERSION    -3 /* TLS version that cannot be parsed */
+#define TLS_ENOEXT      -4 /* No ALPN or SNI extension found */
+#define TLS_EPROTOCOL   -5 /* Protocol error */
+
+
 #endif

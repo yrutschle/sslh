@@ -228,15 +228,12 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
 /* Says if it's TLS, optionally with SNI and ALPN lists in proto->data */
 static int is_tls_protocol(const char *p, int len, struct proto *proto)
 {
-    int valid_tls;
-
-    valid_tls = parse_tls_header(proto->data, p, len);
-
-    if(valid_tls <= 0)
-        return -1 == valid_tls ? PROBE_AGAIN : PROBE_NEXT;
-
-    /* There *was* a valid match */
-    return PROBE_MATCH;
+    switch (parse_tls_header(proto->data, p, len)) {
+    case TLS_MATCH: return PROBE_MATCH;
+    case TLS_NOMATCH: return PROBE_NEXT;
+    case TLS_ELENGTH: return PROBE_AGAIN;
+    default: return PROBE_NEXT;
+    }
 }
 
 static int probe_adb_cnxn_message(const char *p)
