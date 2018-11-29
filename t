@@ -90,7 +90,7 @@ sub test_probe {
     $data =~ /^(.*?): /;
     my $prefix = $1;
     $data =~ s/$prefix: //g;
-    print "Received: protocol $prefix data [$data]\n";
+    print "Received $n bytes: protocol $prefix data [$data]\n";
     close $cnx;
 
     $opts{expected} =~ s/^ssl/tls/; # to remove in 1.21
@@ -104,7 +104,7 @@ sub test_probe {
 #     available per-protocol as some probes don't support
 #     fragmentation)
 sub test_probes {
-    my (%opts) = @_;
+    my (%in_opts) = @_;
 
     my @probes = @{$conf->fetch_array("protocols")};
     foreach my $p (@probes) {
@@ -136,6 +136,7 @@ sub test_probes {
 
         my $pattern = $protocols{$p->{name}}->{data};
 
+        my %opts = %in_opts;
         $opts{no_frag} = 1 if $protocols{$p->{name}}->{no_frag};
 
         if ($p->{sni_hostnames} or $p->{alpn_protocols}) {
@@ -214,7 +215,7 @@ for my $binary (@binaries) {
         my $cnx_h = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
         warn "$!\n" unless $cnx_h;
         if (defined $cnx_h) {
-            sleep 3;
+            sleep 13;
             print $cnx_h $test_data;
             my $data = <$cnx_h>;
             is($data, "ssh: $test_data", "Shy SSH connection");
