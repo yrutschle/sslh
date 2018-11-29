@@ -12,10 +12,13 @@ typedef enum {
     PROBE_AGAIN, /* Not enough data for this probe, try again with more data */
 } probe_result;
 
-struct proto;
-typedef int T_PROBE(const char*, int, struct proto*);
+struct config_protocols_item;
+typedef int T_PROBE(const char*, int, struct config_protocols_item*);
+
+#include "sslh-conf.h"
 
 /* For each protocol we need: */
+#if 0
 struct proto {
     const char* description;  /* a string that says what it is (for logging and command-line parsing) */
     const char* service;      /* service name to do libwrap checks */
@@ -33,9 +36,10 @@ struct proto {
     void* data;
     struct proto *next; /* pointer to next protocol in list, NULL if last */
 };
+#endif
 
 /* Returns a pointer to the array of builtin protocols */
-struct proto * get_builtins(void);
+struct config_protocols_item* get_builtins(void);
 
 /* Returns the number of builtin protocols */
 int get_num_builtins(void);
@@ -44,10 +48,10 @@ int get_num_builtins(void);
 T_PROBE* get_probe(const char* description);
 
 /* Returns the head of the configured protocols */
-struct proto* get_first_protocol(void);
+struct config_protocols_item* get_first_protocol(void);
 
 /* Set the list of configured protocols */
-void set_protocol_list(struct proto*);
+void set_protocol_list(struct config_protocols_item*);
 
 /* probe_client_protocol
  *
@@ -65,7 +69,7 @@ void set_ontimeout(const char* name);
  *
  * Returns the protocol to connect to in case of timeout
  */
-struct proto* timeout_protocol(void);
+struct config_protocols_item* timeout_protocol(void);
 
 void hexdump(const char*, unsigned int);
 

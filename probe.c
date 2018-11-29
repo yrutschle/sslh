@@ -33,36 +33,43 @@
 
 
 
-static int is_ssh_protocol(const char *p, int len, struct proto*);
-static int is_openvpn_protocol(const char *p, int len, struct proto*);
-static int is_tinc_protocol(const char *p, int len, struct proto*);
-static int is_xmpp_protocol(const char *p, int len, struct proto*);
-static int is_http_protocol(const char *p, int len, struct proto*);
-static int is_tls_protocol(const char *p, int len, struct proto*);
-static int is_adb_protocol(const char *p, int len, struct proto*);
-static int is_socks5_protocol(const char *p, int len, struct proto*);
-static int is_true(const char *p, int len, struct proto* proto) { return 1; }
+static int is_ssh_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_openvpn_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_tinc_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_xmpp_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_http_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_tls_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_adb_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_socks5_protocol(const char *p, int len, struct config_protocols_item*);
+static int is_true(const char *p, int len, struct config_protocols_item* proto) { return 1; }
+
+struct protocol_probe_desc {
+    const char* name;
+    T_PROBE* probe;
+};
 
 /* Table of protocols that have a built-in probe
  */
-static struct proto builtins[] = {
-    /* description   service  saddr  log_level  keepalive  fork  probe  */
-    { "ssh",         "sshd",   NULL,  1,        0,         1,    is_ssh_protocol},
-    { "openvpn",     NULL,     NULL,  1,        0,         1,    is_openvpn_protocol },
-    { "tinc",        NULL,     NULL,  1,        0,         1,    is_tinc_protocol },
-    { "xmpp",        NULL,     NULL,  1,        0,         0,    is_xmpp_protocol },
-    { "http",        NULL,     NULL,  1,        0,         0,    is_http_protocol },
-    { "tls",         NULL,     NULL,  1,        0,         0,    is_tls_protocol },
-    { "adb",         NULL,     NULL,  1,        0,         0,    is_adb_protocol },
-    { "socks5",      NULL,     NULL,  1,        0,         0,    is_socks5_protocol },
-    { "anyprot",     NULL,     NULL,  1,        0,         0,    is_true }
+static struct protocol_probe_desc builtins[] = {
+    /* description  probe  */
+    { "ssh",        is_ssh_protocol},
+    { "openvpn",    is_openvpn_protocol },
+    { "tinc",       is_tinc_protocol },
+    { "xmpp",       is_xmpp_protocol },
+    { "http",       is_http_protocol },
+    { "tls",        is_tls_protocol },
+    { "ssl",        is_tls_protocol },
+    { "adb",        is_adb_protocol },
+    { "socks5",     is_socks5_protocol },
+    { "anyprot",    is_true }
 };
 
-static struct proto *protocols;
+static struct config_protocols_item *protocols;
 static char* on_timeout = "ssh";
 
-struct proto*  get_builtins(void) {
-    return builtins;
+/* TODO I think this has to go */
+struct config_protocols_item*  get_builtins(void) {
+    return NULL;
 }
 
 int get_num_builtins(void) {
@@ -79,23 +86,27 @@ void set_ontimeout(const char* name)
 /* Returns the protocol to connect to in case of timeout; 
  * if not found, return the first protocol specified 
  */
-struct proto* timeout_protocol(void) 
+struct config_protocols_item* timeout_protocol(void) 
 {
-    struct proto* p = get_first_protocol();
-    for (; p && strcmp(p->description, on_timeout); p = p->next);
-    if (p) return p;
+    int i;
+    for (i = 0; i < cfg.protocols_len; i++) {
+        printf("prot %d:%s vs %s\n",i,  cfg.protocols[i].name, on_timeout);
+        if (!strcmp(cfg.protocols[i].name, on_timeout)) return &cfg.protocols[i];
+    }
     return get_first_protocol();
 }
 
 /* returns the first protocol (caller can then follow the *next pointers) */
-struct proto* get_first_protocol(void)
+struct config_protocols_item* get_first_protocol(void)
 {
     return protocols;
 }
 
-void set_protocol_list(struct proto* prots)
+void set_protocol_list(struct config_protocols_item* prots)
 {
+#if 0
     protocols = prots;
+#endif
 }
 
 /* From http://grapsus.net/blog/post/Hexadecimal-dump-in-C */
@@ -132,7 +143,7 @@ void hexdump(const char *mem, unsigned int len)
 }
 
 /* Is the buffer the beginning of an SSH connection? */
-static int is_ssh_protocol(const char *p, int len, struct proto *proto)
+static int is_ssh_protocol(const char *p, int len, struct config_protocols_item* proto)
 {
     if (len < 4)
         return PROBE_AGAIN;
@@ -150,7 +161,7 @@ static int is_ssh_protocol(const char *p, int len, struct proto *proto)
  * http://www.fengnet.com/book/vpns%20illustrated%20tunnels%20%20vpnsand%20ipsec/ch08lev1sec5.html
  * and OpenVPN ssl.c, ssl.h and options.c
  */
-static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
+static int is_openvpn_protocol (const char*p,int len, struct config_protocols_item* proto)
 {
     int packet_len;
 
@@ -165,7 +176,7 @@ static int is_openvpn_protocol (const char*p,int len, struct proto *proto)
  * Protocol is documented here: http://www.tinc-vpn.org/documentation/tinc.pdf
  * First connection starts with "0 " in 1.0.15)
  * */
-static int is_tinc_protocol( const char *p, int len, struct proto *proto)
+static int is_tinc_protocol( const char *p, int len, struct config_protocols_item* proto)
 {
     if (len < 2)
         return PROBE_AGAIN;
@@ -177,7 +188,7 @@ static int is_tinc_protocol( const char *p, int len, struct proto *proto)
  * (Protocol is documented (http://tools.ietf.org/html/rfc6120) but for lazy
  * clients, just checking first frame containing "jabber" in xml entity)
  * */
-static int is_xmpp_protocol( const char *p, int len, struct proto *proto)
+static int is_xmpp_protocol( const char *p, int len, struct config_protocols_item* proto)
 {
     if (memmem(p, len, "jabber", 6))
         return PROBE_MATCH;
@@ -200,7 +211,7 @@ static int probe_http_method(const char *p, int len, const char *opt)
 }
 
 /* Is the buffer the beginning of an HTTP connection?  */
-static int is_http_protocol(const char *p, int len, struct proto *proto)
+static int is_http_protocol(const char *p, int len, struct config_protocols_item* proto)
 {
     int res;
     /* If it's got HTTP in the request (HTTP/1.1) then it's HTTP */
@@ -226,7 +237,7 @@ static int is_http_protocol(const char *p, int len, struct proto *proto)
 }
 
 /* Says if it's TLS, optionally with SNI and ALPN lists in proto->data */
-static int is_tls_protocol(const char *p, int len, struct proto *proto)
+static int is_tls_protocol(const char *p, int len, struct config_protocols_item* proto)
 {
     switch (parse_tls_header(proto->data, p, len)) {
     case TLS_MATCH: return PROBE_MATCH;
@@ -246,7 +257,7 @@ static int probe_adb_cnxn_message(const char *p)
     return !memcmp(&p[0], "CNXN", 4) && !memcmp(&p[24], "host:", 5);
 }
 
-static int is_adb_protocol(const char *p, int len, struct proto *proto)
+static int is_adb_protocol(const char *p, int len, struct config_protocols_item* proto)
 {
     /* amessage.data_length is not being checked, under the assumption that
      * a packet >= 30 bytes will have "something" in the payload field.
@@ -285,7 +296,7 @@ static int is_adb_protocol(const char *p, int len, struct proto *proto)
     return probe_adb_cnxn_message(&p[sizeof(empty_message)]);
 }
 
-static int is_socks5_protocol(const char *p_in, int len, struct proto *proto)
+static int is_socks5_protocol(const char *p_in, int len, struct config_protocols_item* proto)
 {
     unsigned char* p = (unsigned char*)p_in;
     int i;
@@ -318,7 +329,7 @@ static int is_socks5_protocol(const char *p_in, int len, struct proto *proto)
     return PROBE_MATCH;
 }
 
-static int regex_probe(const char *p, int len, struct proto *proto)
+static int regex_probe(const char *p, int len, struct config_protocols_item* proto)
 {
 #ifdef ENABLE_REGEX
     regex_t **probe = proto->data;
@@ -344,8 +355,8 @@ static int regex_probe(const char *p, int len, struct proto *proto)
 int probe_client_protocol(struct connection *cnx)
 {
     char buffer[BUFSIZ];
-    struct proto *p, *last_p = cnx->proto;
-    int n, res, again = 0;
+    struct config_protocols_item* p, *last_p = cnx->proto;
+    int i, n, res, again = 0;
 
     n = read(cnx->q[0].fd, buffer, sizeof(buffer));
     /* It's possible that read() returns an error, e.g. if the client
@@ -355,26 +366,26 @@ int probe_client_protocol(struct connection *cnx)
      * connection will just fail later normally). */
 
     if (n > 0) {
-        if (verbose > 1) {
+        if (cfg.verbose > 1) {
             fprintf(stderr, "hexdump of incoming packet:\n");
             hexdump(buffer, n);
         }
         defer_write(&cnx->q[1], buffer, n);
     }
 
-    for (p = cnx->proto; p; p = p->next) {
+    for (i = 0; i < cfg.protocols_len; i++) {
         char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};
+        p = &cfg.protocols[i];
+
         if (! p->probe) continue;
 
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
-        if (! p->next) {
-            last_p = p;
-            if (!strcmp(p->description, "anyprot"))
-                break;
-        }
+        if ((i == cfg.protocols_len - 1) && (!strcmp(p->name, "anyprot")))
+            break;
 
+        if (cfg.verbose) fprintf(stderr, "probing for %s\n", p->name);
         res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
-        if (verbose) fprintf(stderr, "probing for %s: %s\n", p->description, probe_str[res]);
+        if (cfg.verbose) fprintf(stderr, "probed for %s: %s\n", p->name, probe_str[res]);
 
         if (res == PROBE_MATCH) {
             cnx->proto = p;
@@ -387,31 +398,21 @@ int probe_client_protocol(struct connection *cnx)
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
-    cnx->proto = last_p;
+    cnx->proto = &cfg.protocols[cfg.protocols_len-1];
     return PROBE_MATCH;
-}
-
-/* Returns the structure for specified protocol or NULL if not found */
-static struct proto* get_protocol(const char* description)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(builtins); i++) {
-        if (!strcmp(builtins[i].description, description)) {
-            return &builtins[i];
-        }
-    }
-    return NULL;
 }
 
 /* Returns the probe for specified protocol:
  * parameter is the description in builtins[], or "regex" 
  * */
 T_PROBE* get_probe(const char* description) {
-    struct proto* p = get_protocol(description);
+    int i;
 
-    if (p)
-        return p->probe;
+    for (i = 0; i < ARRAY_SIZE(builtins); i++) {
+        if (!strcmp(builtins[i].name, description)) {
+            return builtins[i].probe;
+        }
+    }
 
     /* Special case of "regex" probe (we don't want to set it in builtins
      * because builtins is also used to build the command-line options and

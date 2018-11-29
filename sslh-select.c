@@ -60,7 +60,7 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
 
     for (i = 0; i < 2; i++) {
         if (cnx->q[i].fd != -1) {
-            if (verbose)
+            if (cfg.verbose)
                 fprintf(stderr, "closing fd %d\n", cnx->q[i].fd);
 
             FD_CLR(cnx->q[i].fd, fds);
@@ -111,7 +111,7 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
         /* nothing */
     }
     if (free >= *cnx_size)  {
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "buying more slots from the slot machine.\n");
         new = realloc(*cnx, (*cnx_size + cnx_num_alloc) * sizeof((*cnx)[0]));
         if (!new) {
@@ -127,9 +127,9 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
     }
     (*cnx)[free].q[0].fd = in_socket;
     (*cnx)[free].state = ST_PROBING;
-    (*cnx)[free].probe_timeout = time(NULL) + probing_timeout;
+    (*cnx)[free].probe_timeout = time(NULL) + cfg.timeout;
 
-    if (verbose) 
+    if (cfg.verbose) 
         fprintf(stderr, "accepted fd %d on slot %d\n", in_socket, free);
 
     return in_socket;
@@ -169,7 +169,7 @@ void shovel(struct connection *cnx, int active_fd,
     read_q = &cnx->q[active_fd];
     write_q = &cnx->q[1-active_fd];
 
-    if (verbose)
+    if (cfg.verbose)
         fprintf(stderr, "activity on fd%d\n", read_q->fd);
 
     switch(fd2fd(write_q, read_q)) {
@@ -223,7 +223,7 @@ void shovel_single(struct connection *cnx)
           if (FD_ISSET(cnx->q[i].fd, &fds_w)) {
               res = flush_deferred(&cnx->q[i]);
               if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
-                  if (verbose)
+                  if (cfg.verbose)
                       fprintf(stderr, "%s socket closed\n", i ? "server" : "client");
                   return;
               }
@@ -231,7 +231,7 @@ void shovel_single(struct connection *cnx)
           if (FD_ISSET(cnx->q[i].fd, &fds_r)) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
               if (!res) {
-                  if (verbose)
+                  if (cfg.verbose)
                       fprintf(stderr, "socket closed\n");
                   return;
               }
@@ -269,7 +269,7 @@ void connect_proxy(struct connection *cnx)
     close(in_socket);
     close(out_socket);
 
-    if (verbose)
+    if (cfg.verbose)
         fprintf(stderr, "connection closed down\n");
 
     exit(0);
@@ -329,12 +329,12 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     while (1)
     {
         memset(&tv, 0, sizeof(tv));
-        tv.tv_sec = probing_timeout;
+        tv.tv_sec = cfg.timeout;
 
         memcpy(&readfds, &fds_r, sizeof(readfds));
         memcpy(&writefds, &fds_w, sizeof(writefds));
 
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "selecting... max_fd=%d num_probing=%d\n", max_fd, num_probing);
         res = select(max_fd, &readfds, &writefds, NULL, num_probing ? &tv : NULL);
         if (res < 0)
@@ -363,7 +363,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                         if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
                             if (cnx[i].state == ST_PROBING) num_probing--;
                             tidy_connection(&cnx[i], &fds_r, &fds_w);
-                            if (verbose)
+                            if (cfg.verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
                         } else {
                             /* If no deferred data is left, stop monitoring the fd 
@@ -383,7 +383,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
             for (j = 0; j < 2; j++) {
                 if (is_fd_active(cnx[i].q[j].fd, &readfds) || 
                     ((cnx[i].state == ST_PROBING) && (cnx[i].probe_timeout < time(NULL)))) {
-                    if (verbose)
+                    if (cfg.verbose)
                         fprintf(stderr, "processing fd%d slot %d\n", j, i);
 
                     switch (cnx[i].state) {
@@ -399,10 +399,10 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                          * data so probe the protocol */
                         if ((cnx[i].probe_timeout < time(NULL))) {
                             cnx[i].proto = timeout_protocol();
-                            if (verbose) 
+                            if (cfg.verbose) 
                                 log_message(LOG_INFO, 
                                             "timed out, connect to %s\n", 
-                                            cnx[i].proto->description);
+                                            cnx[i].proto->name);
                         } else {
                             res = probe_client_protocol(&cnx[i]);
                             if (res == PROBE_AGAIN)

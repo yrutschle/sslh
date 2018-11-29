@@ -2,7 +2,7 @@
 # main: processing of config file, command line options and start the main
 # loop.
 #
-# Copyright (C) 2007-2016  Yves Rutschle
+# Copyright (C) 2007-2018  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -62,6 +62,7 @@ const char* USAGE_STRING =
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
 
+    /*
 static struct option const_options[] = {
     { "inetd",      no_argument,            &inetd,         1 },
     { "foreground", no_argument,            &foreground,    1 },
@@ -78,22 +79,25 @@ static struct option const_options[] = {
     { "listen",     required_argument,      0,              'p' },
     {}
 };
+    */
 static struct option* all_options;
-static struct proto* builtins;
+#if 0
+static struct config_protocols_item* builtins;
+#endif
 static const char *optstr = "vt:T:p:VP:C:F::";
 
 
 
 static void print_usage(void)
 {
-    struct proto *p;
+    struct config_protocols_item *p;
     int i;
     int res;
     char *prots = "";
 
     p = get_builtins();
     for (i = 0; i < get_num_builtins(); i++) {
-        res = asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p[i].description);
+        res = asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p[i].name);
         CHECK_RES_DIE(res, "asprintf");
     }
 
@@ -121,12 +125,14 @@ static void printsettings(void)
 {
     char buf[NI_MAXHOST];
     struct addrinfo *a;
-    struct proto *p;
+    int i;
+    struct config_protocols_item *p;
     
-    for (p = get_first_protocol(); p; p = p->next) {
+    for (i = 0; i < cfg.protocols_len; i++ ) {
+        p = &cfg.protocols[i];
         fprintf(stderr,
                 "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s]\n",
-                p->description, 
+                p->name, 
                 sprintaddr(buf, sizeof(buf), p->saddr), 
                 p->service,
                 p->log_level,
@@ -142,8 +148,8 @@ static void printsettings(void)
                 sprintaddr(buf, sizeof(buf), a), 
                 a->ai_flags & SO_KEEPALIVE ? "keepalive" : "");
     }
-    fprintf(stderr, "timeout: %d\non-timeout: %s\n", probing_timeout,
-            timeout_protocol()->description);
+    fprintf(stderr, "timeout: %d\non-timeout: %s\n", cfg.timeout,
+            timeout_protocol()->name);
 }
 
 
@@ -177,6 +183,26 @@ void cmd_ssl_to_tls(int argc, char* argv[])
  * out: newly allocated list of addrinfo to listen to
  */
 #ifdef LIBCONFIG
+static int config_resolve_listen(struct addrinfo **listen)
+{
+    int i;
+    for (i = 0; i < cfg.listen_len; i++) {
+        resolve_split_name(listen, cfg.listen[i].host, cfg.listen[i].port);
+
+        /* getaddrinfo returned a list of addresses corresponding to the
+         * specification; move the pointer to the end of that list before
+         * processing the next specification, while setting flags for
+         * start_listen_sockets() through ai_flags (which is not meant for
+         * that, but is only used as hint in getaddrinfo, so it's OK) */
+        for (; *listen; listen = &((*listen)->ai_next)) {
+            if (cfg.listen[i].keepalive)
+                (*listen)->ai_flags = SO_KEEPALIVE;
+        }
+    }
+    return 0;
+}
+
+#if 0
 static int config_listen(config_t *config, struct addrinfo **listen) 
 {
     config_setting_t *setting, *addr;
@@ -216,11 +242,12 @@ static int config_listen(config_t *config, struct addrinfo **listen)
     return 0;
 }
 #endif
+#endif
 
 
 
 #ifdef LIBCONFIG
-static void setup_regex_probe(struct proto *p, config_setting_t* probes)
+static void setup_regex_probe(struct config_protocols_item *p, config_setting_t* probes)
 {
 #ifdef ENABLE_REGEX
     int num_probes, errsize, i, res;
@@ -230,7 +257,7 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 
     num_probes = config_setting_length(probes);
     if (!num_probes) {
-        fprintf(stderr, "%s: no probes specified\n", p->description);
+        fprintf(stderr, "%s: no probes specified\n", p->name);
         exit(1);
     }
 
@@ -244,7 +271,7 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
         CHECK_ALLOC(probe_list[i], "malloc");
         expr = config_setting_get_string_elem(probes, i);
         if (expr == NULL) {
-            fprintf(stderr, "%s: invalid probe specified\n", p->description);
+            fprintf(stderr, "%s: invalid probe specified\n", p->name);
             exit(1);
         }
         res = regcomp(probe_list[i], expr, REG_EXTENDED);
@@ -265,7 +292,12 @@ static void setup_regex_probe(struct proto *p, config_setting_t* probes)
 #endif
 
 #ifdef LIBCONFIG
-static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items, const char* name, int alpn)
+#if 0
+static void setup_sni_alpn_list(
+                                struct config_protocols_item *p, 
+                                config_setting_t* config_items, 
+                                const char* name, 
+                                int alpn)
 {
     int num_probes, i, max_server_name_len, server_name_len;
     const char * config_item, *server_name;
@@ -307,7 +339,7 @@ static void setup_sni_alpn_list(struct proto *p, config_setting_t* config_items,
     p->data = (void*)tls_data_set_list(p->data, alpn, sni_hostname_list);
 }
 
-static void setup_sni_alpn(struct proto *p, config_setting_t* prot)
+static void setup_sni_alpn(struct config_protocols_item *p, config_setting_t* prot)
 {
     config_setting_t *sni_hostnames, *alpn_protocols;
 
@@ -323,11 +355,45 @@ static void setup_sni_alpn(struct proto *p, config_setting_t* prot)
     }
 }
 #endif
+static void setup_sni_alpn(struct config_protocols_item *p, config_setting_t* prot)
+{}
+#endif
 
-/* Extract configuration for protocols to connect to.
- * out: newly-allocated list of protocols
+/* For each protocol in the configuration, resolve address and set up protocol
+ * options if required
  */
 #ifdef LIBCONFIG
+static int config_protocols()
+{
+    int i;
+    for (i = 0; i < cfg.protocols_len; i++) {
+        struct config_protocols_item* p = &(cfg.protocols[i]);
+        if (resolve_split_name(&(p->saddr), p->host, p->port)) {
+            fprintf(stderr, "cannot resolve %s:%s\n", p->host, p->port);
+            exit(1);
+        }
+
+        p->probe = get_probe(p->name);
+        if (!p->probe) {
+            fprintf(stderr, "%s: probe unknown\n", p->name);
+            exit(1);
+        }
+
+        if (!strcmp(cfg.protocols[i].name, "tls")) {
+            cfg.protocols[i].data = (void*)new_tls_data();
+            if (cfg.protocols[i].sni_hostnames_len)
+                tls_data_set_list(cfg.protocols[i].data, 0,
+                                  cfg.protocols[i].sni_hostnames,
+                                  cfg.protocols[i].sni_hostnames_len);
+            if (cfg.protocols[i].alpn_protocols_len)
+                tls_data_set_list(cfg.protocols[i].data, 1, 
+                                  cfg.protocols[i].alpn_protocols,
+                                  cfg.protocols[i].alpn_protocols_len);
+        }
+    }
+}
+
+#if 0
 static int config_protocols(config_t *config, struct proto **prots)
 {
     config_setting_t *setting, *prot, *patterns;
@@ -398,6 +464,7 @@ static int config_protocols(config_t *config, struct proto **prots)
     return 0;
 }
 #endif
+#endif
 
 /* Parses a config file
  * in: *filename
@@ -406,11 +473,11 @@ static int config_protocols(config_t *config, struct proto **prots)
  *      1 on error, 0 on success
  */
 #ifdef LIBCONFIG
-static int config_parse(char *filename, struct addrinfo **listen, struct proto **prots)
+static int config_parse(char *filename, struct addrinfo **listen, struct config_protocols_item **prots)
 {
     config_t config;
-    int timeout;
-    const char* str;
+    int res;
+    const char*err;
 
     config_init(&config);
     if (config_read_file(&config, filename) == CONFIG_FALSE) {
@@ -429,32 +496,19 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
                 config_error_text(&config));
         return 1;
     }
-
-    if(config_lookup_bool(&config, "verbose", &verbose) == CONFIG_FALSE) {
-	config_lookup_int(&config, "verbose", &verbose);
+    res = config_parser(config_lookup(&config, "/"), &cfg, &err);
+    if (!res) {
+        fprintf(stderr, "%s\n", err);
+        exit(1);
     }
 
-    config_lookup_bool(&config, "inetd", &inetd);
-    config_lookup_bool(&config, "foreground", &foreground);
-    config_lookup_bool(&config, "numeric", &numeric);
-    config_lookup_bool(&config, "transparent", &transparent);
+    config_resolve_listen(listen);
+    config_protocols();
 
-    if (config_lookup_int(&config, "timeout", (int *)&timeout) == CONFIG_TRUE) {
-        probing_timeout = timeout;
-    }
-
-    if (config_lookup_string(&config, "on-timeout", &str)) {
-        set_ontimeout(str);
-    }
-
-    config_lookup_string(&config, "user", &user_name);
-    config_lookup_string(&config, "pidfile", &pid_file);
-    config_lookup_string(&config, "chroot", &chroot_path);
-
-    config_lookup_string(&config, "syslog_facility", &facility);
-
+    /*
     config_listen(&config, listen);
     config_protocols(&config, prots);
+    */
 
     return 0;
 }
@@ -467,12 +521,12 @@ static int config_parse(char *filename, struct addrinfo **listen, struct proto *
  * prot: array of protocols
  * n_prots: number of protocols in *prot
  * */
-static void append_protocols(struct option *options, int n_opts, struct proto *prot , int n_prots)
+static void append_protocols(struct option *options, int n_opts, struct config_protocols_item *prot , int n_prots)
 {
     int o, p;
 
     for (o = n_opts, p = 0; p < n_prots; o++, p++) {
-        options[o].name = prot[p].description;
+        options[o].name = prot[p].name;
         options[o].has_arg = required_argument;
         options[o].flag = 0;
         options[o].val = p + PROT_SHIFT;
@@ -481,6 +535,7 @@ static void append_protocols(struct option *options, int n_opts, struct proto *p
 
 static void make_alloptions(void)
 {
+#if 0
     builtins = get_builtins();
 
     /* Create all_options, composed of const_options followed by one option per
@@ -489,6 +544,7 @@ static void make_alloptions(void)
     CHECK_ALLOC(all_options, "calloc");
     memcpy(all_options, const_options, sizeof(const_options));
     append_protocols(all_options, ARRAY_SIZE(const_options) - 1, builtins, get_num_builtins());
+#endif
 }
 
 /* Performs a first scan of command line options to see if a configuration file
@@ -497,7 +553,7 @@ static void make_alloptions(void)
  *
  * prots: newly-allocated list of configured protocols, if any.
  */
-static void cmdline_config(int argc, char* argv[], struct proto** prots)
+static void cmdline_config(int argc, char* argv[], struct config_protocols_item** prots)
 {
 #ifdef LIBCONFIG
     int c, res;
@@ -513,7 +569,7 @@ static void cmdline_config(int argc, char* argv[], struct proto** prots)
     opterr = 0; /* we're missing protocol options at this stage so don't output errors */
     while ((c = getopt_long_only(argc, argv, optstr, all_options, NULL)) != -1) {
         if (c == 'v') {
-            verbose++;
+            cfg.verbose++;
         }
         if (c == 'F') {
             config_filename = optarg;
@@ -522,10 +578,10 @@ static void cmdline_config(int argc, char* argv[], struct proto** prots)
             } else {
                 /* No configuration file specified -- try default file locations */
                 res = config_parse("/etc/sslh/sslh.cfg", &addr_listen, prots);
-                if (!res && verbose) fprintf(stderr, "Using /etc/sslh/sslh.cfg\n");
+                if (!res && cfg.verbose) fprintf(stderr, "Using /etc/sslh/sslh.cfg\n");
                 if (res) {
                     res = config_parse("/etc/sslh.cfg", &addr_listen, prots);
-                    if (!res && verbose) fprintf(stderr, "Using /etc/sslh.cfg\n");
+                    if (!res && cfg.verbose) fprintf(stderr, "Using /etc/sslh.cfg\n");
                 }
             }
             if (res)
@@ -539,11 +595,13 @@ static void cmdline_config(int argc, char* argv[], struct proto** prots)
 
 /* Parse command-line options. prots points to a list of configured protocols,
  * potentially non-allocated */
-static void parse_cmdline(int argc, char* argv[], struct proto* prots)
+static void parse_cmdline(int argc, char* argv[], struct config_protocols_item* prots)
 {
+#if 0
     int c;
     struct addrinfo **a;
-    struct proto *p;
+    struct config_protocols_item *p;
+    int background;
 
     optind = 1;
     opterr = 1;
@@ -556,7 +614,7 @@ next_arg:
                 for (p = prots; p && p->next; p = p->next) {
                     /* override if protocol was already defined by config file 
                      * (note it only overrides address and use builtin probe) */
-                    if (!strcmp(p->description, builtins[c-PROT_SHIFT].description)) {
+                    if (!strcmp(p->name, builtins[c-PROT_SHIFT].name)) {
                         resolve_name(&(p->saddr), optarg);
                         p->probe = builtins[c-PROT_SHIFT].probe;
                         goto next_arg;
@@ -583,10 +641,8 @@ next_arg:
         case 'F':
             /* Legal option, but do nothing, it was already processed in
              * cmdline_config() */
-#ifndef LIBCONFIG
             fprintf(stderr, "Built without libconfig support: configuration file not available.\n");
             exit(1);
-#endif
             break;
 
         case 't':
@@ -631,16 +687,20 @@ next_arg:
         }
     }
 
+    return;
+
     if (!prots) {
         fprintf(stderr, "At least one target protocol must be specified.\n");
         exit(2);
     }
 
+    /*
     set_protocol_list(prots);
+    */
 
 /* If compiling with systemd socket support no need to require listen address */
 #ifndef SYSTEMD
-    if (!addr_listen && !inetd) {
+    if (!addr_listen && !cfg.inetd) {
         fprintf(stderr, "No listening address specified; use at least one -p option\n");
         exit(1);
     }
@@ -648,8 +708,9 @@ next_arg:
 
     /* Did command-line override foreground setting? */
     if (background)
-        foreground = 0;
+        cfg.foreground = 0;
 
+#endif
 }
 
 int main(int argc, char *argv[])
@@ -658,26 +719,26 @@ int main(int argc, char *argv[])
    extern char *optarg;
    extern int optind;
    int res, num_addr_listen;
-   struct proto* protocols = NULL;
+   struct config_protocols_item* protocols = NULL;
 
    int *listen_sockets;
 
    /* Init defaults */
-   pid_file = NULL;
-   user_name = NULL;
-   chroot_path = NULL;
+   cfg.pidfile = NULL;
+   cfg.user = NULL;
+   cfg.chroot = NULL;
 
    cmdline_config(argc, argv, &protocols);
    parse_cmdline(argc, argv, protocols);
 
-   if (inetd)
+   if (cfg.inetd)
    {
-       verbose = 0;
+       cfg.verbose = 0;
        start_shoveler(0);
        exit(0);
    }
 
-   if (verbose)
+   if (cfg.verbose)
        printsettings();
 
    num_addr_listen = start_listen_sockets(&listen_sockets, addr_listen);
@@ -689,7 +750,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-   if (!foreground) {
+   if (!cfg.foreground) {
        if (fork() > 0) exit(0); /* Detach */
 
        /* New session -- become group leader */
@@ -701,16 +762,16 @@ int main(int argc, char *argv[])
 
    setup_signals();
 
-   if (pid_file)
-       write_pid_file(pid_file);
+   if (cfg.pidfile)
+       write_pid_file(cfg.pidfile);
 
    /* Open syslog connection before we drop privs/chroot */
    setup_syslog(argv[0]);
 
-   if (user_name || chroot_path)
-       drop_privileges(user_name, chroot_path);
+   if (cfg.user || cfg.chroot)
+       drop_privileges(cfg.user, cfg.chroot);
 
-   if (verbose)
+   if (cfg.verbose)
        printcaps();
 
    main_loop(listen_sockets, num_addr_listen);

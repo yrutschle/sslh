@@ -87,7 +87,7 @@ struct queue {
 struct connection {
     enum connection_state state;
     time_t probe_timeout;
-    struct proto *proto;
+    struct config_protocols_item* proto;
 
     /* q[0]: queue for external connection (client);
      * q[1]: queue for internal connection (httpd or sshd);
@@ -114,7 +114,7 @@ void drop_privileges(const char* user_name, const char* chroot_path);
 void write_pid_file(const char* pidfile);
 void log_message(int type, char* msg, ...);
 void dump_connection(struct connection *cnx);
-int resolve_split_name(struct addrinfo **out, const char* hostname, const char* port);
+int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
 int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 
@@ -123,6 +123,7 @@ int flush_deferred(struct queue *q);
 
 extern int probing_timeout, verbose, inetd, foreground, 
        background, transparent, numeric;
+extern struct config_item cfg;
 extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
