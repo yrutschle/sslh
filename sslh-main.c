@@ -475,31 +475,12 @@ static int config_protocols(config_t *config, struct proto **prots)
 #ifdef LIBCONFIG
 static int config_parse(char *filename, struct addrinfo **listen, struct config_protocols_item **prots)
 {
-    config_t config;
     int res;
-    const char*err;
+    const char* err;
 
-    config_init(&config);
-    if (config_read_file(&config, filename) == CONFIG_FALSE) {
-        /* If it's a parse error then there will be a line number for the failure
-         * an I/O error (such as non-existent file) will have the error line as 0
-         */
-        if (config_error_line(&config) != 0) {
-            fprintf(stderr, "%s:%d:%s\n", 
-                    filename,
-                    config_error_line(&config),
-                    config_error_text(&config));
-            exit(1);
-        }
-        fprintf(stderr, "%s:%s\n", 
-                filename,
-                config_error_text(&config));
+    if (!config_parse_file(filename, &cfg, &err)) {
+        fprintf(stderr, err);
         return 1;
-    }
-    res = config_parser(config_lookup(&config, "/"), &cfg, &err);
-    if (!res) {
-        fprintf(stderr, "%s\n", err);
-        exit(1);
     }
 
     config_resolve_listen(listen);
