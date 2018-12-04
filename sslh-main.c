@@ -81,16 +81,14 @@ static struct option const_options[] = {
 };
     */
 static struct option* all_options;
-#if 0
-static struct config_protocols_item* builtins;
-#endif
+static struct sslhcfg_protocols_item* builtins;
 static const char *optstr = "vt:T:p:VP:C:F::";
 
 
 
 static void print_usage(void)
 {
-    struct config_protocols_item *p;
+    struct sslhcfg_protocols_item *p;
     int i;
     int res;
     char *prots = "";
@@ -126,7 +124,7 @@ static void printsettings(void)
     char buf[NI_MAXHOST];
     struct addrinfo *a;
     int i;
-    struct config_protocols_item *p;
+    struct sslhcfg_protocols_item *p;
     
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
@@ -201,162 +199,38 @@ static int config_resolve_listen(struct addrinfo **listen)
     }
     return 0;
 }
-
-#if 0
-static int config_listen(config_t *config, struct addrinfo **listen) 
-{
-    config_setting_t *setting, *addr;
-    int len, i, keepalive;
-    const char *hostname, *port;
-
-    setting = config_lookup(config, "listen");
-    if (setting) {
-        len = config_setting_length(setting);
-        for (i = 0; i < len; i++) {
-            addr = config_setting_get_elem(setting, i);
-            if (! (config_setting_lookup_string(addr, "host", &hostname) &&
-                   config_setting_lookup_string(addr, "port", &port))) {
-                fprintf(stderr,
-                            "line %d:Incomplete specification (hostname and port required)\n",
-                            config_setting_source_line(addr));
-                return -1;
-            }
-
-            keepalive = 0;
-            config_setting_lookup_bool(addr, "keepalive", &keepalive);
-
-            resolve_split_name(listen, hostname, port);
-
-            /* getaddrinfo returned a list of addresses corresponding to the
-             * specification; move the pointer to the end of that list before
-             * processing the next specification, while setting flags for
-             * start_listen_sockets() through ai_flags (which is not meant for
-             * that, but is only used as hint in getaddrinfo, so it's OK) */
-            for (; *listen; listen = &((*listen)->ai_next)) {
-                if (keepalive)
-                    (*listen)->ai_flags = SO_KEEPALIVE;
-            }
-        }
-    }
-
-    return 0;
-}
-#endif
 #endif
 
 
 
 #ifdef LIBCONFIG
-static void setup_regex_probe(struct config_protocols_item *p, config_setting_t* probes)
+static void setup_regex_probe(struct sslhcfg_protocols_item *p)
 {
-#ifdef ENABLE_REGEX
-    int num_probes, errsize, i, res;
-    char *err;
-    const char * expr;
-    regex_t** probe_list;
+    int num_patterns, i, res;
+    regex_t** pattern_list;
+    size_t errsize;
+    char* err;
 
-    num_probes = config_setting_length(probes);
-    if (!num_probes) {
-        fprintf(stderr, "%s: no probes specified\n", p->name);
-        exit(1);
-    }
+    num_patterns = p->regex_patterns_len;
 
-    p->probe = get_probe("regex");
-    probe_list = calloc(num_probes + 1, sizeof(*probe_list));
-    CHECK_ALLOC(probe_list, "calloc");
-    p->data = (void*)probe_list;
+    pattern_list = calloc(num_patterns + 1, sizeof(*pattern_list));
+    CHECK_ALLOC(pattern_list, "calloc");
+    p->data = (void*)pattern_list;
 
-    for (i = 0; i < num_probes; i++) {
-        probe_list[i] = malloc(sizeof(*(probe_list[i])));
-        CHECK_ALLOC(probe_list[i], "malloc");
-        expr = config_setting_get_string_elem(probes, i);
-        if (expr == NULL) {
-            fprintf(stderr, "%s: invalid probe specified\n", p->name);
-            exit(1);
-        }
-        res = regcomp(probe_list[i], expr, REG_EXTENDED);
+    for (i = 0; i < num_patterns; i++) {
+        pattern_list[i] = malloc(sizeof(*(pattern_list[i])));
+        CHECK_ALLOC(pattern_list[i], "malloc");
+        res = regcomp(pattern_list[i], p->regex_patterns[i], REG_EXTENDED);
         if (res) {
-            err = malloc(errsize = regerror(res, probe_list[i], NULL, 0));
+            err = malloc(errsize = regerror(res, pattern_list[i], NULL, 0));
             CHECK_ALLOC(err, "malloc");
-            regerror(res, probe_list[i], err, errsize);
-            fprintf(stderr, "%s:%s\n", expr, err);
+            regerror(res, pattern_list[i], err, errsize);
+            fprintf(stderr, "%s:%s\n", pattern_list[i], err);
             free(err);
             exit(1);
         }
     }
-#else
-    fprintf(stderr, "line %d: regex probe specified but not compiled in\n", config_setting_source_line(probes));
-    exit(5);
-#endif
 }
-#endif
-
-#ifdef LIBCONFIG
-#if 0
-static void setup_sni_alpn_list(
-                                struct config_protocols_item *p, 
-                                config_setting_t* config_items, 
-                                const char* name, 
-                                int alpn)
-{
-    int num_probes, i, max_server_name_len, server_name_len;
-    const char * config_item, *server_name;
-    char** sni_hostname_list;
-
-    num_probes = config_setting_length(config_items);
-    if (!num_probes) {
-        fprintf(stderr, "%s: no %s specified\n", p->description, name);
-        return;
-    }
-
-    max_server_name_len = 0;
-    for (i = 0; i < num_probes; i++) {
-        server_name = config_setting_get_string_elem(config_items, i);
-        if (server_name == NULL) {
-            fprintf(stderr, "%s: invalid %s specified\n", p->description, name);
-            exit(1);
-        }
-        server_name_len = strlen(server_name);
-        if(server_name_len > max_server_name_len)
-            max_server_name_len = server_name_len;
-    }
-
-    sni_hostname_list = calloc(num_probes + 1, ++max_server_name_len);
-    CHECK_ALLOC(sni_hostname_list, "calloc");
-
-    for (i = 0; i < num_probes; i++) {
-        config_item = config_setting_get_string_elem(config_items, i);
-        if (config_item == NULL) {
-            fprintf(stderr, "%s: invalid %s specified\n", p->description, name);
-            exit(1);
-        }
-        sni_hostname_list[i] = malloc(max_server_name_len);
-        CHECK_ALLOC(sni_hostname_list[i], "malloc");
-        strcpy (sni_hostname_list[i], config_item);
-        if(verbose) fprintf(stderr, "%s: %s[%d]: %s\n", p->description, name, i, sni_hostname_list[i]);
-    }
-
-    p->data = (void*)tls_data_set_list(p->data, alpn, sni_hostname_list);
-}
-
-static void setup_sni_alpn(struct config_protocols_item *p, config_setting_t* prot)
-{
-    config_setting_t *sni_hostnames, *alpn_protocols;
-
-    p->data = (void*)new_tls_data();
-    sni_hostnames = config_setting_get_member(prot, "sni_hostnames");
-    alpn_protocols = config_setting_get_member(prot, "alpn_protocols");
-
-    if(sni_hostnames && config_setting_is_array(sni_hostnames)) {
-        setup_sni_alpn_list(p, sni_hostnames, "sni_hostnames", 0);
-    }
-    if(alpn_protocols && config_setting_is_array(alpn_protocols)) {
-        setup_sni_alpn_list(p, alpn_protocols, "alpn_protocols", 1);
-    }
-}
-#endif
-static void setup_sni_alpn(struct config_protocols_item *p, config_setting_t* prot)
-{}
 #endif
 
 /* For each protocol in the configuration, resolve address and set up protocol
@@ -367,7 +241,7 @@ static int config_protocols()
 {
     int i;
     for (i = 0; i < cfg.protocols_len; i++) {
-        struct config_protocols_item* p = &(cfg.protocols[i]);
+        struct sslhcfg_protocols_item* p = &(cfg.protocols[i]);
         if (resolve_split_name(&(p->saddr), p->host, p->port)) {
             fprintf(stderr, "cannot resolve %s:%s\n", p->host, p->port);
             exit(1);
@@ -377,6 +251,10 @@ static int config_protocols()
         if (!p->probe) {
             fprintf(stderr, "%s: probe unknown\n", p->name);
             exit(1);
+        }
+
+        if (!strcmp(cfg.protocols[i].name, "regex")) {
+            setup_regex_probe(&cfg.protocols[i]);
         }
 
         if (!strcmp(cfg.protocols[i].name, "tls")) {
@@ -392,104 +270,26 @@ static int config_protocols()
         }
     }
 }
-
-#if 0
-static int config_protocols(config_t *config, struct proto **prots)
-{
-    config_setting_t *setting, *prot, *patterns;
-    const char *hostname, *port, *cfg_name;
-    char* name;
-    int i, num_prots;
-    struct proto *p, *prev = NULL;
-
-    setting = config_lookup(config, "protocols");
-    if (setting) {
-        num_prots = config_setting_length(setting);
-        for (i = 0; i < num_prots; i++) {
-            p = calloc(1, sizeof(*p));
-            CHECK_ALLOC(p, "calloc");
-            if (i == 0) *prots = p;
-            if (prev) prev->next = p;
-            prev = p;
-
-            prot = config_setting_get_elem(setting, i);
-            if ((config_setting_lookup_string(prot, "name", &cfg_name) &&
-                 config_setting_lookup_string(prot, "host", &hostname) &&
-                 config_setting_lookup_string(prot, "port", &port)
-                )) {
-                /* To removed in v1.21 */
-                name = strdup(cfg_name);
-                ssl_to_tls(name);
-                /* /remove */
-                p->description = name;
-                config_setting_lookup_string(prot, "service", &(p->service));
-                config_setting_lookup_bool(prot, "keepalive", &p->keepalive);
-                config_setting_lookup_bool(prot, "fork", &p->fork);
-
-                if (config_setting_lookup_int(prot, "log_level", &p->log_level) == CONFIG_FALSE) {
-                    p->log_level = 1;
-                }
-
-                if (resolve_split_name(&(p->saddr), hostname, port)) {
-                    fprintf(stderr, "line %d: cannot resolve %s:%s\n", config_setting_source_line(prot), hostname, port);
-                    exit(1);
-                }
-
-                p->probe = get_probe(name);
-                if (!p->probe) {
-                    fprintf(stderr, "line %d: %s: probe unknown\n", config_setting_source_line(prot), name);
-                    exit(1);
-                }
-
-                /* Probe-specific options: regex patterns */
-                if (!strcmp(name, "regex")) {
-                    patterns = config_setting_get_member(prot, "regex_patterns");
-                    if (patterns && config_setting_is_array(patterns)) {
-                        setup_regex_probe(p, patterns);
-                    }
-                }
-
-                /* Probe-specific options: SNI/ALPN */
-                if (!strcmp(name, "tls")) {
-                    setup_sni_alpn(p, prot);
-                }
-
-            } else {
-                fprintf(stderr, "line %d: Illegal protocol description (missing name, host or port)\n", config_setting_source_line(prot));
-                exit(1);
-            }
-        }
-    }
-
-    return 0;
-}
-#endif
 #endif
 
 /* Parses a config file
  * in: *filename
  * out: *listen, a newly-allocated linked list of listen addrinfo
- *      *prots, a newly-allocated linked list of protocols
  *      1 on error, 0 on success
  */
 #ifdef LIBCONFIG
-static int config_parse(char *filename, struct addrinfo **listen, struct config_protocols_item **prots)
+static int config_parse(char *filename, struct addrinfo **listen)
 {
     int res;
     const char* err;
 
-    if (!config_parse_file(filename, &cfg, &err)) {
+    if (!sslhcfg_parse_file(filename, &cfg, &err)) {
         fprintf(stderr, err);
         return 1;
     }
 
     config_resolve_listen(listen);
     config_protocols();
-
-    /*
-    config_listen(&config, listen);
-    config_protocols(&config, prots);
-    */
 
     return 0;
 }
@@ -502,7 +302,7 @@ static int config_parse(char *filename, struct addrinfo **listen, struct config_
  * prot: array of protocols
  * n_prots: number of protocols in *prot
  * */
-static void append_protocols(struct option *options, int n_opts, struct config_protocols_item *prot , int n_prots)
+static void append_protocols(struct option *options, int n_opts, struct sslhcfg_protocols_item *prot , int n_prots)
 {
     int o, p;
 
@@ -534,7 +334,7 @@ static void make_alloptions(void)
  *
  * prots: newly-allocated list of configured protocols, if any.
  */
-static void cmdline_config(int argc, char* argv[], struct config_protocols_item** prots)
+static void cmdline_config(int argc, char* argv[], struct sslhcfg_protocols_item** prots)
 {
 #ifdef LIBCONFIG
     int c, res;
@@ -555,13 +355,13 @@ static void cmdline_config(int argc, char* argv[], struct config_protocols_item*
         if (c == 'F') {
             config_filename = optarg;
             if (config_filename) {
-                res = config_parse(config_filename, &addr_listen, prots);
+                res = config_parse(config_filename, &addr_listen);
             } else {
                 /* No configuration file specified -- try default file locations */
-                res = config_parse("/etc/sslh/sslh.cfg", &addr_listen, prots);
+                res = config_parse("/etc/sslh/sslh.cfg", &addr_listen);
                 if (!res && cfg.verbose) fprintf(stderr, "Using /etc/sslh/sslh.cfg\n");
                 if (res) {
-                    res = config_parse("/etc/sslh.cfg", &addr_listen, prots);
+                    res = config_parse("/etc/sslh.cfg", &addr_listen);
                     if (!res && cfg.verbose) fprintf(stderr, "Using /etc/sslh.cfg\n");
                 }
             }
@@ -576,12 +376,12 @@ static void cmdline_config(int argc, char* argv[], struct config_protocols_item*
 
 /* Parse command-line options. prots points to a list of configured protocols,
  * potentially non-allocated */
-static void parse_cmdline(int argc, char* argv[], struct config_protocols_item* prots)
+static void parse_cmdline(int argc, char* argv[], struct sslhcfg_protocols_item* prots)
 {
 #if 0
     int c;
     struct addrinfo **a;
-    struct config_protocols_item *p;
+    struct sslhcfg_protocols_item *p;
     int background;
 
     optind = 1;
@@ -700,7 +500,7 @@ int main(int argc, char *argv[])
    extern char *optarg;
    extern int optind;
    int res, num_addr_listen;
-   struct config_protocols_item* protocols = NULL;
+   struct sslhcfg_protocols_item* protocols = NULL;
 
    int *listen_sockets;
 

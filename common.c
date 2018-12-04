@@ -33,7 +33,7 @@
 /*
  * Settings that depend on the command line or the config file
  */
-struct config_item cfg;
+struct sslhcfg_item cfg;
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 

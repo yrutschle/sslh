@@ -87,7 +87,7 @@ struct queue {
 struct connection {
     enum connection_state state;
     time_t probe_timeout;
-    struct config_protocols_item* proto;
+    struct sslhcfg_protocols_item* proto;
 
     /* q[0]: queue for external connection (client);
      * q[1]: queue for internal connection (httpd or sshd);
@@ -123,7 +123,7 @@ int flush_deferred(struct queue *q);
 
 extern int probing_timeout, verbose, inetd, foreground, 
        background, transparent, numeric;
-extern struct config_item cfg;
+extern struct sslhcfg_item cfg;
 extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
