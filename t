@@ -21,11 +21,11 @@ my $sslh_port = $conf->fetch_array("listen")->[0]->{port};
 my $user = (getpwuid $<)[0]; # Run under current username
 
 # Which tests do we run
-my $SSH_SHY_CNX =       0;
+my $SSH_SHY_CNX =       1;
 my $PROBES_NOFRAG =     1;
-my $PROBES_AGAIN =      0;
-my $SSL_MIX_SSH =       0;
-my $SSH_MIX_SSL =       0;
+my $PROBES_AGAIN =      1;
+my $SSL_MIX_SSH =       1;
+my $SSH_MIX_SSL =       1;
 
 # Robustness tests. These are mostly to achieve full test
 # coverage, but do not necessarily result in an actual test
