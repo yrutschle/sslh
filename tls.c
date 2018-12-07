@@ -32,6 +32,7 @@
 #include <stdlib.h> /* malloc() */
 #include <fnmatch.h> /* fnmatch() */
 #include "tls.h"
+#include "sslh-conf.h"
 
 #define TLS_HEADER_LEN 5
 #define TLS_HANDSHAKE_CONTENT_TYPE 0x16
@@ -48,14 +49,16 @@ typedef struct {
 
 struct TLSProtocol {
     TLS_MATCHMODE match_mode;
-    char** sni_hostname_list;
-    char** alpn_protocol_list;
+    int sni_list_len;
+    const char** sni_hostname_list;
+    int alpn_list_len;
+    const char** alpn_protocol_list;
 };
 
 static int parse_extensions(const struct TLSProtocol *, const char *, size_t);
 static int parse_server_name_extension(const struct TLSProtocol *, const char *, size_t);
 static int parse_alpn_extension(const struct TLSProtocol *, const char *, size_t);
-static int has_match(char**, const char*, size_t);
+static int has_match(const char**, size_t, const char*, size_t);
 
 /* Parse a TLS packet for the Server Name Indication and ALPN extension in the client
  * hello handshake, returning a status code
@@ -79,14 +82,14 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     tls_content_type = data[0];
     if (tls_content_type != TLS_HANDSHAKE_CONTENT_TYPE) {
-        if (verbose) fprintf(stderr, "Request did not begin with TLS handshake.\n");
+        if (cfg.verbose) fprintf(stderr, "Request did not begin with TLS handshake.\n");
         return TLS_EPROTOCOL;
     }
 
     tls_version_major = data[1];
     tls_version_minor = data[2];
     if (tls_version_major < 3) {
-        if (verbose) fprintf(stderr, "Received SSL %d.%d handshake which cannot be parsed.\n",
+        if (cfg.verbose) fprintf(stderr, "Received SSL %d.%d handshake which cannot be parsed.\n",
               tls_version_major, tls_version_minor);
 
         return TLS_EVERSION;
@@ -108,7 +111,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
         return TLS_EPROTOCOL;
     }
     if (data[pos] != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
-        if (verbose) fprintf(stderr, "Not a client hello\n");
+        if (cfg.verbose) fprintf(stderr, "Not a client hello\n");
 
         return TLS_EPROTOCOL;
     }
@@ -141,7 +144,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
     pos += 1 + len;
 
     if (pos == data_len && tls_version_major == 3 && tls_version_minor == 0) {
-        if (verbose) fprintf(stderr, "Received SSL 3.0 handshake without extensions\n");
+        if (cfg.verbose) fprintf(stderr, "Received SSL 3.0 handshake without extensions\n");
         return TLS_EVERSION;
     }
 
@@ -219,13 +222,13 @@ parse_server_name_extension(const struct TLSProtocol *tls_data, const char *data
 
         switch (data[pos]) { /* name type */
             case 0x00: /* host_name */
-                if(has_match(tls_data->sni_hostname_list, data + pos + 3, len)) {
+                if(has_match(tls_data->sni_hostname_list, tls_data->sni_list_len, data + pos + 3, len)) {
                     return len;
                 } else {
                     return TLS_ENOEXT;
                 }
             default:
-                if (verbose) fprintf(stderr, "Unknown server name extension name type: %d\n",
+                if (cfg.verbose) fprintf(stderr, "Unknown server name extension name type: %d\n",
                       data[pos]);
         }
         pos += 3 + len;
@@ -248,10 +251,10 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
         if (pos + 1 + len > data_len)
             return TLS_EPROTOCOL;
 
-        if (len > 0 && has_match(tls_data->alpn_protocol_list, data + pos + 1, len)) {
+        if (len > 0 && has_match(tls_data->alpn_protocol_list, tls_data->alpn_list_len, data + pos + 1, len)) {
             return len;
         } else if (len > 0) {
-            if (verbose) fprintf(stderr, "Unknown ALPN name: %.*s\n", (int)len, data + pos + 1);
+            if (cfg.verbose) fprintf(stderr, "Unknown ALPN name: %.*s\n", (int)len, data + pos + 1);
         }
         pos += 1 + len;
     }
@@ -263,15 +266,17 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
 }
 
 static int
-has_match(char** list, const char* name, size_t name_len) {
-    char **item;
+has_match(const char** list, size_t list_len, const char* name, size_t name_len) {
+    const char **item;
+    int i;
     char *name_nullterminated = malloc(name_len+1);
     CHECK_ALLOC(name_nullterminated, "malloc");
     memcpy(name_nullterminated, name, name_len);
     name_nullterminated[name_len]='\0';
 
-    for (item = list; *item; item++) {
-        if (verbose) fprintf(stderr, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
+    for (i = 0; i < list_len; i++) {
+        item = &list[i];
+        if (cfg.verbose) fprintf(stderr, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
         if(!fnmatch(*item, name_nullterminated, 0)) {
             free(name_nullterminated);
             return 1;
@@ -292,12 +297,14 @@ new_tls_data() {
 }
 
 struct TLSProtocol *
-tls_data_set_list(struct TLSProtocol *tls_data, int alpn, char** list) {
+tls_data_set_list(struct TLSProtocol *tls_data, int alpn, const char** list, size_t list_len) {
     if (alpn) {
         tls_data->alpn_protocol_list = list;
+        tls_data->alpn_list_len = list_len;
         tls_data->match_mode.tls_match_alpn = 1;
     } else {
         tls_data->sni_hostname_list = list;
+        tls_data->sni_list_len = list_len;
         tls_data->match_mode.tls_match_sni = 1;
     }
 

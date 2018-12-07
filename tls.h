@@ -33,7 +33,7 @@ struct TLSProtocol;
 int parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t data_len);
 
 struct TLSProtocol *new_tls_data();
-struct TLSProtocol *tls_data_set_list(struct TLSProtocol *, int, char**);
+struct TLSProtocol *tls_data_set_list(struct TLSProtocol *, int, const char**, size_t);
 
 #define TLS_MATCH       1
 #define TLS_NOMATCH     0

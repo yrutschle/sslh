@@ -53,6 +53,8 @@ const char* server_type = "echsrv"; /* keep setup_syslog happy */
 char* prefix = "";
 int port;
 
+int verbose, numeric;
+
 void parse_cmdline(int argc, char* argv[])
 {
     int c;

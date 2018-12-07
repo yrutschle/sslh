@@ -54,7 +54,7 @@ int shovel(struct connection *cnx)
           if (FD_ISSET(cnx->q[i].fd, &fds)) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
               if (!res) {
-                  if (verbose) 
+                  if (cfg.verbose) 
                       fprintf(stderr, "%s %s", i ? "client" : "server", "socket closed\n");
                   return res;
               }
@@ -79,7 +79,7 @@ void start_shoveler(int in_socket)
    FD_ZERO(&fds);
    FD_SET(in_socket, &fds);
    memset(&tv, 0, sizeof(tv));
-   tv.tv_sec = probing_timeout;
+   tv.tv_sec = cfg.timeout;
 
    while (res == PROBE_AGAIN) {
        /* POSIX does not guarantee that tv will be updated, but the client can
@@ -94,8 +94,8 @@ void start_shoveler(int in_socket)
        } else {
            /* Timed out: it's necessarily SSH */
            cnx.proto = timeout_protocol();
-           if (verbose) 
-               log_message(LOG_INFO, "timed out, connect to %s\n", cnx.proto->description);
+           if (cfg.verbose) 
+               log_message(LOG_INFO, "timed out, connect to %s\n", cnx.proto->name);
            break;
        }
    }
@@ -120,7 +120,7 @@ void start_shoveler(int in_socket)
    close(in_socket);
    close(out_socket);
    
-   if (verbose)
+   if (cfg.verbose)
       fprintf(stderr, "connection closed down\n");
 
    exit(0);
@@ -161,7 +161,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
             while (1)
             {
                 in_socket = accept(listen_sockets[i], 0, 0);
-                if (verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
+                if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
                 switch(fork()) {
                 case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));

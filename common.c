@@ -16,6 +16,7 @@
 
 #include "common.h"
 #include "probe.h"
+#include "sslh-conf.h"
 
 /* Added to make the code compilable under CYGWIN
  * */
@@ -30,18 +31,9 @@
 #endif
 
 /*
- * Settings that depend on the command line.  They're set in main(), but also
- * used in other places in common.c, and it'd be heavy-handed to pass it all as
- * parameters
+ * Settings that depend on the command line or the config file
  */
-int verbose = 0;
-int probing_timeout = 2;
-int inetd = 0;
-int foreground = 0;
-int background = 0;
-int transparent = 0;
-int numeric = 0;
-const char *user_name, *pid_file, *chroot_path, *facility = "auth";
+struct sslhcfg_item cfg;
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
@@ -122,7 +114,7 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        exit(1);
    }
 
-   if (verbose)
+   if (cfg.verbose)
        fprintf(stderr, "listening to %d addresses\n", num_addr);
 
    *sockfd = malloc(num_addr * sizeof(*sockfd[0]));
@@ -272,9 +264,9 @@ int connect_addr(struct connection *cnx, int fd_from)
 
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
-        if (transparent && a->ai_family != from.ai_addr->sa_family)
+        if (cfg.transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "connecting to %s family %d len %d\n",
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
@@ -283,16 +275,16 @@ int connect_addr(struct connection *cnx, int fd_from)
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
-                        cnx->proto->description, strerror(errno));
+                        cnx->proto->name, strerror(errno));
         } else {
-            if (transparent) {
+            if (cfg.transparent) {
                 res = bind_peer(fd, fd_from);
                 CHECK_RES_RETURN(res, "bind_peer");
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
                 log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
-                            cnx->proto->description, strerror(errno));
+                            cnx->proto->name, strerror(errno));
                 close(fd);
             } else {
                 if (cnx->proto->keepalive) {
@@ -312,7 +304,7 @@ int defer_write(struct queue *q, void* data, int data_size)
 {
     char *p;
     ptrdiff_t data_offset = q->deferred_data - q->begin_deferred_data;
-    if (verbose)
+    if (cfg.verbose)
         fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
     p = realloc(q->begin_deferred_data, data_offset + q->deferred_data_size + data_size);
@@ -335,7 +327,7 @@ int flush_deferred(struct queue *q)
 {
     int n;
 
-    if (verbose)
+    if (cfg.verbose)
         fprintf(stderr, "flushing deferred data to fd %d\n", q->fd);
 
     n = write(q->fd, q->deferred_data, q->deferred_data_size);
@@ -363,7 +355,7 @@ void init_cnx(struct connection *cnx)
     memset(cnx, 0, sizeof(*cnx));
     cnx->q[0].fd = -1;
     cnx->q[1].fd = -1;
-    cnx->proto = get_first_protocol();
+    cnx->proto = NULL;
 }
 
 void dump_connection(struct connection *cnx)
@@ -395,7 +387,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
    if (size_r == -1) {
        switch (errno) {
        case EAGAIN:
-           if (verbose)
+           if (cfg.verbose)
                fprintf(stderr, "reading 0 from %d\n", from);
            return FD_NODATA;
 
@@ -444,7 +436,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
    res = getnameinfo(a->ai_addr, a->ai_addrlen,
                host, sizeof(host),
                serv, sizeof(serv),
-               numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
+               cfg.numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
 
    if (res) {
        log_message(LOG_ERR, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
@@ -469,25 +461,15 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 /* Turns a hostname and port (or service) into a list of struct addrinfo
  * returns 0 on success, -1 otherwise and logs error
  */
-int resolve_split_name(struct addrinfo **out, const char* ct_host, const char* serv)
+int resolve_split_name(struct addrinfo **out, char* host, char* serv)
 {
    struct addrinfo hint;
    char *end;
    int res;
-   char* host, *host_base;
 
    memset(&hint, 0, sizeof(hint));
    hint.ai_family = PF_UNSPEC;
    hint.ai_socktype = SOCK_STREAM;
-
-   /* Copy parameter so not to clobber data in libconfig */
-   res = asprintf(&host_base, "%s", ct_host);
-   if (res == -1) {
-       log_message(LOG_ERR, "asprintf: cannot allocate memory");
-       return -1;
-   }
-
-   host = host_base;
 
    /* If it is a RFC-Compliant IPv6 address ("[1234::12]:443"), remove brackets
     * around IP address */
@@ -504,7 +486,6 @@ int resolve_split_name(struct addrinfo **out, const char* ct_host, const char* s
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
       log_message(LOG_ERR, "%s `%s:%s'\n", gai_strerror(res), host, serv);
-   free(host_base);
    return res;
 }
 
@@ -543,7 +524,7 @@ void log_message(int type, char* msg, ...)
     va_list ap;
 
     va_start(ap, msg);
-    if (foreground)
+    if (cfg.foreground)
         vfprintf(stderr, msg, ap);
     else
         vsyslog(type, msg, ap);
@@ -587,7 +568,7 @@ void log_connection(struct connection *cnx)
     sprintaddr(local, sizeof(local), &addr);
 
     log_message(LOG_INFO, "%s:connection from %s to %s forwarded from %s to %s\n",
-                cnx->proto->description,
+                cnx->proto->name,
                 peer,
                 service,
                 local,
@@ -618,22 +599,22 @@ int check_access_rights(int in_socket, const char* service)
     /* extract peer address */
     res = getnameinfo(&peer.saddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);
     if (res) {
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
         strcpy(addr_str, STRING_UNKNOWN);
     }
     /* extract peer name */
     strcpy(host, STRING_UNKNOWN);
-    if (!numeric) {
+    if (!cfg.numeric) {
         res = getnameinfo(&peer.saddr, size, host, sizeof(host), NULL, 0, NI_NAMEREQD);
         if (res) {
-            if (verbose)
+            if (cfg.verbose)
                 fprintf(stderr, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
         }
     }
 
     if (!hosts_ctl(service, host, addr_str, STRING_UNKNOWN)) {
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "access denied\n");
         log_message(LOG_INFO, "connection from %s(%s): access denied", host, addr_str);
         close(in_socket);
@@ -681,10 +662,10 @@ void setup_syslog(const char* bin_name) {
     CHECK_RES_DIE(res, "asprintf");
 
     for (fn = 0; facilitynames[fn].c_val != -1; fn++)
-        if (strcmp(facilitynames[fn].c_name, facility) == 0)
+        if (strcmp(facilitynames[fn].c_name, cfg.syslog_facility) == 0)
             break;
     if (facilitynames[fn].c_val == -1) {
-        fprintf(stderr, "Unknown facility %s\n", facility);
+        fprintf(stderr, "Unknown facility %s\n", cfg.syslog_facility);
         exit(1);
     }
 
@@ -715,7 +696,7 @@ void set_capabilities(void) {
     cap_value_t cap_list[10];
     int ncap = 0;
 
-    if (transparent)
+    if (cfg.transparent)
         cap_list[ncap++] = CAP_NET_ADMIN;
 
     caps = cap_init();
@@ -757,12 +738,12 @@ void drop_privileges(const char* user_name, const char* chroot_path)
             fprintf(stderr, "%s: not found\n", user_name);
             exit(2);
         }
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "turning into %s\n", user_name);
     }
 
     if (chroot_path) {
-        if (verbose)
+        if (cfg.verbose)
             fprintf(stderr, "chrooting into %s\n", chroot_path);
 
         res = chroot(chroot_path);

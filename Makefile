@@ -25,7 +25,7 @@ CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
 LIBS=
-OBJS=common.o sslh-main.o probe.o tls.o
+OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o 
 
 CONDITIONAL_TARGETS=
 
@@ -72,6 +72,9 @@ sslh: sslh-fork sslh-select
 
 $(OBJS): version.h
 
+sslh-conf.c: sslhconf.cfg
+	conf2struct sslhconf.cfg
+
 sslh-fork: version.h $(OBJS) sslh-fork.o Makefile common.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	#strip sslh-fork
@@ -112,7 +115,7 @@ uninstall:
 	update-rc.d sslh remove
 
 distclean: clean
-	rm -f tags cscope.*
+	rm -f tags sslh-conf.c sslh-conf.h cscope.*
 
 clean:
 	rm -f sslh-fork sslh-select echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
