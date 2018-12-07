@@ -355,7 +355,7 @@ void init_cnx(struct connection *cnx)
     memset(cnx, 0, sizeof(*cnx));
     cnx->q[0].fd = -1;
     cnx->q[1].fd = -1;
-    cnx->proto = get_first_protocol();
+    cnx->proto = NULL;
 }
 
 void dump_connection(struct connection *cnx)

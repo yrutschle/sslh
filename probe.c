@@ -43,11 +43,6 @@ static int is_adb_protocol(const char *p, int len, struct sslhcfg_protocols_item
 static int is_socks5_protocol(const char *p, int len, struct sslhcfg_protocols_item*);
 static int is_true(const char *p, int len, struct sslhcfg_protocols_item* proto) { return 1; }
 
-struct protocol_probe_desc {
-    const char* name;
-    T_PROBE* probe;
-};
-
 /* Table of protocols that have a built-in probe
  */
 static struct protocol_probe_desc builtins[] = {
@@ -64,12 +59,11 @@ static struct protocol_probe_desc builtins[] = {
     { "anyprot",    is_true }
 };
 
-static struct sslhcfg_protocols_item *protocols;
 static char* on_timeout = "ssh";
 
 /* TODO I think this has to go */
-struct sslhcfg_protocols_item*  get_builtins(void) {
-    return NULL;
+struct protocol_probe_desc*  get_builtins(void) {
+    return builtins;
 }
 
 int get_num_builtins(void) {
@@ -90,24 +84,11 @@ struct sslhcfg_protocols_item* timeout_protocol(void)
 {
     int i;
     for (i = 0; i < cfg.protocols_len; i++) {
-        printf("prot %d:%s vs %s\n",i,  cfg.protocols[i].name, on_timeout);
         if (!strcmp(cfg.protocols[i].name, on_timeout)) return &cfg.protocols[i];
     }
-    return get_first_protocol();
+    return &cfg.protocols[0];
 }
 
-/* returns the first protocol (caller can then follow the *next pointers) */
-struct sslhcfg_protocols_item* get_first_protocol(void)
-{
-    return protocols;
-}
-
-void set_protocol_list(struct sslhcfg_protocols_item* prots)
-{
-#if 0
-    protocols = prots;
-#endif
-}
 
 /* From http://grapsus.net/blog/post/Hexadecimal-dump-in-C */
 #define HEXDUMP_COLS 16
@@ -355,7 +336,7 @@ static int regex_probe(const char *p, int len, struct sslhcfg_protocols_item* pr
 int probe_client_protocol(struct connection *cnx)
 {
     char buffer[BUFSIZ];
-    struct sslhcfg_protocols_item* p, *last_p = cnx->proto;
+    struct sslhcfg_protocols_item* p;
     int i, n, res, again = 0;
 
     n = read(cnx->q[0].fd, buffer, sizeof(buffer));
