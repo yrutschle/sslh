@@ -121,13 +121,9 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
 int defer_write(struct queue *q, void* data, int data_size);
 int flush_deferred(struct queue *q);
 
-extern int probing_timeout, verbose, inetd, foreground, 
-       background, transparent, numeric;
 extern struct sslhcfg_item cfg;
-extern struct sockaddr_storage addr_ssl, addr_ssh, addr_openvpn;
 extern struct addrinfo *addr_listen;
 extern const char* USAGE_STRING;
-extern const char* user_name, *pid_file, *chroot_path, *facility;
 extern const char* server_type;
 
 /* sslh-fork.c */
