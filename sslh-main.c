@@ -62,44 +62,6 @@ const char* USAGE_STRING =
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
 
-static struct option const_options[] = {
-    { "inetd",      no_argument,            &cfg.inetd,         1 },
-    { "foreground", no_argument,            &cfg.foreground,    1 },
-    { "transparent", no_argument,           &cfg.transparent,   1 },
-    { "numeric",    no_argument,            &cfg.numeric,       1 },
-    { "verbose",    no_argument,            &cfg.verbose,       1 },
-    { "user",       required_argument,      0,              'u' },
-    { "config",     optional_argument,      0,              'F' },
-    { "pidfile",    required_argument,      0,              'P' },
-    { "chroot",     required_argument,      0,              'C' },
-    { "timeout",    required_argument,      0,              't' },
-    { "on-timeout", required_argument,      0,              OPT_ONTIMEOUT },
-    { "listen",     required_argument,      0,              'p' },
-    {}
-};
-
-static struct option* all_options;
-static struct protocol_probe_desc* builtins;
-static const char *optstr = "vt:T:p:VP:C:F::";
-
-
-
-static void print_usage(void)
-{
-    struct protocol_probe_desc *p;
-    int i;
-    int res;
-    char *prots = "";
-
-    p = get_builtins();
-    for (i = 0; i < get_num_builtins(); i++) {
-        res = asprintf(&prots, "%s\t[--%s <addr>]\n", prots, p[i].name);
-        CHECK_RES_DIE(res, "asprintf");
-    }
-
-    fprintf(stderr, USAGE_STRING, prots);
-}
-
 static void printcaps(void) {
 #ifdef LIBCAP
     cap_t caps;
@@ -234,8 +196,7 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
 /* For each protocol in the configuration, resolve address and set up protocol
  * options if required
  */
-#ifdef LIBCONFIG
-static int config_protocols()
+static void config_protocols()
 {
     int i;
     for (i = 0; i < cfg.protocols_len; i++) {
@@ -268,218 +229,23 @@ static int config_protocols()
         }
     }
 }
-#endif
-
-/* Parses a config file
- * in: *filename
- * out: *listen, a newly-allocated linked list of listen addrinfo
- *      1 on error, 0 on success
- */
-#ifdef LIBCONFIG
-static int config_parse(char *filename, struct addrinfo **listen)
-{
-    int res;
-    const char* err;
-
-    if (!sslhcfg_parse_file(filename, &cfg, &err)) {
-        fprintf(stderr, err);
-        return 1;
-    }
-
-    config_resolve_listen(listen);
-    config_protocols();
-
-    return 0;
-}
-#endif
-
-/* Adds protocols to the list of options, so command-line parsing uses the
- * protocol definition array 
- * options: array of options to add to; must be big enough
- * n_opts: number of options in *options before calling (i.e. where to append)
- * prot: array of protocols
- * n_prots: number of protocols in *prot
- * */
-static void append_protocols(struct option *options, int n_opts, struct protocol_probe_desc* prot , int n_prots)
-{
-    int o, p;
-
-    for (o = n_opts, p = 0; p < n_prots; o++, p++) {
-        options[o].name = prot[p].name;
-        options[o].has_arg = required_argument;
-        options[o].flag = 0;
-        options[o].val = p + PROT_SHIFT;
-    }
-}
-
-static void make_alloptions(void)
-{
-    builtins = get_builtins();
-
-    /* Create all_options, composed of const_options followed by one option per
-     * known protocol */
-    all_options = calloc(ARRAY_SIZE(const_options) + get_num_builtins(), sizeof(struct option));
-    CHECK_ALLOC(all_options, "calloc");
-    memcpy(all_options, const_options, sizeof(const_options));
-    append_protocols(all_options, ARRAY_SIZE(const_options) - 1, builtins, get_num_builtins());
-}
-
-/* Performs a first scan of command line options to see if a configuration file
- * is specified. If there is one, parse it now before all other options (so
- * configuration file settings can be overridden from the command line).
- *
- * prots: newly-allocated list of configured protocols, if any.
- */
-static void cmdline_config(int argc, char* argv[], struct sslhcfg_protocols_item** prots)
-{
-#ifdef LIBCONFIG
-    int c, res;
-    char *config_filename;
-#endif
-
-    cmd_ssl_to_tls(argc, argv); /* To remove in v1.21 */
-
-    make_alloptions();
-
-#ifdef LIBCONFIG
-    optind = 1;
-    opterr = 0; /* we're missing protocol options at this stage so don't output errors */
-    while ((c = getopt_long_only(argc, argv, optstr, all_options, NULL)) != -1) {
-        if (c == 'v') {
-            cfg.verbose++;
-        }
-        if (c == 'F') {
-            config_filename = optarg;
-            if (config_filename) {
-                res = config_parse(config_filename, &addr_listen);
-            } else {
-                /* No configuration file specified -- try default file locations */
-                res = config_parse("/etc/sslh/sslh.cfg", &addr_listen);
-                if (!res && cfg.verbose) fprintf(stderr, "Using /etc/sslh/sslh.cfg\n");
-                if (res) {
-                    res = config_parse("/etc/sslh.cfg", &addr_listen);
-                    if (!res && cfg.verbose) fprintf(stderr, "Using /etc/sslh.cfg\n");
-                }
-            }
-            if (res)
-                exit(4);
-            break;
-        }
-    }
-#endif
-}
 
 
-/* Parse command-line options. prots points to a list of configured protocols,
- * potentially non-allocated */
-static void parse_cmdline(int argc, char* argv[], struct sslhcfg_protocols_item* prots)
-{
-    int c;
-    struct addrinfo **a;
-    int background, i;
-
-    optind = 1;
-    opterr = 1;
-next_arg:
-    while ((c = getopt_long_only(argc, argv, optstr, all_options, NULL)) != -1) {
-        if (c == 0) continue;
-
-        if (c >= PROT_SHIFT) {
-            int prot_num = c - PROT_SHIFT;
-            for (i = 0; i < cfg.protocols_len; i++) {
-                /* override if protocol was already defined by config file  */
-                if (!strcmp(cfg.protocols[i].name, builtins[prot_num].name)) {
-                    resolve_name(&(cfg.protocols[i].saddr), optarg);
-                    goto next_arg;
-                }
-            }
-            /* At this stage, it's a new protocol: add it to the end of the
-             * list */
-            cfg.protocols_len++;
-            cfg.protocols = realloc(cfg.protocols, cfg.protocols_len * sizeof(*cfg.protocols));
-            CHECK_ALLOC(cfg.protocols, "realloc");
-
-            /* set up name, target and probe. everything else defaults to 0 */
-            memset(&cfg.protocols[cfg.protocols_len-1], 0, sizeof(cfg.protocols[0]));
-            cfg.protocols[cfg.protocols_len-1].probe = get_probe(builtins[prot_num].name);
-            cfg.protocols[cfg.protocols_len-1].name = builtins[prot_num].name;
-            resolve_name(&cfg.protocols[cfg.protocols_len-1].saddr, optarg);
-            continue;
-        }
-
-        switch (c) {
-
-        case 'F':
-            /* Legal option, but do nothing, it was already processed in
-             * cmdline_config() */
-#ifndef LIBCONFIG
-            fprintf(stderr, "Built without libconfig support: configuration file not available.\n");
-            exit(1);
-#endif
-            break;
-
-        case 't':
-             cfg.timeout = atoi(optarg);
-            break;
-
-        case OPT_ONTIMEOUT:
-            set_ontimeout(optarg);
-            break;
-
-        case 'p':
-            /* find the end of the listen list */
-            for (a = &addr_listen; *a; a = &((*a)->ai_next));
-            /* append the specified addresses */
-            resolve_name(a, optarg);
-            
-            break;
-
-        case 'V':
-            printf("%s %s\n", server_type, VERSION);
-            exit(0);
-
-        case 'u':
-            cfg.user = optarg;
-            break;
-
-        case 'P':
-            cfg.pidfile = optarg;
-            break;
-
-        case 'C':
-            cfg.chroot = optarg;
-            break;
-
-        case 'v':
-            cfg.verbose++;
-            break;
-
-        default:
-            print_usage();
-            exit(2);
-        }
-    }
-
-    return;
-
-    if (!cfg.protocols_len) {
+void config_sanity_check(struct sslhcfg_item* cfg) {
+    if (!cfg->protocols_len) {
         fprintf(stderr, "At least one target protocol must be specified.\n");
         exit(2);
     }
 
 /* If compiling with systemd socket support no need to require listen address */
 #ifndef SYSTEMD
-    if (!addr_listen && !cfg.inetd) {
+    if (!addr_listen && !cfg->inetd) {
         fprintf(stderr, "No listening address specified; use at least one -p option\n");
         exit(1);
     }
 #endif
-
-    /* Did command-line override foreground setting? */
-    if (background)
-        cfg.foreground = 0;
-
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -487,20 +253,15 @@ int main(int argc, char *argv[])
    extern char *optarg;
    extern int optind;
    int res, num_addr_listen;
-   struct sslhcfg_protocols_item* protocols = NULL;
-
    int *listen_sockets;
 
-   /* Init defaults -- conf2struct sets them when parsing a config file 
-    * but we may configure entirely from the command line */
-   cfg.pidfile = NULL;
-   cfg.user = NULL;
-   cfg.chroot = NULL;
-   cfg.syslog_facility = "auth";
-   cfg.timeout = 2;
 
-   cmdline_config(argc, argv, &protocols);
-   parse_cmdline(argc, argv, protocols);
+   memset(&cfg, 0, sizeof(cfg));
+   sslhcfg_cl_parse(argc, argv, &cfg);
+   sslhcfg_print(&cfg, 0);
+   config_resolve_listen(&addr_listen);
+   config_protocols();
+   config_sanity_check(&cfg);
 
    if (cfg.inetd)
    {

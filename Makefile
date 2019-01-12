@@ -25,7 +25,7 @@ CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
 LIBS=
-OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o 
+OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o
 
 CONDITIONAL_TARGETS=
 
