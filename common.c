@@ -134,6 +134,10 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
        check_res_dump(CR_DIE, res, addr, "setsockopt(SO_REUSEADDR)");
 
+       int qlen = 5;
+       res = setsockopt((*sockfd)[i], SOL_SOCKET, TCP_FASTOPEN, (char*)&qlen, sizeof(qlen));
+       check_res_dump(CR_WARN, res, addr, "setsockopt(TCP_FASTOPEN)");
+
        if (addr->ai_flags & SO_KEEPALIVE) {
            res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
            check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
