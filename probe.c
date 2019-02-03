@@ -1,7 +1,7 @@
 /*
 # probe.c: Code for probing protocols
 #
-# Copyright (C) 2007-2015  Yves Rutschle
+# Copyright (C) 2007-2019  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -360,11 +360,18 @@ int probe_client_protocol(struct connection *cnx)
 
         if (! p->probe) continue;
 
+        if (cfg.verbose) fprintf(stderr, "probing for %s\n", p->name);
+
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
         if ((i == cfg.protocols_len - 1) && (!strcmp(p->name, "anyprot")))
             break;
 
-        if (cfg.verbose) fprintf(stderr, "probing for %s\n", p->name);
+        if (p->minlength_is_present && (cnx->q[1].deferred_data_size < p->minlength )) {
+            fprintf(stderr, "input too short, %d bytes but need %d\n", cnx->q[1].deferred_data_size , p->minlength);
+            again++;
+            continue;
+        }
+
         res = p->probe(cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size, p);
         if (cfg.verbose) fprintf(stderr, "probed for %s: %s\n", p->name, probe_str[res]);
 

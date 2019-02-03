@@ -31,11 +31,11 @@ my $SSH_MIX_SSL =       1;
 # coverage, but do not necessarily result in an actual test
 # (e.g. some tests need to be run with valgrind to check all
 # memory management code).
-my $RB_CNX_NOSERVER =           0;
-my $RB_PARAM_NOHOST =           0;
-my $RB_WRONG_USERNAME =         0;
-my $RB_OPEN_PID_FILE =          0;
-my $RB_RESOLVE_ADDRESS =        0;
+my $RB_CNX_NOSERVER =           1;
+my $RB_PARAM_NOHOST =           1;
+my $RB_WRONG_USERNAME =         1;
+my $RB_OPEN_PID_FILE =          1;
+my $RB_RESOLVE_ADDRESS =        1;
 
 `lcov --directory . --zerocounters`;
 
@@ -162,12 +162,10 @@ sub test_probes {
                 }
             }
         } elsif ($p->{name} eq 'regex') {
-            foreach my $pattern (@{$p->{regex_patterns}}) {
-                $pattern =~ /(\w+)/;
-                my $out = $1;
+            foreach my $test (@{$p->{test_patterns}}) {
                 test_probe(
-                    data => $out,
-                    expected => $p->{name},
+                    data => $test->{pattern},
+                    expected => $test->{result},
                     %opts
                 );
             }
@@ -199,6 +197,7 @@ foreach my $s (@{$conf->fetch_array("protocols")}) {
 
 
 my @binaries = ('sslh-select', 'sslh-fork');
+
 for my $binary (@binaries) {
     warn "Testing $binary\n";
 
@@ -206,10 +205,9 @@ for my $binary (@binaries) {
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        #my $cmd = "./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
-        my $cmd = "./$binary -v -f -u $user -Ftest.cfg";
+        my $cmd = "./$binary -v 3 -f -u $user -Ftest.cfg";
         verbose_exec $cmd;
-        #exec "valgrind --leak-check=full ./$binary -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
+        #exec "valgrind --leak-check=full ./$binary -v 3 -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
         exit 0;
     }
     warn "spawned $sslh_pid\n";
@@ -294,7 +292,7 @@ if ($RB_CNX_NOSERVER) {
     print "***Test: Connecting to non-existant server\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        exec "./sslh-select -v -f -u $user --listen localhost:$sslh_port --ssh localhost:$no_listen --ssl localhost:$no_listen -P $pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen localhost:$sslh_port --ssh localhost:$no_listen --tls localhost:$no_listen -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
 
@@ -327,7 +325,7 @@ if ($RB_PARAM_NOHOST) {
     print "***Test: No hostname in address\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        exec "./sslh-select -v -f -u $user --listen $sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen $sslh_port --ssh $ssh_address --tls $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
     waitpid $sslh_pid, 0;
@@ -341,7 +339,7 @@ if ($RB_WRONG_USERNAME) {
     print "***Test: Changing to non-existant username\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        exec "./sslh-select -v -f -u ${user}_doesnt_exist --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P $pidfile";
+        exec "./sslh-select -v 3 -f -u ${user}_doesnt_exist --listen localhost:$sslh_port --ssh $ssh_address --tls $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
     waitpid $sslh_pid, 0;
@@ -355,7 +353,7 @@ if ($RB_OPEN_PID_FILE) {
     print "***Test: Can't open PID file\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        exec "./sslh-select -v -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --ssl $ssl_address -P /dont_exist/$pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --tls $ssl_address -P /dont_exist/$pidfile";
         # You don't have a /dont_exist/ directory, do you?!
     }
     warn "spawned $sslh_pid\n";
@@ -371,7 +369,7 @@ if ($RB_RESOLVE_ADDRESS) {
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        exec "./sslh-select -v -f -u $user --listen blahblah.dontexist:9000 --ssh $ssh_address --ssl $ssl_address -P $pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen blahblah.dontexist:9000 --ssh $ssh_address --tls $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
     waitpid $sslh_pid, 0;

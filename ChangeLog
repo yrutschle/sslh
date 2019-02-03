@@ -1,3 +1,12 @@
+vNEXT:
+	Added 'minlength' option to skip a probe if less
+	than that many bytes have been received (mostly for
+	regex)
+
+	Moved configuration and command-line management to
+	use conf2struct. Hopefully this should be transparent
+	to users.
+
 v1.20: 20NOV2018
 	Added support for socks5 protocol (Eugene Protozanov)
 
