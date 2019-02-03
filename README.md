@@ -49,6 +49,11 @@ For Fedora, you'll need packages `libconfig` and
 If you can't find `libconfig`, or just don't want a
 configuration file, set `USELIBCONFIG=` in the Makefile.
 
+If you want to rebuild `sslh-conf.c` (after a `make
+distclean` for example), you will also need to add
+[conf2struct](https://www.rutschle.net/tech/conf2struct/README.html)
+to your path.
+
 Compilation
 -----------
 
