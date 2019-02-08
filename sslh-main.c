@@ -258,7 +258,8 @@ int main(int argc, char *argv[])
 
    memset(&cfg, 0, sizeof(cfg));
    sslhcfg_cl_parse(argc, argv, &cfg);
-   sslhcfg_print(&cfg, 0);
+   if (cfg.verbose > 3)
+       sslhcfg_fprint(stderr, &cfg, 0);
    config_resolve_listen(&addr_listen);
    config_protocols();
    config_sanity_check(&cfg);
