@@ -86,6 +86,24 @@ int get_fd_sockets(int *sockfd[])
     return sd;
 }
 
+/* Set TCP_FASTOPEN on listening socket if all client protocols support it */
+int make_listen_tfo(int s)
+{
+    int i, qlen = 5;
+
+    /* Don't do it if not supported */
+    if (!TCP_FASTOPEN)
+        return;
+
+    /* Don't do it if any protocol does not specify it */
+    for (i = 0; i < cfg.protocols_len; i++) {
+        if (! cfg.protocols[i].tfo_ok)
+            return;
+    }
+
+    return setsockopt(s, SOL_SOCKET, TCP_FASTOPEN, (char*)&qlen, sizeof(qlen));
+}
+
 /* Starts listening sockets on specified addresses.
  * IN: addr[], num_addr
  * OUT: *sockfd[]  pointer to newly-allocated array of file descriptors
@@ -133,6 +151,9 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        one = 1;
        res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
        check_res_dump(CR_DIE, res, addr, "setsockopt(SO_REUSEADDR)");
+
+       res = make_listen_tfo((*sockfd)[i]);
+       check_res_dump(CR_WARN, res, addr, "setsockopt(TCP_FASTOPEN)");
 
        if (addr->ai_flags & SO_KEEPALIVE) {
            res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
