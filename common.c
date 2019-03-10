@@ -277,6 +277,11 @@ int connect_addr(struct connection *cnx, int fd_from)
             log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
                         cnx->proto->name, strerror(errno));
         } else {
+            one = 1;
+            // indicate desire to use TCP Fast Open
+            setsockopt(fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT, &one, sizeof(one));
+            // no need to check return value; if it's not supported, that's okay
+
             if (cfg.transparent) {
                 res = bind_peer(fd, fd_from);
                 CHECK_RES_RETURN(res, "bind_peer");
@@ -288,7 +293,6 @@ int connect_addr(struct connection *cnx, int fd_from)
                 close(fd);
             } else {
                 if (cnx->proto->keepalive) {
-                    one = 1;
                     res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
                     CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)");
                 }
