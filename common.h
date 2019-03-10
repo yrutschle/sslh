@@ -67,6 +67,14 @@
 #define IP_FREEBIND 0
 #endif
 
+#ifndef TCP_FASTOPEN
+#define TCP_FASTOPEN 0
+#endif
+
+#ifndef TCP_FASTOPEN_CONNECT
+#define TCP_FASTOPEN_CONNECT 30 /* Attempt FastOpen with connect.  */
+#endif
+
 enum connection_state {
     ST_PROBING=1,    /* Waiting for timeout to find where to forward */
     ST_SHOVELING   /* Connexion is established */
