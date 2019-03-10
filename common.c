@@ -278,9 +278,8 @@ int connect_addr(struct connection *cnx, int fd_from)
                         cnx->proto->name, strerror(errno));
         } else {
             one = 1;
-            // indicate desire to use TCP Fast Open
             setsockopt(fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT, &one, sizeof(one));
-            // no need to check return value; if it's not supported, that's okay
+            /* no need to check return value; if it's not supported, that's okay */
 
             if (cfg.transparent) {
                 res = bind_peer(fd, fd_from);
@@ -288,9 +287,16 @@ int connect_addr(struct connection *cnx, int fd_from)
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
-                log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
-                            cnx->proto->name, strerror(errno));
-                close(fd);
+                switch (errno) {
+                case EINPROGRESS: 
+                    /* Can't be done yet, or TFO already done */
+                    break;
+
+                default:
+                    log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
+                                cnx->proto->name, strerror(errno));
+                    close(fd);
+                }
             } else {
                 if (cnx->proto->keepalive) {
                     res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
