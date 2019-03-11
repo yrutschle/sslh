@@ -49,6 +49,17 @@ sub verbose_exec
     }
 }
 
+# We want to keep track of tests to print a report at the
+# end, so we centralise all calls to Test::More::is here
+my $cnt = 1;   # test counter
+my @results;
+sub my_is {
+    my ($a, $b, $desc) = @_;
+
+    my $res =  is($a, $b, $desc);
+    push @results, [$cnt++, $desc, $res];
+}
+
 
 
 # For SNI/ALPN, build a protocol name as such:
@@ -94,8 +105,8 @@ sub test_probe {
     close $cnx;
 
     $opts{expected} =~ s/^ssl/tls/; # to remove in 1.21
-    is($prefix, $opts{expected}, "probe $opts{expected} connected correctly");
-    is($data, $opts{data}, "data shoveled correctly");
+    my_is($prefix, $opts{expected}, "$opts{binary}:$opts{expected}: probe connected correctly");
+    my_is($data, $opts{data}, "$opts{binary}:$opts{expected}: data shoveled correctly");
 }
 
 # Test all probes, with or without fragmentation
@@ -226,7 +237,7 @@ for my $binary (@binaries) {
             sleep 13;
             print $cnx_h $test_data;
             my $data = <$cnx_h>;
-            is($data, "ssh: $test_data", "Shy SSH connection");
+            my_is($data, "ssh: $test_data", "$binary: Shy SSH connection");
         }
     }
 
@@ -243,11 +254,11 @@ for my $binary (@binaries) {
                 sleep 3;
                 print $cnx_h $test_data;
                 my $data_h = <$cnx_h>;
-                is($data_h, "ssh: $test_data", "SSH during SSL being established");
+                my_is($data_h, "ssh: $test_data", "$binary: SSH during SSL being established");
             }
             my $data;
             my $n = sysread $cnx_l, $data, 1024;
-            is($data, "tls: $ssl_test_data", "SSL connection interrupted by SSH");
+            my_is($data, "tls: $ssl_test_data", "$binary: SSL connection interrupted by SSH");
         }
     }
 
@@ -264,21 +275,21 @@ for my $binary (@binaries) {
                 print $cnx_l $ssl_test_data;
                 my $data;
                 my $n = sysread $cnx_l, $data, 1024;
-                is($data, "tls: $ssl_test_data", "SSL during SSH being established");
+                my_is($data, "tls: $ssl_test_data", "$binary: SSL during SSH being established");
             }
             print $cnx_h $test_data;
             my $data = <$cnx_h>;
-            is($data, "ssh: $test_data", "SSH connection interrupted by SSL");
+            my_is($data, "ssh: $test_data", "$binary: SSH connection interrupted by SSL");
         }
     }
 
 
     if ($PROBES_NOFRAG) {
-        test_probes(no_frag => 1);
+        test_probes(no_frag => 1, binary => $binary);
     }
 
     if ($PROBES_AGAIN) {
-        test_probes;
+        test_probes(binary => $binary);
     }
 
     my $pid = `cat $pidfile`;
@@ -331,7 +342,7 @@ if ($RB_PARAM_NOHOST) {
     waitpid $sslh_pid, 0;
     my $code = $? >> 8;
     warn "exited with $code\n";
-    is($code, 1, "Exit status on illegal option");
+    my_is($code, 1, "Exit status on illegal option");
 }
 
 # Robustness: User does not exist
@@ -345,7 +356,7 @@ if ($RB_WRONG_USERNAME) {
     waitpid $sslh_pid, 0;
     my $code = $? >> 8;
     warn "exited with $code\n";
-    is($code, 2, "Exit status on non-existant username");
+    my_is($code, 2, "Exit status on non-existant username");
 }
 
 # Robustness: Can't open PID file
@@ -360,7 +371,7 @@ if ($RB_OPEN_PID_FILE) {
     waitpid $sslh_pid, 0;
     my $code = $? >> 8;
     warn "exited with $code\n";
-    is($code, 3, "Exit status if can't open PID file");
+    my_is($code, 3, "Exit status if can't open PID file");
 }
 
 # Robustness: Can't resolve address
@@ -375,7 +386,7 @@ if ($RB_RESOLVE_ADDRESS) {
     waitpid $sslh_pid, 0;
     my $code = $? >> 8;
     warn "exited with $code\n";
-    is($code, 4, "Exit status if can't resolve address");
+    my_is($code, 4, "Exit status if can't resolve address");
 }
 
 `lcov --directory . --capture --output-file sslh_cov.info`;
@@ -383,3 +394,17 @@ if ($RB_RESOLVE_ADDRESS) {
 
 `killall echosrv`;
 
+
+format test_results_top =
+ID  | Description                                                       | Status
+----+-------------------------------------------------------------------+-------
+.
+
+format test_results = 
+@>> | @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< |   @>>
+$_->[0], $_->[1], $_->[2] ? "OK" : "NOK"
+.
+
+format_name STDOUT "test_results";
+format_top_name STDOUT "test_results_top";
+map { write; } @results;
