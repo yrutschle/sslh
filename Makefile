@@ -97,6 +97,15 @@ $(MAN): sslh.pod Makefile
 release:
 	git archive master --prefix="sslh-$(VERSION)/" | gzip > /tmp/sslh-$(VERSION).tar.gz
 
+# Build docker image
+docker:
+	docker image build -t "sslh:${VERSION}" .
+	docker image tag "sslh:${VERSION}" sslh:latest
+
+docker-clean:
+	yes | docker image rm "sslh:${VERSION}" sslh:latest
+	yes | docker image prune
+
 # generic install: install binary and man page
 install: sslh $(MAN)
 	mkdir -p $(DESTDIR)/$(BINDIR)

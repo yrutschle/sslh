@@ -450,6 +450,54 @@ many connections to ssh from the same IP address...)
 
 See example files in scripts/fail2ban.
 
+Docker image
+------------
+
+How to use
+
+---
+
+Build docker image
+
+    make docker
+
+
+```bash
+docker container run \
+  --rm \
+  -it \
+  --listen=0.0.0.0:443 \
+  --ssh=hostname:22 \
+  --tlshostname:443 \
+  sslh:latest
+```
+
+docker-compose example
+
+```
+---
+version: "3"
+
+services:
+  sslh:
+    image: sslh:latest
+    hostname: sslh
+    ports:
+      - 443:443/tcp
+    command: --listen=0.0.0.0:443 --tlshostname:443 --openvpn=openvpn:1194
+    depends_on:
+      - nginx
+      - openvpn
+
+  nginx:
+    image: nginx
+    hostname: nginx
+
+  openvpn:
+    image: openvpn:latest
+    hostname: openvpn
+```
+
 Comments? Questions?
 ====================
 
