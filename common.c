@@ -239,7 +239,7 @@ int bind_peer(int fd, int fd_from)
     /* getpeername can fail with ENOTCONN if connection was dropped before we
      * got here */
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
-    CHECK_RES_RETURN(res, "getpeername");
+    CHECK_RES_RETURN(res, "getpeername", res);
 
     /* if the destination is the same machine, there's no need to do bind */
     if (is_same_machine(&from))
@@ -251,16 +251,16 @@ int bind_peer(int fd, int fd_from)
 #else
     if (from.ai_addr->sa_family==AF_INET) { /* IPv4 */
         res = setsockopt(fd, IPPROTO_IP, IP_BINDANY, &trans, sizeof(trans));
-        CHECK_RES_RETURN(res, "setsockopt IP_BINDANY");
+        CHECK_RES_RETURN(res, "setsockopt IP_BINDANY", res);
 #ifdef IPV6_BINDANY
     } else { /* IPv6 */
         res = setsockopt(fd, IPPROTO_IPV6, IPV6_BINDANY, &trans, sizeof(trans));
-        CHECK_RES_RETURN(res, "setsockopt IPV6_BINDANY");
+        CHECK_RES_RETURN(res, "setsockopt IPV6_BINDANY", res);
 #endif /* IPV6_BINDANY */
     }
 #endif /* IP_TRANSPARENT / IP_BINDANY */
     res = bind(fd, from.ai_addr, from.ai_addrlen);
-    CHECK_RES_RETURN(res, "bind");
+    CHECK_RES_RETURN(res, "bind", res);
 
     return 0;
 }
@@ -281,7 +281,7 @@ int connect_addr(struct connection *cnx, int fd_from)
     from.ai_addrlen = sizeof(ss);
 
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
-    CHECK_RES_RETURN(res, "getpeername");
+    CHECK_RES_RETURN(res, "getpeername", res);
 
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
@@ -304,7 +304,7 @@ int connect_addr(struct connection *cnx, int fd_from)
 
             if (cfg.transparent) {
                 res = bind_peer(fd, fd_from);
-                CHECK_RES_RETURN(res, "bind_peer");
+                CHECK_RES_RETURN(res, "bind_peer", res);
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
             if (res == -1) {
@@ -321,7 +321,7 @@ int connect_addr(struct connection *cnx, int fd_from)
             } else {
                 if (cnx->proto->keepalive) {
                     res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
-                    CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)");
+                    CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)", res);
                 }
                 return fd;
             }
@@ -428,7 +428,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
        }
    }
 
-   CHECK_RES_RETURN(size_r, "read");
+   CHECK_RES_RETURN(size_r, "read",FD_CNXCLOSED);
 
    if (size_r == 0)
       return FD_CNXCLOSED;
@@ -453,7 +453,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
        return FD_STALLED;
    }
 
-   CHECK_RES_RETURN(size_w, "write");
+   CHECK_RES_RETURN(size_w, "write", FD_CNXCLOSED);
 
    return size_w;
 }
@@ -625,7 +625,7 @@ int check_access_rights(int in_socket, const char* service)
     int res;
 
     res = getpeername(in_socket, &peer.saddr, &size);
-    CHECK_RES_RETURN(res, "getpeername");
+    CHECK_RES_RETURN(res, "getpeername", res);
 
     /* extract peer address */
     res = getnameinfo(&peer.saddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);

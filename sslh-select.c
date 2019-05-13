@@ -44,12 +44,12 @@ int set_nonblock(int fd)
     int flags;
 
     flags = fcntl(fd, F_GETFL);
-    CHECK_RES_RETURN(flags, "fcntl");
+    CHECK_RES_RETURN(flags, "fcntl", -1);
 
     flags |= O_NONBLOCK;
 
     flags = fcntl(fd, F_SETFL, flags);
-    CHECK_RES_RETURN(flags, "fcntl");
+    CHECK_RES_RETURN(flags, "fcntl", -1);
 
     return flags;
 }
@@ -93,7 +93,7 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
     struct connection *new;
 
     in_socket = accept(listen_socket, 0, 0);
-    CHECK_RES_RETURN(in_socket, "accept");
+    CHECK_RES_RETURN(in_socket, "accept", -1);
 
     if (!fd_is_in_range(in_socket)) {
         close(in_socket);

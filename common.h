@@ -42,10 +42,10 @@
        exit(1);         \
     }
 
-#define CHECK_RES_RETURN(res, str) \
+#define CHECK_RES_RETURN(res, str, ret) \
     if (res == -1) {                                    \
         log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
-        return res;                                     \
+        return ret;                                     \
     } 
 
 #define CHECK_ALLOC(a, str) \
