@@ -7,7 +7,7 @@ else
 	QUIET=0
 fi
 
-if ! `(git status | grep -q "On branch") 2> /dev/null`; then
+if [ ! -d .git ] || ! `(git status | grep -q "On branch") 2> /dev/null`; then
         # If we don't have git, we can't work out what
         # version this is. It must have been downloaded as a
         # zip file. 
@@ -25,7 +25,7 @@ if ! `(git status | grep -q "On branch") 2> /dev/null`; then
         fi
 fi
 
-if head=`git rev-parse --verify HEAD 2>/dev/null`; then
+if [ -d .git ] && head=`git rev-parse --verify HEAD 2>/dev/null`; then
 	# generate the version info based on the tag
 	release=`(git describe --tags || git --describe || git describe --all --long) \
 		2>/dev/null | tr -d '\n'`
