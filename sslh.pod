@@ -131,7 +131,7 @@ inside your network to just connect directly to B<httpd>.
 Also, B<sslh> probes for SSLv3 (or TLSv1) handshake and will
 reject connections from clients requesting SSLv2. This is
 compliant with RFC6176 which prohibits the usage of SSLv2. If
-you wish to accept SSLv2, use B<--default> instead.
+you wish to accept SSLv2, use B<--anyprot> instead.
 
 =item B<--ssh> I<target address>
 
