@@ -1,10 +1,12 @@
 [Unit]
-Description=SSL/SSH multiplexer
+Description=SSL/SSH multiplexer for %I
+Requires=sslh@%I.socket
+PartOf=sslh%I.socket
 After=network.target
 
 [Service]
-EnvironmentFile=/etc/conf.d/sslh
-ExecStart=/usr/sbin/sslh --foreground $DAEMON_OPTS
+EnvironmentFile=/etc/conf.d/sslh-%I
+ExecStart=/usr/sbin/sslh -F/etc/sslh/%I.cfg -f -v $DAEMON_OPTS
 KillMode=process
 #Hardening
 PrivateTmp=true
