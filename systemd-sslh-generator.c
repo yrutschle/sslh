@@ -24,6 +24,9 @@ static void free_file_list(FileList *fl) {
     }
 }
 
+static FILE *err_log;
+static bool systemd_invoked = false;
+
 static char *resolve_listen(const char *hostname, const char *port) {
     char *conn = malloc(strlen(hostname) + strlen(port) + 2);
     CHECK_ALLOC(conn, "malloc")
@@ -42,8 +45,8 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
     config_init(&config);
     if (config_read_file(&config, filename) == CONFIG_FALSE) {
         if (config_error_line(&config) != 0) {
-            fprintf(stderr,
-                    "%s%d%s\n",
+            fprintf(err_log,
+                    "systemd-sslh-generator: %s%d%s\n",
                     filename,
                     config_error_line(&config),
                     config_error_text(&config));
@@ -58,10 +61,9 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
             for (int i = 0; i < len; i++) {
                 addr = config_setting_get_elem(setting, i);
                 if (!(config_setting_lookup_string(addr, "host", &hostname) && config_setting_lookup_string(addr, "port", &port))) {
-                    fprintf(stderr,
-                            "line %d:Incomplete specification (hostname and port required)\n",
-                            config_setting_source_line(addr)
-                            );
+                    fprintf(err_log,
+                            "systemd-sslh-generator: line %d:Incomplete specification (hostname and port required)\n",
+                            config_setting_source_line(addr));
                     return -1;
                 } else {
                     (*listen)[i] = resolve_listen(hostname, port);
@@ -90,7 +92,6 @@ static int write_socket_unit(FILE *socket, char *listen[], int num_addr, const c
 }
 
 static int gen_sslh_config(char *runtime_unit_dir) {
-    const bool systemd_invoked = runtime_unit_dir && *runtime_unit_dir;
     int status = 0;
     const char *unit_file = "/sslh@", *config_dir = "/etc/sslh/";
     char **listen;
@@ -142,18 +143,17 @@ static int gen_sslh_config(char *runtime_unit_dir) {
         strcat(full_path, fa->name);
         FILE *config = fopen(full_path, "r");
         if (!config) {
-            const char *error_fmt = "Could not open config file '%s':";
-            const size_t error_msg_len = strlen(error_fmt) + full_path_len;
-            char error_msg[error_msg_len];
-            snprintf(error_msg, error_msg_len, error_fmt, full_path);
-            perror(error_msg);
-            return -1;
+            fprintf(err_log,
+                    "systemd-sslh-generator: Could not open config file '%s': %s",
+                    full_path,
+                    strerror(errno));
+            return errno;
         } else {
             fclose(config);
             int num_addr = get_listen_from_conf(full_path, &listen);
-            if (num_addr < 0) {
-                fprintf(stderr,
-                        "sslh config: '%s' contains no valid listen configurations!\n",
+            if (num_addr <= 0) {
+                fprintf(err_log,
+                        "systemd-sslh-generator: sslh config '%s' contains no valid listen configurations!\n",
                         fa->name);
                 status |= -1;
                 continue;
@@ -172,12 +172,11 @@ static int gen_sslh_config(char *runtime_unit_dir) {
                 strcat(runtime_conf, unit_file_path);
                 runtime_conf_fd = fopen(runtime_conf, "w");
                 if (!runtime_conf_fd) {
-                    const char *error_fmt = "Could not open '%s' to generate socket configuration:";
-                    const size_t error_msg_len = strlen(error_fmt) + runtime_len;
-                    char error_msg[error_msg_len];
-                    snprintf(error_msg, error_msg_len, error_fmt, runtime_conf);
-                    perror(error_msg);
-                    status |= -1;
+                    fprintf(err_log,
+                            "systemd-sslh-generator: Could not open '%s' to generate socket configuration: %s",
+                            runtime_conf,
+                            strerror(errno));
+                    status |= errno;
                     continue;
                 }
             }
@@ -190,7 +189,7 @@ static int gen_sslh_config(char *runtime_unit_dir) {
 //                for (size_t i = 0; i < num_listen_addresses; i++) {
 //                    for (size_t j = 0; j < num_addr; j++) {
 //                        if (strcmp(*(listen_addresses + i), *(listen + j)) == 0) {
-//                            fprintf(stderr, "Overlapping listen addresses across sslh configurations!");
+//                            fprintf(err_log, "systemd-sslh-generator: Overlapping listen addresses across sslh configurations!");
 //                            return -1;
 //                        }
 //                    }
@@ -222,7 +221,20 @@ static int gen_sslh_config(char *runtime_unit_dir) {
 
 int main(int argc, char *argv[]) {
     if (argc == 1 || argc == 4) {
-        return gen_sslh_config(argc == 1 ? "" : argv[1]) < 0 ? -1 : 0;
+        systemd_invoked = argc == 4;
+        if (systemd_invoked) {
+            err_log = fopen("/dev/kmsg", "w");
+            if (!err_log) {
+                return -1;
+            }
+        } else {
+            err_log = stderr;
+        }
+        const int r = gen_sslh_config(systemd_invoked ? argv[1] : "");
+        if (systemd_invoked) {
+            fclose(err_log);
+        }
+        return r < 0 ? -1 : 0;
     } else {
         printf("This program takes three or no arguments.\n");
         return -1;
