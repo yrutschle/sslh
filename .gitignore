@@ -5,6 +5,7 @@ cscope.*
 echosrv
 sslh-fork
 sslh-select
+systemd-sslh-generator
 sslh.8.gz
 tags
 version.h
