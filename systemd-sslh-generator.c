@@ -97,14 +97,19 @@ static void write_socket_unit(FILE *socket, char *listen[], int num_addr, const 
             "[Unit]\n"
             "Before=sslh@%s.service\n"
             "SourcePath=%s\n"
+            "PartOf=sslh@%s.service\n"
             "Documentation=man:sslh(8) man:systemd-sslh-generator(8)\n\n"
             "[Socket]\n"
             "FreeBind=true\n",
             cfg,
-            source);
+            source,
+            cfg);
     for (int i = 0; i < num_addr; i++) {
         fprintf(socket, "ListenStream=%s\n", listen[i]);
     }
+    fprintf(socket,
+           "\n[Install]\n"
+           "WantedBy=sockets.target\n");
 }
 
 static int write_unit_dropin(const char *runtime_unit_dir, const bool is_fork, const char *cfg) {
