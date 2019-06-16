@@ -12,6 +12,9 @@ vNEXT:
 	use conf2struct. Hopefully this should be transparent
 	to users.
 
+	Update Let's Encrypt entry in example.cfg for tls-alpn-01
+	challenges; tls-sni-* challenges are now deprecated.
+
 v1.20: 20NOV2018
 	Added support for socks5 protocol (Eugene Protozanov)
 
