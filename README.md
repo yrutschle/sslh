@@ -6,12 +6,12 @@ them further based on tests performed on the first data
 packet sent by the remote client.
 
 Probes for HTTP, TLS/SSL (including SNI and ALPN), SSH,
-OpenVPN, tinc, XMPP are implemented, and any other protocol
-that can be tested using a regular expression, can be
-recognised. A typical use case is to allow serving several
-services on port 443 (e.g. to connect to SSH from inside a
-corporate firewall, which almost never block port 443) while
-still serving HTTPS on that port. 
+OpenVPN, tinc, XMPP, SOCKS5, are implemented, and any other
+protocol that can be tested using a regular expression, can
+be recognised. A typical use case is to allow serving
+several services on port 443 (e.g. to connect to SSH from
+inside a corporate firewall, which almost never block port
+443) while still serving HTTPS on that port. 
 
 Hence `sslh` acts as a protocol demultiplexer, or a
 switchboard. With the SNI and ALPN probe, it makes a good
