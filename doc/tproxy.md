@@ -18,7 +18,7 @@ Two Raspberry Pis on my home LAN:
 * Pi B: 192.168.1.123 - HTTP server (port 8000), SSH server (port 1022 on PiB).
 * I send traffic from the internet to my router's external port 443 then use a port forward rule in my router to map that to internal port 4433 where sslh is listening.
 
-![Architecture](tproxy.jpg)
+![Architecture](tproxy.svg)
 
 `sslh` build
 ------------
