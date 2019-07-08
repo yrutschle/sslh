@@ -44,5 +44,5 @@ You can subscribe to the `sslh` mailing list here:
 <http://rutschle.net/cgi-bin/mailman/listinfo/sslh>
 
 This mailing list should be used for discussion, feature
-requests, and will be the prefered channel for announcements.
+requests, and will be the preferred channel for announcements.
 
