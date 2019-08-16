@@ -15,8 +15,8 @@
    viewBox="0 0 297 210"
    version="1.1"
    id="svg288"
-   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
-   sodipodi:docname="Transparent Proxy to Two Hosts - Diagram.svg">
+   inkscape:version="0.92.1 r15371"
+   sodipodi:docname="tproxy.svg">
   <defs
      id="defs282">
     <linearGradient
@@ -44,16 +44,16 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.01"
-     inkscape:cx="511.12411"
-     inkscape:cy="388.13656"
+     inkscape:cx="388.35183"
+     inkscape:cy="384.17616"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:snap-page="true"
-     inkscape:window-width="1920"
-     inkscape:window-height="1005"
-     inkscape:window-x="-9"
-     inkscape:window-y="-9"
+     inkscape:window-width="1600"
+     inkscape:window-height="836"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
      inkscape:window-maximized="1"
      showguides="false" />
   <metadata
@@ -324,19 +324,7 @@
          x="114.9891"
          y="148.08023"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4.23333311px;font-family:'Courier New';-inkscape-font-specification:'Courier New';fill:#c98f26;fill-opacity:0.88627451;stroke-width:0.28349057">4433</tspan></text>
-    <flowRoot
-       xml:space="preserve"
-       id="flowRoot5149"
-       style="font-style:normal;font-weight:normal;font-size:40px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
-       transform="matrix(0.26458333,0,0,0.26458333,14.007352,80.515114)"><flowRegion
-         id="flowRegion5151"><rect
-           id="rect5153"
-           width="174.50981"
-           height="50.980392"
-           x="735.29413"
-           y="170.17139" /></flowRegion><flowPara
-         id="flowPara5155"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:21.33333397px;font-family:'Courier New';-inkscape-font-specification:'Courier New';fill:#f40000;fill-opacity:1">SSLH</flowPara></flowRoot>    <text
+    <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:3.52777767px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
        x="158.75"
@@ -598,5 +586,40 @@
            y="370.92853"
            style="fill:#009600;fill-opacity:1" /></flowRegion><flowPara
          id="flowPara5217-3-37-34"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:14.66666698px;font-family:'Courier New';-inkscape-font-specification:'Courier New Bold';fill:#009600;fill-opacity:1">ssh</flowPara></flowRoot>  </g>
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:14.66666698px;font-family:'Courier New';-inkscape-font-specification:'Courier New Bold';fill:#009600;fill-opacity:1">ssh</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5149"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       transform="matrix(0.26458333,0,0,0.26458333,14.007352,80.515114)"><flowRegion
+         id="flowRegion5151"><rect
+           id="rect5153"
+           width="174.50981"
+           height="50.980392"
+           x="735.29413"
+           y="170.17139" /></flowRegion><flowPara
+         id="flowPara5155"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:21.33333397px;font-family:'Courier New';-inkscape-font-specification:'Courier New';fill:#f40000;fill-opacity:1">SSLH</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5149-3"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       transform="matrix(0.26458333,0,0,0.26458333,-0.7770493,87.031759)"><flowRegion
+         id="flowRegion5151-6"><rect
+           id="rect5153-7"
+           width="174.50981"
+           height="50.980392"
+           x="735.29413"
+           y="170.17139" /></flowRegion><flowPara
+         id="flowPara5155-5"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:21.33333397px;font-family:'Courier New';-inkscape-font-specification:'Courier New';fill:#f40000;fill-opacity:1" /></flowRoot>    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82222223px;line-height:1.25;font-family:STIX;-inkscape-font-specification:STIX;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="187.04207"
+       y="138.77393"
+       id="text160"><tspan
+         sodipodi:role="line"
+         id="tspan158"
+         x="187.04207"
+         y="138.77393"
+         style="stroke-width:0.26458332">SSLH</tspan></text>
+  </g>
 </svg>
