@@ -25,8 +25,7 @@ configuration file, set `USELIBCONFIG=` in the Makefile.
 If you want to rebuild `sslh-conf.c` (after a `make
 distclean` for example), you will also need to add
 [conf2struct](https://www.rutschle.net/tech/conf2struct/README.html)
-(commit 10ea3356b65e712fb000f4d37f00e1dc09c1e722)
-to your path.
+(v1.0) to your path.
 
 Compilation
 -----------
