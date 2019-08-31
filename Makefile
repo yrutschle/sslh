@@ -7,6 +7,7 @@ USELIBPCRE=1	# Use libpcre? (needed for regex on musl)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 USESYSTEMD=     # Make use of systemd socket activation
+USELIBBSD?=     # Use libbsd (needed to update process name in `ps`)
 COV_TEST= 	# Perform test coverage?
 PREFIX?=/usr
 BINDIR?=$(PREFIX)/sbin
@@ -57,6 +58,11 @@ ifneq ($(strip $(USESYSTEMD)),)
         LIBS:=$(LIBS) -lsystemd
         CPPFLAGS+=-DSYSTEMD
 	CONDITIONAL_TARGETS+=systemd-sslh-generator
+endif
+
+ifneq ($(strip $(USELIBBSD)),)
+        LIBS:=$(LIBS) -lbsd
+        CPPFLAGS+=-DLIBBSD
 endif
 
 

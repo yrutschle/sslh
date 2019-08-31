@@ -33,6 +33,10 @@
 #endif
 #endif
 
+#ifdef LIBBSD
+#include <bsd/unistd.h>
+#endif
+
 #include "common.h"
 #include "probe.h"
 
@@ -247,7 +251,7 @@ void config_sanity_check(struct sslhcfg_item* cfg) {
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char* envp[])
 {
 
    extern char *optarg;
@@ -255,6 +259,9 @@ int main(int argc, char *argv[])
    int res, num_addr_listen;
    int *listen_sockets;
 
+#ifdef LIBBSD
+   setproctitle_init(argc, argv, envp);
+#endif
 
    memset(&cfg, 0, sizeof(cfg));
    sslhcfg_cl_parse(argc, argv, &cfg);
