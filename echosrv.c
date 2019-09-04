@@ -106,7 +106,7 @@ void start_echo(int fd)
     strcpy(buffer, prefix);
 
     while (1) {
-        ret = read(fd, buffer + prefix_len, sizeof(buffer));
+        ret = read(fd, buffer + prefix_len, sizeof(buffer) - prefix_len);
         if (ret == -1) {
             fprintf(stderr, "%s", strerror(errno));
             return;
