@@ -143,7 +143,7 @@ int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
 
     q->fd = connect_addr(cnx, cnx->q[0].fd);
     if ((q->fd != -1) && fd_is_in_range(q->fd)) {
-        log_connection(cnx);
+        log_connection(NULL, cnx);
         set_nonblock(q->fd);
         flush_deferred(q);
         if (q->deferred_data) {
@@ -262,7 +262,7 @@ void connect_proxy(struct connection *cnx)
 
     cnx->q[1].fd = out_socket;
 
-    log_connection(cnx);
+    log_connection(NULL, cnx);
 
     shovel_single(cnx);
 

@@ -107,6 +107,13 @@ struct connection {
 #define FD_NODATA       -1
 #define FD_STALLED      -2
 
+/* String description of a connection */
+#define MAX_NAMELENGTH (NI_MAXHOST + NI_MAXSERV + 1)
+struct connection_desc {
+    char peer[MAX_NAMELENGTH], service[MAX_NAMELENGTH],
+        local[MAX_NAMELENGTH], target[MAX_NAMELENGTH];
+};
+
 
 /* common.c */
 void init_cnx(struct connection *cnx);
@@ -114,13 +121,14 @@ int connect_addr(struct connection *cnx, int fd_from);
 int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);
-void log_connection(struct connection *cnx);
+int get_connection_desc(struct connection_desc* desc, const struct connection *cnx);
+void log_connection(struct connection_desc* desc, const struct connection *cnx);
 int check_access_rights(int in_socket, const char* service);
 void setup_signals(void);
 void setup_syslog(const char* bin_name);
 void drop_privileges(const char* user_name, const char* chroot_path);
 void write_pid_file(const char* pidfile);
-void log_message(int type, char* msg, ...);
+void log_message(int type, const char* msg, ...);
 void dump_connection(struct connection *cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 

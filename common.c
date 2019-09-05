@@ -550,7 +550,7 @@ void resolve_name(struct addrinfo **out, char* fullname)
 }
 
 /* Log to syslog or stderr if foreground */
-void log_message(int type, char* msg, ...)
+void log_message(int type, const char* msg, ...)
 {
     va_list ap;
 
@@ -562,48 +562,63 @@ void log_message(int type, char* msg, ...)
     va_end(ap);
 }
 
-/* syslogs who connected to where */
-void log_connection(struct connection *cnx)
+
+/* Fills a connection description; returns 0 on failure */
+int get_connection_desc(struct connection_desc* desc, const struct connection *cnx)
 {
+    int res;
     struct addrinfo addr;
     struct sockaddr_storage ss;
-#define MAX_NAMELENGTH (NI_MAXHOST + NI_MAXSERV + 1)
-    char peer[MAX_NAMELENGTH], service[MAX_NAMELENGTH],
-        local[MAX_NAMELENGTH], target[MAX_NAMELENGTH];
-    int res;
-
-    if (cnx->proto->log_level < 1)
-        return;
 
     addr.ai_addr = (struct sockaddr*)&ss;
     addr.ai_addrlen = sizeof(ss);
 
     res = getpeername(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
-    if (res == -1) return; /* Can happen if connection drops before we get here.
+    if (res == -1) return 0; /* Can happen if connection drops before we get here.
                                In that case, don't log anything (there is no connection) */
-    sprintaddr(peer, sizeof(peer), &addr);
+    sprintaddr(desc->peer, sizeof(desc->peer), &addr);
 
     addr.ai_addrlen = sizeof(ss);
     res = getsockname(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
-    if (res == -1) return;
-    sprintaddr(service, sizeof(service), &addr);
+    if (res == -1) return 0;
+    sprintaddr(desc->service, sizeof(desc->service), &addr);
 
     addr.ai_addrlen = sizeof(ss);
     res = getpeername(cnx->q[1].fd, addr.ai_addr, &addr.ai_addrlen);
-    if (res == -1) return;
-    sprintaddr(target, sizeof(target), &addr);
+    if (res == -1) return 0;
+    sprintaddr(desc->target, sizeof(desc->target), &addr);
 
     addr.ai_addrlen = sizeof(ss);
     res = getsockname(cnx->q[1].fd, addr.ai_addr, &addr.ai_addrlen);
-    if (res == -1) return;
-    sprintaddr(local, sizeof(local), &addr);
+    if (res == -1) return 0;
+    sprintaddr(desc->local, sizeof(desc->local), &addr);
+
+    return 1;
+}
+
+/* syslogs who connected to where 
+ * desc: string description of the connection. if NULL, log_connection will
+ * manage on its own
+ * cnx: connection descriptor
+ * */
+void log_connection(struct connection_desc* desc, const struct connection *cnx)
+{
+    struct connection_desc d;
+
+    if (cnx->proto->log_level < 1)
+        return;
+
+    if (!desc) {
+        desc = &d;
+        get_connection_desc(desc, cnx);
+    }
 
     log_message(LOG_INFO, "%s:connection from %s to %s forwarded from %s to %s\n",
                 cnx->proto->name,
-                peer,
-                service,
-                local,
-                target);
+                desc->peer,
+                desc->service,
+                desc->local,
+                desc->target);
 }
 
 

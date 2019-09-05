@@ -72,6 +72,7 @@ void start_shoveler(int in_socket)
    int res = PROBE_AGAIN;
    int out_socket;
    struct connection cnx;
+   struct connection_desc desc;
 
    init_cnx(&cnx);
    cnx.q[0].fd = in_socket;
@@ -111,7 +112,8 @@ void start_shoveler(int in_socket)
 
    cnx.q[1].fd = out_socket;
 
-   log_connection(&cnx);
+   get_connection_desc(&desc, &cnx);
+   log_connection(&desc, &cnx);
 
    flush_deferred(&cnx.q[1]);
 
