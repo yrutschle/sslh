@@ -30,6 +30,10 @@
 #include <systemd/sd-daemon.h>
 #endif
 
+#ifdef LIBBSD
+#include <bsd/unistd.h>
+#endif
+
 /*
  * Settings that depend on the command line or the config file
  */
@@ -619,6 +623,24 @@ void log_connection(struct connection_desc* desc, const struct connection *cnx)
                 desc->service,
                 desc->local,
                 desc->target);
+}
+
+void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx)
+{
+#ifdef LIBBSD
+    struct connection_desc d;
+
+    if (!desc) {
+        desc = &d;
+        get_connection_desc(desc, cnx);
+    }
+    setproctitle("shovel %s %s->%s => %s->%s",
+        cnx->proto->name,
+        desc->peer,
+        desc->service,
+        desc->local,
+        desc->target);
+#endif
 }
 
 

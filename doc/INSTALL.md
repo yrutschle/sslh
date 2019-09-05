@@ -27,6 +27,9 @@ distclean` for example), you will also need to add
 [conf2struct](https://www.rutschle.net/tech/conf2struct/README.html)
 (v1.0) to your path.
 
+There is optional support to change the process name (as shown in `ps`),
+which requires `libbsd` at runtime, and `libbsd-dev` at compile-time.
+
 Compilation
 -----------
 
@@ -47,6 +50,9 @@ of the Makefile:
 
 *  `USESYSTEMD` compiles support for using systemd socket activation.
    You will need `systemd` headers to compile (`systemd-devel` in Fedora).
+
+* `USELIBBSD` compiles support for updating the process name (as shown
+  by `ps`).
 
 Binaries
 --------

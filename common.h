@@ -123,6 +123,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);
 int get_connection_desc(struct connection_desc* desc, const struct connection *cnx);
 void log_connection(struct connection_desc* desc, const struct connection *cnx);
+void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx);
 int check_access_rights(int in_socket, const char* service);
 void setup_signals(void);
 void setup_syslog(const char* bin_name);

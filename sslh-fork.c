@@ -23,6 +23,10 @@
 #include "common.h"
 #include "probe.h"
 
+#ifdef LIBBSD
+#include <bsd/unistd.h>
+#endif
+
 const char* server_type = "sslh-fork";
 
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
@@ -114,6 +118,7 @@ void start_shoveler(int in_socket)
 
    get_connection_desc(&desc, &cnx);
    log_connection(&desc, &cnx);
+   set_proctitle_shovel(&desc, &cnx);
 
    flush_deferred(&cnx.q[1]);
 
@@ -140,6 +145,24 @@ void stop_listeners(int sig)
     }
 }
 
+void set_listen_procname(int listen_socket)
+{
+#ifdef LIBBSD
+    int res;
+    struct addrinfo addr;
+    struct sockaddr_storage ss;
+    char listen_addr[NI_MAXHOST+1+NI_MAXSERV+1];
+
+    addr.ai_addr = (struct sockaddr*)&ss;
+    addr.ai_addrlen = sizeof(ss);
+    res = getsockname(listen_socket, addr.ai_addr, &addr.ai_addrlen);
+    if (res != -1) {
+        sprintaddr(listen_addr, sizeof(listen_addr), &addr);
+        setproctitle("listener %s", listen_addr);
+    }
+#endif
+}
+
 void main_loop(int listen_sockets[], int num_addr_listen)
 {
     int in_socket, i, res;
@@ -160,6 +183,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
         case 0:
             /* Listening process just accepts a connection, forks, and goes
              * back to listening */
+            set_listen_procname(listen_sockets[i]);
             while (1)
             {
                 in_socket = accept(listen_sockets[i], 0, 0);
