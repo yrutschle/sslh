@@ -189,7 +189,7 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
             err = malloc(errsize = regerror(res, pattern_list[i], NULL, 0));
             CHECK_ALLOC(err, "malloc");
             regerror(res, pattern_list[i], err, errsize);
-            fprintf(stderr, "%s:%s\n", pattern_list[i], err);
+            fprintf(stderr, "%s:%s\n", p->regex_patterns[i], err);
             free(err);
             exit(1);
         }
