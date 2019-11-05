@@ -224,11 +224,11 @@ static void config_protocols()
             cfg.protocols[i].data = (void*)new_tls_data();
             if (cfg.protocols[i].sni_hostnames_len)
                 tls_data_set_list(cfg.protocols[i].data, 0,
-                                  cfg.protocols[i].sni_hostnames,
+                                  (const char**) cfg.protocols[i].sni_hostnames,
                                   cfg.protocols[i].sni_hostnames_len);
             if (cfg.protocols[i].alpn_protocols_len)
                 tls_data_set_list(cfg.protocols[i].data, 1, 
-                                  cfg.protocols[i].alpn_protocols,
+                                  (const char**) cfg.protocols[i].alpn_protocols,
                                   cfg.protocols[i].alpn_protocols_len);
         }
     }
