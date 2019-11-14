@@ -115,7 +115,7 @@ static void printsettings(void)
 }
 
 
-/* To removed in v1.21 */
+/* To be removed in v1.21 */
 const char* ssl_err_msg = "Usage of 'ssl' setting is deprecated and will be removed in v1.21. Please use 'tls' instead\n";
 void ssl_to_tls(char* setting)
 {
@@ -126,7 +126,7 @@ void ssl_to_tls(char* setting)
 }
 
 
-/* Turn 'ssl' command line option to 'tls'. To removed in v1.21 */
+/* Turn 'ssl' command line option to 'tls'. To be removed in v1.21 */
 void cmd_ssl_to_tls(int argc, char* argv[])
 {
     int i;
@@ -135,7 +135,7 @@ void cmd_ssl_to_tls(int argc, char* argv[])
             strcpy(argv[i], "--tls");
             /* foreground option not parsed yet, syslog not open, just print on
              * stderr and hope for the best */
-            fprintf(stderr, ssl_err_msg);
+            fprintf(stderr, "%s", ssl_err_msg);
         }
     }
 }
@@ -224,11 +224,11 @@ static void config_protocols()
             cfg.protocols[i].data = (void*)new_tls_data();
             if (cfg.protocols[i].sni_hostnames_len)
                 tls_data_set_list(cfg.protocols[i].data, 0,
-                                  cfg.protocols[i].sni_hostnames,
+                                  (const char**) cfg.protocols[i].sni_hostnames,
                                   cfg.protocols[i].sni_hostnames_len);
             if (cfg.protocols[i].alpn_protocols_len)
                 tls_data_set_list(cfg.protocols[i].data, 1, 
-                                  cfg.protocols[i].alpn_protocols,
+                                  (const char**) cfg.protocols[i].alpn_protocols,
                                   cfg.protocols[i].alpn_protocols_len);
         }
     }
