@@ -97,12 +97,12 @@ int make_listen_tfo(int s)
 
     /* Don't do it if not supported */
     if (!TCP_FASTOPEN)
-        return;
+        return 0;
 
     /* Don't do it if any protocol does not specify it */
     for (i = 0; i < cfg.protocols_len; i++) {
         if (! cfg.protocols[i].tfo_ok)
-            return;
+            return 0;
     }
 
     return setsockopt(s, SOL_SOCKET, TCP_FASTOPEN, (char*)&qlen, sizeof(qlen));
