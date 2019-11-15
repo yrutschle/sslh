@@ -4,11 +4,31 @@ Compile and install
 Dependencies
 ------------
 
-`sslh` uses [libconfig](http://www.hyperrealm.com/libconfig/)
-and [libwrap](http://packages.debian.org/source/unstable/tcp-wrappers).
+`sslh` uses:
 
-For Debian, these are contained in packages `libwrap0-dev` and
-`libconfig8-dev`.
+* [libconfig](http://www.hyperrealm.com/libconfig/). For
+  Debian this is contained in package `libconfig8-dev`. You
+can compile with or without it using USELIBCONFIG in the
+Makefile.
+
+* [libwrap](http://packages.debian.org/source/unstable/tcp-wrappers).
+    For Debian, this is contained in packages
+`libwrap0-dev`. You
+can compile with or without it using USELIBWRAP in the
+Makefile.
+
+* [libsystemd](http://packages.debian.org/source/unstable/libsystemd-dev), in package `libsystemd-dev`.  You
+can compile with or without it using USESYSTEMD in the
+Makefile.
+
+* [libcap](http://packages.debian.org/source/unstable/libcap-dev), in package `libcap-dev`. You can compile with or without it using USELIBCAP in the Makefile
+
+* libbsd, to enable to change the process name (as shown in
+  `ps`, so each forked process shows what protocol and what
+  connection it is serving),
+which requires `libbsd` at runtime, and `libbsd-dev` at
+compile-time.
+
 
 For OpenSUSE, these are contained in packages libconfig9 and
 libconfig-dev in repository
@@ -19,16 +39,10 @@ For Fedora, you'll need packages `libconfig` and
 
 	yum install libconfig libconfig-devel
 
-If you can't find `libconfig`, or just don't want a
-configuration file, set `USELIBCONFIG=` in the Makefile.
-
 If you want to rebuild `sslh-conf.c` (after a `make
 distclean` for example), you will also need to add
 [conf2struct](https://www.rutschle.net/tech/conf2struct/README.html)
 (v1.0) to your path.
-
-There is optional support to change the process name (as shown in `ps`),
-which requires `libbsd` at runtime, and `libbsd-dev` at compile-time.
 
 Compilation
 -----------
