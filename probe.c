@@ -59,8 +59,6 @@ static struct protocol_probe_desc builtins[] = {
     { "anyprot",    is_true }
 };
 
-static char* on_timeout = "ssh";
-
 /* TODO I think this has to go */
 struct protocol_probe_desc*  get_builtins(void) {
     return builtins;
@@ -70,13 +68,6 @@ int get_num_builtins(void) {
     return ARRAY_SIZE(builtins);
 }
 
-/* Sets the protocol name to connect to in case of timeout */
-void set_ontimeout(const char* name)
-{
-    int res = asprintf(&on_timeout, "%s", name);
-    CHECK_RES_DIE(res, "asprintf");
-}
-
 /* Returns the protocol to connect to in case of timeout; 
  * if not found, return the first protocol specified 
  */
@@ -84,7 +75,7 @@ struct sslhcfg_protocols_item* timeout_protocol(void)
 {
     int i;
     for (i = 0; i < cfg.protocols_len; i++) {
-        if (!strcmp(cfg.protocols[i].name, on_timeout)) return &cfg.protocols[i];
+        if (!strcmp(cfg.protocols[i].name, cfg.on_timeout)) return &cfg.protocols[i];
     }
     return &cfg.protocols[0];
 }
