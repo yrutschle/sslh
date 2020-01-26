@@ -251,7 +251,7 @@ int bind_peer(int fd, int fd_from)
     
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
-    CHECK_RES_DIE(res, "setsockopt");
+    CHECK_RES_DIE(res, "setsockopt IP_TRANSPARENT");
 #else
     if (from.ai_addr->sa_family==AF_INET) { /* IPv4 */
         res = setsockopt(fd, IPPROTO_IP, IP_BINDANY, &trans, sizeof(trans));
