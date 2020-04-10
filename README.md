@@ -46,3 +46,5 @@ You can subscribe to the `sslh` mailing list here:
 This mailing list should be used for discussion, feature
 requests, and will be the preferred channel for announcements.
 
+Of course, check the [FAQ](doc/FAQ.md) first!
+
