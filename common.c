@@ -561,8 +561,8 @@ void log_message(int type, const char* msg, ...)
     va_start(ap, msg);
     if (cfg.foreground)
         vfprintf(stderr, msg, ap);
-    else
-        vsyslog(type, msg, ap);
+
+    vsyslog(type, msg, ap);
     va_end(ap);
 }
 
