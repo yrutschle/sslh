@@ -41,6 +41,9 @@ struct sslhcfg_item cfg;
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
+
+static int do_syslog = 1; /* Should we syslog? controled by syslog_facility = "none" */
+
 #ifdef LIBWRAP
 #include <tcpd.h>
 int allow_severity =0, deny_severity = 0;
@@ -563,9 +566,11 @@ void log_message(int type, const char* msg, ...)
         vfprintf(stderr, msg, ap);
     va_end(ap);
 
-    va_start(ap, msg);
-    vsyslog(type, msg, ap);
-    va_end(ap);
+    if (do_syslog) {
+        va_start(ap, msg);
+        vsyslog(type, msg, ap);
+        va_end(ap);
+    }
 }
 
 
@@ -726,6 +731,11 @@ void setup_signals(void)
 void setup_syslog(const char* bin_name) {
     char *name1, *name2;
     int res, fn;
+
+    if (!strcmp(cfg.syslog_facility, "none")) {
+        do_syslog = 0;
+        return;
+    }
 
     name1 = strdup(bin_name);
     res = asprintf(&name2, "%s[%d]", basename(name1), getpid());
