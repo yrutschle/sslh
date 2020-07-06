@@ -115,6 +115,14 @@ different set-up which enables transparent proxying between
 two different machines. The following may only work if
 `sslh` and the final servers are on the same machine.
 
+Note that getting this to work is very tricky and
+detail-dependant: depending on whether the target server and
+sslh are on the same machine, different machines, or
+different dockers, and tool versions, all seem to change the
+required network configuration somewhat. If it doesn't work,
+it's almost certain that the problem is not linked to `sslh`
+but to the network setup that surrounds it.
+
 Linux:
 
 `sslh` needs extended rights to perform this: you'll need to
