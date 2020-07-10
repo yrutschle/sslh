@@ -147,9 +147,10 @@ void cmd_ssl_to_tls(int argc, char* argv[])
 #ifdef LIBCONFIG
 static int config_resolve_listen(struct addrinfo **listen)
 {
-    int i;
+    int i, res;
     for (i = 0; i < cfg.listen_len; i++) {
-        resolve_split_name(listen, cfg.listen[i].host, cfg.listen[i].port);
+        res = resolve_split_name(listen, cfg.listen[i].host, cfg.listen[i].port);
+        if (res) return res;
 
         /* getaddrinfo returned a list of addresses corresponding to the
          * specification; move the pointer to the end of that list before
@@ -268,7 +269,8 @@ int main(int argc, char *argv[], char* envp[])
    if (!res) exit(1);
    if (cfg.verbose > 3)
        sslhcfg_fprint(stderr, &cfg, 0);
-   config_resolve_listen(&addr_listen);
+   res = config_resolve_listen(&addr_listen);
+   if (res) exit(4);
    config_protocols();
    config_sanity_check(&cfg);
 
