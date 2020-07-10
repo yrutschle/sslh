@@ -264,7 +264,8 @@ int main(int argc, char *argv[], char* envp[])
 #endif
 
    memset(&cfg, 0, sizeof(cfg));
-   sslhcfg_cl_parse(argc, argv, &cfg);
+   res = sslhcfg_cl_parse(argc, argv, &cfg);
+   if (!res) exit(1);
    if (cfg.verbose > 3)
        sslhcfg_fprint(stderr, &cfg, 0);
    config_resolve_listen(&addr_listen);
