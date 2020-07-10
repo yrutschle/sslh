@@ -213,16 +213,17 @@ for my $binary (@binaries) {
     warn "Testing $binary\n";
 
 # Start sslh with the right plumbing
-    my $sslh_pid;
+    my ($sslh_pid, $valgrind);
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
         my $cmd = "./$binary -v 4 -f -u $user -Ftest.cfg";
         verbose_exec $cmd;
+        #$valgrind = 1;
         #exec "valgrind --leak-check=full ./$binary -v 3 -f -u $user --listen localhost:$sslh_port --ssh $ssh_address -ssl $ssl_address -P $pidfile";
         exit 0;
     }
     warn "spawned $sslh_pid\n";
-    sleep 5;  # valgrind can be heavy -- wait 5 seconds
+    sleep 5 if $valgrind;  # valgrind can be heavy -- wait 5 seconds
 
 
     my $test_data = "hello world\n";
@@ -350,7 +351,7 @@ if ($RB_WRONG_USERNAME) {
     print "***Test: Changing to non-existant username\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        exec "./sslh-select -v 3 -f -u ${user}_doesnt_exist --listen localhost:$sslh_port --ssh $ssh_address --tls $ssl_address -P $pidfile";
+        exec "./sslh-select -v 3 -f -u ${user}_doesnt_exist --listen localhost:$no_listen --ssh $ssh_address --tls $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
     waitpid $sslh_pid, 0;
@@ -364,7 +365,7 @@ if ($RB_OPEN_PID_FILE) {
     print "***Test: Can't open PID file\n";
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
-        exec "./sslh-select -v 3 -f -u $user --listen localhost:$sslh_port --ssh $ssh_address --tls $ssl_address -P /dont_exist/$pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen localhost:$no_listen --ssh $ssh_address --tls $ssl_address -P /dont_exist/$pidfile";
         # You don't have a /dont_exist/ directory, do you?!
     }
     warn "spawned $sslh_pid\n";
