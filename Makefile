@@ -102,6 +102,7 @@ $(MAN): sslh.pod Makefile
 # configuration
 release:
 	git archive master --prefix="sslh-$(VERSION)/" | gzip > /tmp/sslh-$(VERSION).tar.gz
+	gpg --detach-sign --armor /tmp/sslh-$(VERSION).tar.gz
 
 # generic install: install binary and man page
 install: sslh $(MAN)
