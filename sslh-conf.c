@@ -1432,7 +1432,6 @@ static int read_compounds(config_setting_t* cfg,
 static int c2s_parse_file(const char* filename, config_t* c, char**errmsg)
 {
     /* Read config file */
-    config_init(c);
     if (config_read_file(c, filename) == CONFIG_FALSE) {
         if (config_error_line(c) != 0) {
            asprintf(errmsg, "%s:%d:%s", 
@@ -1488,7 +1487,7 @@ int sslhcfg_cl_parse(int argc, char* argv[], struct sslhcfg_item* cfg)
         return 0;
     }
 
-
+    config_init(&c);
     if (sslhcfg_conffile->count) {
         if (!c2s_parse_file(sslhcfg_conffile->filename[0], &c, &errmsg)) {
             fprintf(stderr, "%s\n", errmsg);
