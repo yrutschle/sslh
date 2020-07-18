@@ -84,9 +84,6 @@ Uses I<filename> as configuration file. If other
 command-line options are specified, they will override the
 configuration file's settings.
 
-When using the shorthand version, make sure there should be
-no space between B<-F> and the I<filename>.
-
 =item B<-t> I<num>, B<--timeout> I<num>
 
 Timeout before forwarding the connection to the timeout
