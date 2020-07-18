@@ -9,10 +9,10 @@ v1.21: 11JUL2020
 	regex)
 
 	Moved configuration and command-line management to
-	use conf2struct. Hopefully this should be transparent
-	to users, except command line option <-F|--config>
-	no longer defaults to /etc/sslh.cfg, so you have to
+	use conf2struct. Changes are:
+	* command line option <-F|--config> no longer defaults to /etc/sslh.cfg, so you have to
 	specify it explicitly.
+	* command line option <-v|--verbose> takes a mandatory integer parameter
 
 	Update Let's Encrypt entry in example.cfg for tls-alpn-01
 	challenges; tls-sni-* challenges are now deprecated.
