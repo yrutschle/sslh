@@ -36,6 +36,7 @@ my $RB_PARAM_NOHOST =           1;
 my $RB_WRONG_USERNAME =         1;
 my $RB_OPEN_PID_FILE =          1;
 my $RB_RESOLVE_ADDRESS =        1;
+my $RB_CL_PARAMS =              1;
 
 `lcov --directory . --zerocounters`;
 
@@ -343,7 +344,7 @@ if ($RB_PARAM_NOHOST) {
     waitpid $sslh_pid, 0;
     my $code = $? >> 8;
     warn "exited with $code\n";
-    my_is($code, 1, "Exit status on illegal option");
+    my_is($code, 6, "Exit status on illegal option");
 }
 
 # Robustness: User does not exist
@@ -388,6 +389,55 @@ if ($RB_RESOLVE_ADDRESS) {
     my $code = $? >> 8;
     warn "exited with $code\n";
     my_is($code, 4, "Exit status if can't resolve address");
+}
+
+# Robustness: verify all command line options work
+if ($RB_CL_PARAMS) {
+    print "***Test: Command line parameters\n";
+    my $sslh_pid;
+    if (!($sslh_pid = fork)) {
+        my $user = (getpwuid $<)[0]; # Run under current username
+        # This doesn't test --inetd
+        exec "./sslh-select -v 3 -f -u $user -P $pidfile".
+        " -n --transparent --timeout 10 -C /tmp".
+        " --syslog-facility auth --on-timeout ssh".
+        " --listen localhost:$no_listen --ssh $ssh_address --tls $ssl_address".
+        " --openvpn localhost:$no_listen".
+        " --tinc localhost:$no_listen".
+        " --xmpp localhost:$no_listen".
+        " --http localhost:$no_listen".
+        " --adb localhost:$no_listen".
+        " --socks5 localhost:$no_listen".
+        " --anyprot localhost:$no_listen";
+        exit 0;
+    }
+    warn "spawned $sslh_pid\n";
+    # It will die soon because $user cannot chroot (you
+    # don't test as root, do you?)
+
+    waitpid $sslh_pid, 0;
+    my $code = $? >> 8;
+    warn "exited with $code\n";
+    my_is($code, 1, "Command line arguments");
+
+
+    print "***Test: Bad command line parameters\n";
+    my $sslh_pid;
+    if (!($sslh_pid = fork)) {
+        my $user = (getpwuid $<)[0]; # Run under current username
+        # This doesn't test --inetd
+        exec "./sslh-select -v 3 -f -u $user -P $pidfile".
+        " -n --transparent --timeout 10 -C /tmp".
+        " --fakeoption".
+        " --anyprot localhost:$no_listen";
+        exit 0;
+    }
+    warn "spawned $sslh_pid\n";
+
+    waitpid $sslh_pid, 0;
+    my $code = $? >> 8;
+    warn "exited with $code\n";
+    my_is($code, 6, "Bad command line parameters");
 }
 
 `lcov --directory . --capture --output-file sslh_cov.info`;
