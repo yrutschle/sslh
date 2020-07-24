@@ -144,7 +144,6 @@ void cmd_ssl_to_tls(int argc, char* argv[])
 /* Extract configuration on addresses and ports on which to listen.
  * out: newly allocated list of addrinfo to listen to
  */
-#ifdef LIBCONFIG
 static int config_resolve_listen(struct addrinfo **listen)
 {
     int i, res;
@@ -164,12 +163,11 @@ static int config_resolve_listen(struct addrinfo **listen)
     }
     return 0;
 }
-#endif
 
 
 
-#ifdef LIBCONFIG
 static void setup_regex_probe(struct sslhcfg_protocols_item *p)
+#ifdef LIBCONFIG
 {
     int num_patterns, i, res;
     regex_t** pattern_list;
@@ -195,6 +193,10 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
             exit(1);
         }
     }
+}
+#else
+{
+    return;
 }
 #endif
 

@@ -1,6 +1,8 @@
-# Configuration
 
 VERSION=$(shell ./genver.sh -r)
+
+# Configuration -- you probably need to `make clean` if you
+# change any of these
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBPCRE=1	# Use libpcre? (needed for regex on musl)
