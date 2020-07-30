@@ -53,7 +53,6 @@ static struct protocol_probe_desc builtins[] = {
     { "xmpp",       is_xmpp_protocol },
     { "http",       is_http_protocol },
     { "tls",        is_tls_protocol },
-    { "ssl",        is_tls_protocol },
     { "adb",        is_adb_protocol },
     { "socks5",     is_socks5_protocol },
     { "anyprot",    is_true }

@@ -115,32 +115,6 @@ static void printsettings(void)
 }
 
 
-/* To be removed in v1.21 */
-const char* ssl_err_msg = "Usage of 'ssl' setting is deprecated and will be removed in v1.21. Please use 'tls' instead\n";
-void ssl_to_tls(char* setting)
-{
-    if (!strcmp(setting, "ssl")) {
-        strcpy(setting, "tls"); /* legacy configuration */
-        log_message(LOG_INFO, ssl_err_msg);
-    }
-}
-
-
-/* Turn 'ssl' command line option to 'tls'. To be removed in v1.21 */
-void cmd_ssl_to_tls(int argc, char* argv[])
-{
-    int i;
-    for (i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "--ssl")) {
-            strcpy(argv[i], "--tls");
-            /* foreground option not parsed yet, syslog not open, just print on
-             * stderr and hope for the best */
-            fprintf(stderr, "%s", ssl_err_msg);
-        }
-    }
-}
-
-
 /* Extract configuration on addresses and ports on which to listen.
  * out: newly allocated list of addrinfo to listen to
  */
