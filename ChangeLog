@@ -1,3 +1,7 @@
+vNEXT:
+	Added symbol to support libconfig 1.4.9, still in
+	use in CentOS7.
+
 v1.21: 11JUL2020
 	WARNING:
 	Moved configuration and command-line management to
