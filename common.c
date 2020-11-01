@@ -111,17 +111,59 @@ int make_listen_tfo(int s)
     return setsockopt(s, SOL_SOCKET, TCP_FASTOPEN, (char*)&qlen, sizeof(qlen));
 }
 
+/* Starts listening on a single address 
+ * Returns a socket filehandle, or dies with message in case of major error */
+int listen_single_addr(struct addrinfo* addr)
+{
+    struct sockaddr_storage *saddr;
+    int sockfd, one, res;
+
+    saddr = (struct sockaddr_storage*)addr->ai_addr;
+
+    sockfd = socket(saddr->ss_family, SOCK_STREAM, 0);
+    check_res_dump(CR_DIE, sockfd, addr, "socket");
+
+    one = 1;
+    res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
+    check_res_dump(CR_DIE, res, addr, "setsockopt(SO_REUSEADDR)");
+
+    res = make_listen_tfo(sockfd);
+    check_res_dump(CR_WARN, res, addr, "setsockopt(TCP_FASTOPEN)");
+
+    if (addr->ai_flags & SO_KEEPALIVE) {
+        res = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
+        check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
+    }
+
+    if (IP_FREEBIND) {
+        res = setsockopt(sockfd, IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
+        check_res_dump(CR_WARN, res, addr, "setsockopt(IP_FREEBIND)");
+    }
+
+    if (addr->ai_addr->sa_family == AF_INET6) {
+        res = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&one, sizeof(one));
+        check_res_dump(CR_WARN, res, addr, "setsockopt(IPV6_V6ONLY)");
+    }
+
+    res = bind(sockfd, addr->ai_addr, addr->ai_addrlen);
+    check_res_dump(CR_DIE, res, addr, "bind");
+
+    res = listen (sockfd, 50);
+    check_res_dump(CR_DIE, res, addr, "listen");
+
+    return sockfd;
+}
+
 /* Starts listening sockets on specified addresses.
- * IN: addr[], num_addr
+ * IN: addr_list, linked list of addresses to listen to
  * OUT: *sockfd[]  pointer to newly-allocated array of file descriptors
  * Returns number of addresses bound
  * Bound file descriptors are returned in newly-allocated *sockfd pointer
    */
 int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
 {
-   struct sockaddr_storage *saddr;
    struct addrinfo *addr;
-   int i, res, one;
+   int i;
    int num_addr = 0;
    int sd_socks = 0;
 
@@ -150,39 +192,7 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
            fprintf(stderr, "FATAL: Inconsistent listen number. This should not happen.\n");
            exit(1);
        }
-       saddr = (struct sockaddr_storage*)addr->ai_addr;
-
-       (*sockfd)[i] = socket(saddr->ss_family, SOCK_STREAM, 0);
-       check_res_dump(CR_DIE, (*sockfd)[i], addr, "socket");
-
-       one = 1;
-       res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof(one));
-       check_res_dump(CR_DIE, res, addr, "setsockopt(SO_REUSEADDR)");
-
-       res = make_listen_tfo((*sockfd)[i]);
-       check_res_dump(CR_WARN, res, addr, "setsockopt(TCP_FASTOPEN)");
-
-       if (addr->ai_flags & SO_KEEPALIVE) {
-           res = setsockopt((*sockfd)[i], SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
-           check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
-       }
-
-       if (IP_FREEBIND) {
-           res = setsockopt((*sockfd)[i], IPPROTO_IP, IP_FREEBIND, (char*)&one, sizeof(one));
-           check_res_dump(CR_WARN, res, addr, "setsockopt(IP_FREEBIND)");
-           }
-
-       if (addr->ai_addr->sa_family == AF_INET6) {
-           res = setsockopt((*sockfd)[i], IPPROTO_IPV6, IPV6_V6ONLY, (char*)&one, sizeof(one));
-           check_res_dump(CR_WARN, res, addr, "setsockopt(IPV6_V6ONLY)");
-       }
-
-       res = bind((*sockfd)[i], addr->ai_addr, addr->ai_addrlen);
-       check_res_dump(CR_DIE, res, addr, "bind");
-
-       res = listen ((*sockfd)[i], 50);
-       check_res_dump(CR_DIE, res, addr, "listen");
-
+       (*sockfd)[i] = listen_single_addr(addr);
    }
 
    return num_addr;
