@@ -29,6 +29,7 @@
 #include <getopt.h>
 
 #include "common.h"
+#include "sslh-conf.h"
 
 /* Added to make the code compilable under CYGWIN 
  * */
@@ -36,63 +37,7 @@
 #define SA_NOCLDWAIT 0
 #endif
 
-const char* USAGE_STRING =
-"echosrv\n" \
-"usage:\n" \
-"\techosrv  [-v] --listen <address:port> [--prefix <prefix>]\n"
-"-v: verbose\n" \
-"--listen: address to listen on. Can be specified multiple times.\n" \
-"--prefix: add specified prefix before every line echoed.\n"
-"";
-
 const char* server_type = "echsrv"; /* keep setup_syslog happy */
-
-/* 
- * Settings that depend on the command line. 
- */
-char* prefix = "";
-int port;
-
-int verbose, numeric;
-
-void parse_cmdline(int argc, char* argv[])
-{
-    int c;
-    struct option options[] = {
-        { "verbose",    no_argument,            &verbose,       1 },
-        { "numeric",    no_argument,            &numeric,       1 },
-        { "listen",     required_argument,      0,              'l' },
-        { "prefix",     required_argument,      0,              'p' },
-    };
-    struct addrinfo **a;
-
-    while ((c = getopt_long_only(argc, argv, "l:p:", options, NULL)) != -1) {
-        if (c == 0) continue;
-
-        switch (c) {
-
-        case 'l':
-            /* find the end of the listen list */
-            for (a = &addr_listen; *a; a = &((*a)->ai_next));
-            /* append the specified addresses */
-            resolve_name(a, optarg);
-            break;
-
-        case 'p':
-            prefix = optarg;
-            break;
-
-        default:
-            fprintf(stderr, "%s", USAGE_STRING);
-            exit(2);
-        }
-    }
-
-    if (!addr_listen) {
-        fprintf(stderr, "No listening port specified\n");
-        exit(1);
-    }
-}
 
 void start_echo(int fd)
 {
@@ -100,10 +45,10 @@ void start_echo(int fd)
     char buffer[1 << 20];
     int ret, prefix_len;
 
-    prefix_len = strlen(prefix);
+    prefix_len = strlen(cfg.prefix);
 
     memset(buffer, 0, sizeof(buffer));
-    strcpy(buffer, prefix);
+    strcpy(buffer, cfg.prefix);
 
     while (1) {
         ret = read(fd, buffer + prefix_len, sizeof(buffer) - prefix_len);
@@ -128,7 +73,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
             while (1)
             {
                 in_socket = accept(listen_sockets[i], 0, 0);
-                if (verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
+                if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
                 if (!fork())
                 {
@@ -143,6 +88,26 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     wait(NULL);
 }
 
+static int config_resolve_listen(struct addrinfo **listen)
+{
+    int i, res;
+    for (i = 0; i < cfg.listen_len; i++) {
+        res = resolve_split_name(listen, cfg.listen[i].host, cfg.listen[i].port);
+        if (res) return res;
+
+        /* getaddrinfo returned a list of addresses corresponding to the
+         * specification; move the pointer to the end of that list before
+         * processing the next specification, while setting flags for
+         * start_listen_sockets() through ai_flags (which is not meant for
+         * that, but is only used as hint in getaddrinfo, so it's OK) */
+        for (; *listen; listen = &((*listen)->ai_next)) {
+            if (cfg.listen[i].keepalive)
+                (*listen)->ai_flags = SO_KEEPALIVE;
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -152,8 +117,13 @@ int main(int argc, char *argv[])
 
    int *listen_sockets;
 
-   parse_cmdline(argc, argv);
+   memset(&cfg, 0, sizeof(cfg));
+   if (sslhcfg_cl_parse(argc, argv, &cfg))
+       exit(1);
 
+   sslhcfg_fprint(stdout, &cfg, 0);
+
+   config_resolve_listen(&addr_listen);
    num_addr_listen = start_listen_sockets(&listen_sockets, addr_listen);
 
    main_loop(listen_sockets, num_addr_listen);

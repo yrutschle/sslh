@@ -95,7 +95,7 @@ systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
 echosrv: version.h $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o sslh-conf.o probe.o common.o tls.o argtable3.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
@@ -124,7 +124,7 @@ uninstall:
 	update-rc.d sslh remove
 
 distclean: clean
-	rm -f tags sslh-conf.c sslh-conf.h cscope.*
+	rm -f tags sslh-conf.[ch] echosrv-conf.[ch] cscope.*
 
 clean:
 	rm -f sslh-fork sslh-select echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
