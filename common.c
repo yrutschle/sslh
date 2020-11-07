@@ -155,15 +155,15 @@ int listen_single_addr(struct addrinfo* addr)
 }
 
 /* Starts listening sockets on specified addresses.
- * IN: addr_list, linked list of addresses to listen to
  * OUT: *sockfd[]  pointer to newly-allocated array of file descriptors
  * Returns number of addresses bound
  * Bound file descriptors are returned in newly-allocated *sockfd pointer
    */
-int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
+int start_listen_sockets(int *sockfd[])
 {
-   struct addrinfo *addr;
-   int i;
+   struct addrinfo *addr, *start_addr;
+   char buf[NI_MAXHOST];
+   int i, res;
    int num_addr = 0;
    int sd_socks = 0;
 
@@ -173,26 +173,27 @@ int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list)
        return sd_socks;
    }
 
-   for (addr = addr_list; addr; addr = addr->ai_next)
-       num_addr++;
+   *sockfd = NULL;
 
-   if (num_addr == 0) {
-       fprintf(stderr, "FATAL: No available addresses.\n");
-       exit(1);
-   }
+   if (cfg.verbose) fprintf(stderr, "Listening to:\n");
 
-   if (cfg.verbose)
-       fprintf(stderr, "listening to %d addresses\n", num_addr);
+   for (i = 0; i < cfg.listen_len; i++) {
+        res = resolve_split_name(&start_addr, cfg.listen[i].host, cfg.listen[i].port);
+        if (res) exit(4);
 
-   *sockfd = malloc(num_addr * sizeof(*sockfd[0]));
-   CHECK_ALLOC(*sockfd, "malloc");
+        for (addr = start_addr; addr; addr = addr->ai_next) {
+            if (cfg.listen[i].keepalive)
+                addr->ai_flags = SO_KEEPALIVE;
 
-   for (i = 0, addr = addr_list; i < num_addr && addr; i++, addr = addr->ai_next) {
-       if (!addr) {
-           fprintf(stderr, "FATAL: Inconsistent listen number. This should not happen.\n");
-           exit(1);
-       }
-       (*sockfd)[i] = listen_single_addr(addr);
+            num_addr++;
+            *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd));
+            (*sockfd)[num_addr-1] = listen_single_addr(addr);
+/*            printf("%d = %d\n", num_addr-1, (*sockfd)[num_addr-1]); */
+            if (cfg.verbose)
+                fprintf(stderr, "\t%s\t[%s]\n", sprintaddr(buf, sizeof(buf), addr),
+                    cfg.listen[i].keepalive ? "keepalive" : "");
+        }
+        freeaddrinfo(start_addr);
    }
 
    return num_addr;

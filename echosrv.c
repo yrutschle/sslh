@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
    sslhcfg_fprint(stdout, &cfg, 0);
 
    config_resolve_listen(&addr_listen);
-   num_addr_listen = start_listen_sockets(&listen_sockets, addr_listen);
+   num_addr_listen = start_listen_sockets(&listen_sockets);
 
    main_loop(listen_sockets, num_addr_listen);
 

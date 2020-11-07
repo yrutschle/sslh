@@ -133,7 +133,7 @@ void log_message(int type, const char* msg, ...);
 void dump_connection(struct connection *cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
-int start_listen_sockets(int *sockfd[], struct addrinfo *addr_list);
+int start_listen_sockets(int *sockfd[]);
 
 int defer_write(struct queue *q, void* data, int data_size);
 int flush_deferred(struct queue *q);
