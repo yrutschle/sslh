@@ -64,7 +64,7 @@ void start_echo(int fd)
     }
 }
 
-void main_loop(int listen_sockets[], int num_addr_listen)
+void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
     int in_socket, i;
 
@@ -72,12 +72,12 @@ void main_loop(int listen_sockets[], int num_addr_listen)
         if (!fork()) {
             while (1)
             {
-                in_socket = accept(listen_sockets[i], 0, 0);
+                in_socket = accept(listen_sockets[i].socketfd, 0, 0);
                 if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
                 if (!fork())
                 {
-                    close(listen_sockets[i]);
+                    close(listen_sockets[i].socketfd);
                     start_echo(in_socket);
                     exit(0);
                 }
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
    extern int optind;
    int num_addr_listen;
 
-   int *listen_sockets;
+   struct listen_endpoint *listen_sockets;
 
    memset(&cfg, 0, sizeof(cfg));
    if (sslhcfg_cl_parse(argc, argv, &cfg))

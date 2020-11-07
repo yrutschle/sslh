@@ -296,7 +296,7 @@ int is_fd_active(int fd, fd_set* set)
  * That way, each pair of file descriptor (read from one, write to the other)
  * is monitored either for read or for write, but never for both.
  */
-void main_loop(int listen_sockets[], int num_addr_listen)
+void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
     fd_set fds_r, fds_w;  /* reference fd sets (used to init the next 2) */
     fd_set readfds, writefds; /* working read and write fd sets */
@@ -313,10 +313,10 @@ void main_loop(int listen_sockets[], int num_addr_listen)
     FD_ZERO(&fds_w);
 
     for (i = 0; i < num_addr_listen; i++) {
-        FD_SET(listen_sockets[i], &fds_r); 
-        set_nonblock(listen_sockets[i]);
+        FD_SET(listen_sockets[i].socketfd, &fds_r); 
+        set_nonblock(listen_sockets[i].socketfd);
     }
-    max_fd = listen_sockets[num_addr_listen-1] + 1;
+    max_fd = listen_sockets[num_addr_listen-1].socketfd + 1;
 
     cnx_num_alloc = getpagesize() / sizeof(struct connection);
 
@@ -343,8 +343,8 @@ void main_loop(int listen_sockets[], int num_addr_listen)
 
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
-            if (FD_ISSET(listen_sockets[i], &readfds)) {
-                in_socket = accept_new_connection(listen_sockets[i], &cnx, &num_cnx);
+            if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
+                in_socket = accept_new_connection(listen_sockets[i].socketfd, &cnx, &num_cnx);
                 if (in_socket > 0) {
                     num_probing++;
                     FD_SET(in_socket, &fds_r);
@@ -423,7 +423,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
 			    switch (fork()) {
 			    case 0:  /* child */
 				for (i = 0; i < num_addr_listen; i++)
-				    close(listen_sockets[i]);
+				    close(listen_sockets[i].socketfd);
 				for (i = 0; i < num_cnx; i++)
 				    if (&cnx[i] != pcnx_i)
 					for (j = 0; j < 2; j++)
