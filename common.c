@@ -113,14 +113,14 @@ int make_listen_tfo(int s)
 
 /* Starts listening on a single address 
  * Returns a socket filehandle, or dies with message in case of major error */
-int listen_single_addr(struct addrinfo* addr)
+int listen_single_addr(struct addrinfo* addr, int keepalive, int udp)
 {
     struct sockaddr_storage *saddr;
     int sockfd, one, res;
 
     saddr = (struct sockaddr_storage*)addr->ai_addr;
 
-    sockfd = socket(saddr->ss_family, SOCK_STREAM, 0);
+    sockfd = socket(saddr->ss_family, udp ? SOCK_DGRAM : SOCK_STREAM, 0);
     check_res_dump(CR_DIE, sockfd, addr, "socket");
 
     one = 1;
@@ -130,7 +130,7 @@ int listen_single_addr(struct addrinfo* addr)
     res = make_listen_tfo(sockfd);
     check_res_dump(CR_WARN, res, addr, "setsockopt(TCP_FASTOPEN)");
 
-    if (addr->ai_flags & SO_KEEPALIVE) {
+    if (keepalive) {
         res = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
         check_res_dump(CR_DIE, res, addr, "setsockopt(SO_KEEPALIVE)");
     }
@@ -148,8 +148,10 @@ int listen_single_addr(struct addrinfo* addr)
     res = bind(sockfd, addr->ai_addr, addr->ai_addrlen);
     check_res_dump(CR_DIE, res, addr, "bind");
 
-    res = listen (sockfd, 50);
-    check_res_dump(CR_DIE, res, addr, "listen");
+    if (!udp) {
+        res = listen (sockfd, 50);
+        check_res_dump(CR_DIE, res, addr, "listen");
+    }
 
     return sockfd;
 }
@@ -164,7 +166,7 @@ int start_listen_sockets(int *sockfd[])
    struct addrinfo *addr, *start_addr;
    char buf[NI_MAXHOST];
    int i, res;
-   int num_addr = 0;
+   int num_addr = 0, keepalive = 0, udp = 0;
    int sd_socks = 0;
 
    sd_socks = get_fd_sockets(sockfd);
@@ -182,13 +184,12 @@ int start_listen_sockets(int *sockfd[])
         if (res) exit(4);
 
         for (addr = start_addr; addr; addr = addr->ai_next) {
-            if (cfg.listen[i].keepalive)
-                addr->ai_flags = SO_KEEPALIVE;
+            keepalive = cfg.listen[i].keepalive;
+            udp = cfg.listen[i].is_udp;
 
             num_addr++;
             *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd));
-            (*sockfd)[num_addr-1] = listen_single_addr(addr);
-/*            printf("%d = %d\n", num_addr-1, (*sockfd)[num_addr-1]); */
+            (*sockfd)[num_addr-1] = listen_single_addr(addr, keepalive, udp);
             if (cfg.verbose)
                 fprintf(stderr, "\t%s\t[%s]\n", sprintaddr(buf, sizeof(buf), addr),
                     cfg.listen[i].keepalive ? "keepalive" : "");
