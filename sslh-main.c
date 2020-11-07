@@ -201,7 +201,7 @@ int main(int argc, char *argv[], char* envp[])
    extern char *optarg;
    extern int optind;
    int res, num_addr_listen;
-   int *listen_sockets;
+   struct listen_endpoint *listen_sockets;
 
 #ifdef LIBBSD
    setproctitle_init(argc, argv, envp);

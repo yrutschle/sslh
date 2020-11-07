@@ -145,7 +145,7 @@ void stop_listeners(int sig)
     }
 }
 
-void set_listen_procname(int listen_socket)
+void set_listen_procname(struct listen_endpoint *listen_socket)
 {
 #ifdef LIBBSD
     int res;
@@ -155,7 +155,7 @@ void set_listen_procname(int listen_socket)
 
     addr.ai_addr = (struct sockaddr*)&ss;
     addr.ai_addrlen = sizeof(ss);
-    res = getsockname(listen_socket, addr.ai_addr, &addr.ai_addrlen);
+    res = getsockname(listen_socket->socketfd, addr.ai_addr, &addr.ai_addrlen);
     if (res != -1) {
         sprintaddr(listen_addr, sizeof(listen_addr), &addr);
         setproctitle("listener %s", listen_addr);
@@ -163,7 +163,7 @@ void set_listen_procname(int listen_socket)
 #endif
 }
 
-void main_loop(int listen_sockets[], int num_addr_listen)
+void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
     int in_socket, i, res;
     struct sigaction action;
@@ -183,10 +183,10 @@ void main_loop(int listen_sockets[], int num_addr_listen)
         case 0:
             /* Listening process just accepts a connection, forks, and goes
              * back to listening */
-            set_listen_procname(listen_sockets[i]);
+            set_listen_procname(&listen_sockets[i]);
             while (1)
             {
-                in_socket = accept(listen_sockets[i], 0, 0);
+                in_socket = accept(listen_sockets[i].socketfd, 0, 0);
                 if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
 
                 switch(fork()) {
@@ -196,7 +196,7 @@ void main_loop(int listen_sockets[], int num_addr_listen)
                 /* In child process */
                 case 0:
                     for (i = 0; i < num_addr_listen; ++i)
-                        close(listen_sockets[i]);
+                        close(listen_sockets[i].socketfd);
                     start_shoveler(in_socket);
                     exit(0);
 

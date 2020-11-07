@@ -70,7 +70,7 @@ void check_res_dump(CR_ACTION act, int res, struct addrinfo *addr, char* syscall
     }
 }
 
-int get_fd_sockets(int *sockfd[])
+int get_fd_sockets(struct listen_endpoint *sockfd[])
 {
     int sd = 0;
 
@@ -85,7 +85,8 @@ int get_fd_sockets(int *sockfd[])
       *sockfd = malloc(sd * sizeof(*sockfd[0]));
       CHECK_ALLOC(*sockfd, "malloc");
       for (i = 0; i < sd; i++) {
-        (*sockfd)[i] = SD_LISTEN_FDS_START + i;
+        (*sockfd)[i].socketfd = SD_LISTEN_FDS_START + i;
+        (*sockfd)[i].type = SOCK_STREAM;
       }
     }
 #endif
@@ -157,11 +158,10 @@ int listen_single_addr(struct addrinfo* addr, int keepalive, int udp)
 }
 
 /* Starts listening sockets on specified addresses.
- * OUT: *sockfd[]  pointer to newly-allocated array of file descriptors
+ * OUT: *sockfd[]  pointer to newly-allocated array of listen_endpoint objects
  * Returns number of addresses bound
- * Bound file descriptors are returned in newly-allocated *sockfd pointer
    */
-int start_listen_sockets(int *sockfd[])
+int start_listen_sockets(struct listen_endpoint *sockfd[])
 {
    struct addrinfo *addr, *start_addr;
    char buf[NI_MAXHOST];
@@ -189,7 +189,8 @@ int start_listen_sockets(int *sockfd[])
 
             num_addr++;
             *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd));
-            (*sockfd)[num_addr-1] = listen_single_addr(addr, keepalive, udp);
+            (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
+            (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
             if (cfg.verbose)
                 fprintf(stderr, "\t%s\t[%s]\n", sprintaddr(buf, sizeof(buf), addr),
                     cfg.listen[i].keepalive ? "keepalive" : "");

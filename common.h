@@ -103,6 +103,11 @@ struct connection {
     struct queue q[2];
 };
 
+struct listen_endpoint {
+    int socketfd;       /* file descriptor of listening socket */
+    int type;           /* SOCK_DGRAM | SOCK_STREAM */
+};
+
 #define FD_CNXCLOSED    0
 #define FD_NODATA       -1
 #define FD_STALLED      -2
@@ -133,7 +138,7 @@ void log_message(int type, const char* msg, ...);
 void dump_connection(struct connection *cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
-int start_listen_sockets(int *sockfd[]);
+int start_listen_sockets(struct listen_endpoint *sockfd[]);
 
 int defer_write(struct queue *q, void* data, int data_size);
 int flush_deferred(struct queue *q);
@@ -146,6 +151,6 @@ extern const char* server_type;
 /* sslh-fork.c */
 void start_shoveler(int);
 
-void main_loop(int *listen_sockets, int num_addr_listen);
+void main_loop(struct listen_endpoint *listen_sockets, int num_addr_listen);
 
 #endif
