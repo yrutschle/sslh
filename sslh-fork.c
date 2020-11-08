@@ -163,9 +163,43 @@ void set_listen_procname(struct listen_endpoint *listen_socket)
 #endif
 }
 
+
+/* TCP listenedr: connections, fork a child for each new connection 
+ * IN: 
+ *      endpoint: array of listening endpoint objects
+ *      num_endpoints: size of endpoint array
+ *      active_endpoint: which endpoint should be accepted
+ * Does not return
+ * */
+void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
+{
+    int i, in_socket;
+
+    while (1) {
+        in_socket = accept(endpoint[active_endpoint].socketfd, 0, 0);
+        if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
+
+        switch(fork()) {
+        case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+                 break;
+
+        case 0: /* In child process */
+                 /* Shoveler processes don't need to hog file descriptors */
+                 for (i = 0; i < num_endpoints; ++i)
+                     close(endpoint[i].socketfd);
+                 start_shoveler(in_socket);
+                 exit(0);
+
+        default: /* In parent process */
+                 break;
+        }
+        close(in_socket);
+    }
+}
+
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
-    int in_socket, i, res;
+    int i, res;
     struct sigaction action;
 
     listener_pid_number = num_addr_listen;
@@ -176,37 +210,16 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     for (i = 0; i < num_addr_listen; i++) {
         listener_pid[i] = fork();
         switch(listener_pid[i]) {
-        // Log if fork() fails for some reason
+        /* Log if fork() fails for some reason */
         case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
                  break;
-        // We're in the child, we have work to do 
+        /* We're in the child, we have work to do  */
         case 0:
-            /* Listening process just accepts a connection, forks, and goes
-             * back to listening */
             set_listen_procname(&listen_sockets[i]);
-            while (1)
-            {
-                in_socket = accept(listen_sockets[i].socketfd, 0, 0);
-                if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
-
-                switch(fork()) {
-                case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
-                         break;
-
-                /* In child process */
-                case 0:
-                    for (i = 0; i < num_addr_listen; ++i)
-                        close(listen_sockets[i].socketfd);
-                    start_shoveler(in_socket);
-                    exit(0);
-
-                /* In parent process */
-                default: break;
-                }
-                close(in_socket);
-            }
+            tcp_listener(listen_sockets, num_addr_listen, i);
 	    break;
-	// We're in the parent, we don't need to do anything
+
+	/* We're in the parent, we don't need to do anything */
 	default:
 	    break;
         }
