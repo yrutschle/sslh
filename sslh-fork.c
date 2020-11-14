@@ -133,7 +133,7 @@ void start_shoveler(int in_socket)
    exit(0);
 }
 
-static int *listener_pid;
+static pid_t *listener_pid;
 static int listener_pid_number = 0;
 
 void stop_listeners(int sig)
