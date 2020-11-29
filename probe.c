@@ -328,6 +328,11 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
     struct sslhcfg_protocols_item* p;
     int i, res, again = 0;
 
+    if (cfg.verbose > 1) {
+        fprintf(stderr, "hexdump of incoming packet:\n");
+        hexdump(buf, len);
+    }
+
     *proto = NULL;
     for (i = 0; i < cfg.protocols_len; i++) {
         char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};
@@ -384,10 +389,6 @@ int probe_client_protocol(struct connection *cnx)
      * connection will just fail later normally). */
 
     if (n > 0) {
-        if (cfg.verbose > 1) {
-            fprintf(stderr, "hexdump of incoming packet:\n");
-            hexdump(buffer, n);
-        }
         defer_write(&cnx->q[1], buffer, n);
         return probe_buffer(cnx->q[1].begin_deferred_data,
                             cnx->q[1].deferred_data_size,
