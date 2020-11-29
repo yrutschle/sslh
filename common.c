@@ -163,42 +163,42 @@ int listen_single_addr(struct addrinfo* addr, int keepalive, int udp)
    */
 int start_listen_sockets(struct listen_endpoint *sockfd[])
 {
-   struct addrinfo *addr, *start_addr;
-   char buf[NI_MAXHOST];
-   int i, res;
-   int num_addr = 0, keepalive = 0, udp = 0;
-   int sd_socks = 0;
+    struct addrinfo *addr, *start_addr;
+    char buf[NI_MAXHOST];
+    int i, res;
+    int num_addr = 0, keepalive = 0, udp = 0;
+    int sd_socks = 0;
 
-   sd_socks = get_fd_sockets(sockfd);
+    sd_socks = get_fd_sockets(sockfd);
 
-   if (sd_socks > 0) {
-       return sd_socks;
-   }
+    if (sd_socks > 0) {
+        return sd_socks;
+    }
 
-   *sockfd = NULL;
+    *sockfd = NULL;
 
-   if (cfg.verbose) fprintf(stderr, "Listening to:\n");
+    if (cfg.verbose) fprintf(stderr, "Listening to:\n");
 
-   for (i = 0; i < cfg.listen_len; i++) {
+    for (i = 0; i < cfg.listen_len; i++) {
+        keepalive = cfg.listen[i].keepalive;
+        udp = cfg.listen[i].is_udp;
+
         res = resolve_split_name(&start_addr, cfg.listen[i].host, cfg.listen[i].port);
         if (res) exit(4);
 
         for (addr = start_addr; addr; addr = addr->ai_next) {
-            keepalive = cfg.listen[i].keepalive;
-            udp = cfg.listen[i].is_udp;
-
             num_addr++;
             *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd));
             (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
             (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
             if (cfg.verbose)
-                fprintf(stderr, "\t%s\t[%s]\n", sprintaddr(buf, sizeof(buf), addr),
-                    cfg.listen[i].keepalive ? "keepalive" : "");
+                fprintf(stderr, "%d:\t%s\t[%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
+                        cfg.listen[i].keepalive ? "keepalive" : "");
         }
         freeaddrinfo(start_addr);
-   }
+    }
 
-   return num_addr;
+    return num_addr;
 }
 
 
