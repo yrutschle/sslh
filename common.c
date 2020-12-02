@@ -466,7 +466,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
 
        case ECONNRESET:
        case EPIPE:
-           /* remove end closed -- drop the connection */
+           /* remote end closed -- drop the connection */
            return FD_CNXCLOSED;
        }
    } else if (size_w < size_r) {

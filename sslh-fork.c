@@ -58,7 +58,7 @@ int shovel(struct connection *cnx)
       for (i = 0; i < 2; i++) {
           if (FD_ISSET(cnx->q[i].fd, &fds)) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
-              if (!res) {
+              if (res == FD_CNXCLOSED) {
                   if (cfg.verbose) 
                       fprintf(stderr, "%s %s", i ? "client" : "server", "socket closed\n");
                   return res;
