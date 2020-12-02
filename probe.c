@@ -395,9 +395,6 @@ int probe_client_protocol(struct connection *cnx)
                             &cnx->proto);
     }
 
-    /* If we read nothing, try again later */
-    if (n == 0) return PROBE_AGAIN;
-
     /* read() returned an error, so just connect to the last protocol to die */
     cnx->proto = &cfg.protocols[cfg.protocols_len-1];
     return PROBE_MATCH;
