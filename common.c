@@ -412,8 +412,10 @@ void init_cnx(struct connection *cnx)
 void dump_connection(struct connection *cnx)
 {
     printf("state: %d\n", cnx->state);
-    printf("fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
-    printf("fd %d, %d deferred\n", cnx->q[1].fd, cnx->q[1].deferred_data_size);
+    printf("0: fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
+    hexdump(cnx->q[0].deferred_data, cnx->q[0].deferred_data_size);
+    printf("1: fd %d, %d deferred\n", cnx->q[1].fd, cnx->q[1].deferred_data_size);
+    hexdump(cnx->q[1].deferred_data, cnx->q[1].deferred_data_size);
 }
 
 
