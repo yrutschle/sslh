@@ -246,60 +246,104 @@ int get_empty_source(struct known_udp_source* ks, int ks_len)
 /* Array to keep the UDP sources we have seen before */
 struct known_udp_source udp_known_sources[MAX_UDP_SRC];
 
-/* UDP listener: upon incoming packet, find where it should go */
-void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
-{
-    char data[65536]; /* TODO what's right, here? */
+
+/* Process UDP coming from outside:
+ * If it's a new source, probe; otherwise, forward to previous target 
+ * Returns: >= 0 sockfd of newly allocated socket, for new connections
+ * -1 otherwise
+ * */
+int udp_extern_forward(int sockfd) {
     char addr_str[NI_MAXHOST+1+NI_MAXSERV+1];
     struct sockaddr src_addr;
     struct addrinfo addrinfo;
     struct known_udp_source* src;
     ssize_t len;
     socklen_t addrlen;
-    int i, res, target;
+    int res, target, out = -1;
+    char data[65536]; /* TODO what's right, here? */
+
+    fprintf(stderr, "recvfrom(%d)\n", getpid());
+    addrlen = sizeof(src_addr);
+    len = recvfrom(sockfd, data, sizeof(data), 0, &src_addr, &addrlen);
+    if (len < 0) {
+        perror("recvfrom");
+        return -1;
+    }
+    target = known_source(udp_known_sources, ARRAY_SIZE(udp_known_sources), 
+                          &src_addr, addrlen);
+    addrinfo.ai_addr = &src_addr;
+    addrinfo.ai_addrlen = addrlen;
+    if (cfg.verbose) 
+        fprintf(stderr, "received %ld UDP from %d:%s\n", len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
+    if (target == -1) {
+        target = get_empty_source(udp_known_sources, ARRAY_SIZE(udp_known_sources));
+        fprintf(stderr, "source target index %d\n", target);
+        if (target == -1) exit(0); /* TODO handle this properly */
+        /* A probe worked: save this as an active connection */
+        src = &udp_known_sources[target];
+        src->allocated = 1;
+        src->sockaddr = src_addr;
+        src->addrlen = addrlen;
+        /* TODO fill in time */
+
+
+        res = probe_buffer(data, len, &src->proto);
+        /* First version: if we can't work out the protocol from the first
+         * packet, drop it. Conceivably, we could store several packets to
+         * run probes on packet sets */
+        if (cfg.verbose) fprintf(stderr, "UDP probed: %d\n", res);
+        if (res != PROBE_MATCH) return -1;
+
+        src->target_sock = socket(src->proto->saddr->ai_family, SOCK_DGRAM, 0);
+        out = src->target_sock;
+    }
+
+    src = &udp_known_sources[target];
+    /* at this point src is the UDP connection */
+    res = sendto(src->target_sock, data, len, 0, 
+                 src->proto->saddr->ai_addr, src->proto->saddr->ai_addrlen);
+    fprintf(stderr, "sending %d to %s", 
+            res, sprintaddr(data, sizeof(data), src->proto->saddr));
+    return out;
+}
+
+/* UDP listener: upon incoming packet, find where it should go */
+void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
+{
+    fd_set fds_r, fds_r_tmp;
+    char data[65536]; /* TODO what? */
+    int max_fd, res, sockfd, i;
+    struct known_udp_source* src;
+
+    FD_ZERO(&fds_r);
+    FD_SET(endpoint[active_endpoint].socketfd, &fds_r);
+    max_fd = endpoint[active_endpoint].socketfd + 1;
 
     while (1) {
-        fprintf(stderr, "recvfrom(%d)\n", getpid());
-        addrlen = sizeof(src_addr);
-        len = recvfrom(endpoint[active_endpoint].socketfd, data, sizeof(data), 0, &src_addr, &addrlen);
-        if (len < 0) {
-            perror("recvfrom");
-            continue;
+        fds_r_tmp = fds_r;
+        res = select(max_fd + 1,  &fds_r_tmp, NULL, NULL, NULL);
+        CHECK_RES_DIE(res, "select");
+
+        if (FD_ISSET(endpoint[active_endpoint].socketfd, &fds_r_tmp)) {
+            sockfd = udp_extern_forward(endpoint[active_endpoint].socketfd);
+            if (sockfd >= 0) {
+                FD_SET(sockfd, &fds_r);
+                max_fd = MAX(max_fd, sockfd);
+            }
+        } else {
+            for (i = 0; i < ARRAY_SIZE(udp_known_sources); i++) {
+                src = &udp_known_sources[i];
+                sockfd = src->target_sock;
+                if (FD_ISSET(sockfd, &fds_r_tmp)) {
+                    res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
+                    fprintf(stderr, "recvfrom %d\n", res);
+                    CHECK_RES_DIE(res, "udp_listener/recvfrom");
+                    res = sendto(endpoint[active_endpoint].socketfd, data, res, 0,
+                           &src->sockaddr, src->addrlen);
+                    fprintf(stderr, "sendto %d to\n", res);
+                }
+            }
         }
-        target = known_source(udp_known_sources, ARRAY_SIZE(udp_known_sources), 
-                              &src_addr, addrlen);
-        addrinfo.ai_addr = &src_addr;
-        addrinfo.ai_addrlen = addrlen;
-        if (cfg.verbose) 
-            fprintf(stderr, "received %d UDP from %d:%s\n", len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
-        if (target == -1) {
-            target = get_empty_source(udp_known_sources, ARRAY_SIZE(udp_known_sources));
-            fprintf(stderr, "source target index %d\n", target);
-            if (target == -1) exit(0); /* TODO handle this properly */
-            /* A probe worked: save this as an active connection */
-            src = &udp_known_sources[target];
-            src->allocated = 1;
-            src->sockaddr = src_addr;
-            src->addrlen = addrlen;
-            /* TODO fill in time */
-
-
-            res = probe_buffer(data, len, &src->proto);
-            /* First version: if we can't work out the protocol from the first
-             * packet, drop it. Conceivably, we could store several packets to
-             * run probes on packet sets */
-            if (cfg.verbose) fprintf(stderr, "UDP probed: %d\n", res);
-            if (res != PROBE_MATCH) continue;
-
-            src->target_sock = socket(src->proto->saddr->ai_family, SOCK_DGRAM, 0);
-        }
-
-        src = &udp_known_sources[target];
-        /* at this point src is the UDP connection */
-        res = sendto(src->target_sock, data, len, 0, 
-               src->proto->saddr->ai_addr, src->proto->saddr->ai_addrlen);
-        fprintf(stderr, "sending %d to %s", 
-                res, sprintaddr(data, sizeof(data), src->proto->saddr));
     }
 }
 
