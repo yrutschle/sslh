@@ -284,8 +284,7 @@ int udp_extern_forward(int sockfd) {
         src->allocated = 1;
         src->sockaddr = src_addr;
         src->addrlen = addrlen;
-        /* TODO fill in time */
-
+        src->last_active = time(NULL);
 
         res = probe_buffer(data, len, &src->proto);
         /* First version: if we can't work out the protocol from the first
@@ -302,10 +301,33 @@ int udp_extern_forward(int sockfd) {
     /* at this point src is the UDP connection */
     res = sendto(src->target_sock, data, len, 0, 
                  src->proto->saddr->ai_addr, src->proto->saddr->ai_addrlen);
+    src->last_active = time(NULL);
     fprintf(stderr, "sending %d to %s", 
             res, sprintaddr(data, sizeof(data), src->proto->saddr));
     return out;
 }
+
+
+/* Clears old connections from udp_known_sources, and from passed fd_set */
+#define UDP_TIMEOUT 60   /* Timeout before forgetting the connection, in seconds */
+void reap_timeouts(struct known_udp_source* sources, int n_src, fd_set* fd)
+{
+    int i;
+    time_t now = time(NULL);
+    struct known_udp_source* src;
+
+    for (i = 0; i < n_src; i++) {
+        src = &sources[i];
+        if (src->allocated && (now - src->last_active > UDP_TIMEOUT)) {
+            close(src->target_sock);
+            FD_CLR(src->target_sock, fd);
+            memset(&sources[i], 0, sizeof(sources[i]));
+            if (cfg.verbose > 3) 
+                fprintf(stderr, "disconnect %d\n", i);
+        }
+    }
+}
+
 
 /* UDP listener: upon incoming packet, find where it should go */
 void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
@@ -314,6 +336,7 @@ void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
     char data[65536]; /* TODO what? */
     int max_fd, res, sockfd, i;
     struct known_udp_source* src;
+    struct timeval tv;
 
     FD_ZERO(&fds_r);
     FD_SET(endpoint[active_endpoint].socketfd, &fds_r);
@@ -321,29 +344,37 @@ void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
     while (1) {
         fds_r_tmp = fds_r;
-        res = select(max_fd + 1,  &fds_r_tmp, NULL, NULL, NULL);
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        res = select(max_fd + 1,  &fds_r_tmp, NULL, NULL, &tv);
         CHECK_RES_DIE(res, "select");
 
-        if (FD_ISSET(endpoint[active_endpoint].socketfd, &fds_r_tmp)) {
-            sockfd = udp_extern_forward(endpoint[active_endpoint].socketfd);
-            if (sockfd >= 0) {
-                FD_SET(sockfd, &fds_r);
-                max_fd = MAX(max_fd, sockfd);
-            }
-        } else {
-            for (i = 0; i < ARRAY_SIZE(udp_known_sources); i++) {
-                src = &udp_known_sources[i];
-                sockfd = src->target_sock;
-                if (FD_ISSET(sockfd, &fds_r_tmp)) {
-                    res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
-                    fprintf(stderr, "recvfrom %d\n", res);
-                    CHECK_RES_DIE(res, "udp_listener/recvfrom");
-                    res = sendto(endpoint[active_endpoint].socketfd, data, res, 0,
-                           &src->sockaddr, src->addrlen);
-                    fprintf(stderr, "sendto %d to\n", res);
+        if (res) {
+            if (FD_ISSET(endpoint[active_endpoint].socketfd, &fds_r_tmp)) {
+                sockfd = udp_extern_forward(endpoint[active_endpoint].socketfd);
+                if (sockfd >= 0) {
+                    FD_SET(sockfd, &fds_r);
+                    max_fd = MAX(max_fd, sockfd);
+                }
+            } else {
+                for (i = 0; i < ARRAY_SIZE(udp_known_sources); i++) {
+                    src = &udp_known_sources[i];
+                    if (src->allocated) {
+                        sockfd = src->target_sock;
+                        if (FD_ISSET(sockfd, &fds_r_tmp)) {
+                            res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
+                            fprintf(stderr, "recvfrom %d\n", res);
+                            CHECK_RES_DIE(res, "udp_listener/recvfrom");
+                            res = sendto(endpoint[active_endpoint].socketfd, data, res, 0,
+                                         &src->sockaddr, src->addrlen);
+                            src->last_active = time(NULL);
+                            fprintf(stderr, "sendto %d to\n", res);
+                        }
+                    }
                 }
             }
         }
+        reap_timeouts(udp_known_sources, ARRAY_SIZE(udp_known_sources), &fds_r);
     }
 }
 
