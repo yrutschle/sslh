@@ -6,6 +6,19 @@ vNEXT:
 	07719f55b87c279cd56dfbf9ab6facb6a3e193cc for the
 	time being.
 
+	UDP support now works. It only works with sslh-fork,
+	which will create a single process that handles all
+	UDP connections with select(). Probes specified in
+	the `protocols` configuration entry are tried on
+	incoming packets, TCP or UDP, and forwarded based on
+	the input protocol (an incoming TCP connection will
+	be forwarded as TCP, and same with UDP).
+	This has been tested with DNS as shown in udp.cfg:
+	incoming packets that contain my domain name are
+	assumed to be a DNS request and forwarded
+	accordingly. Note this could cause problems if
+	combined with incoming TLS with SNI.
+
 	Added symbol to support libconfig 1.4.9, still in
 	use in CentOS7.
 
