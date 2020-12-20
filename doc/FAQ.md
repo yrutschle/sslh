@@ -101,3 +101,69 @@ sslh-fork v1.21b-1-g2c93a01-dirty started
 Here we see that something wrong is happening at `tls.c`
 line 162, and it's linked to an uninitialised value.
 
+Using sslh for virtual hosting
+==============================
+
+Virtual hosting refers to having several domain names behind
+a single IP address. All Web servers handle this, but
+sometimes it can be useful to do it with `sslh`.
+
+TLS virtual hosting with SNI
+----------------------------
+
+For TLS, this is done very simply using Server Name
+Indication, SNI for short, which is a TLS extension whereby
+the client indicates the name of the server it wishes to
+connect to. This can be a very powerful way to separate
+several TLS-based services hosted behind the same port:
+simply name each service with its own hostname. For example,
+we could define `mail.rutschle.net`, `im.rutschle.net`,
+`www.rutschle.net`, all of which point to the same IP
+address.  `sslh` uses the `sni_hostnames` setting of the
+TLS probe to do this, e.g.:
+
+```
+protocols: (
+    {   name: "tls";
+        host: "localhost";
+        port: "993";
+        sni_hostnames: [ "mail.rutschle.net" ];
+    },
+    {   name: "tls";
+        host: "localhost";
+        port: "xmpp-client";
+        sni_hostnames: [ "im.rutschle.net" ];
+    },
+    {   name: "tls";
+        host: "localhost";
+        port: "4443";
+        sni_hostnames: [ "www.rutschle.net" ];
+    }
+);
+```
+
+HTTP virtual hosting with regex
+-------------------------------
+
+If you wish to serve several Web domains over HTTP through
+`sslh`, you can do this simply by using regular expressions
+on the Host specification part of the HTTP query.
+
+The following example forwards connections to `host_A.acme`
+to 192.168.0.2, and connections to `host_B.acme` to
+192.168.0.3.
+
+```
+protocols: (
+    {   name: "regex";
+        host: "192.168.0.2";
+        port: "80";
+        regex_patterns:
+                ["^(GET|POST|PUT|OPTIONS|DELETE|HEADER) [^ ]* HTTP/[0-9.]*[\r\n]*Host: host_A.acme"] },
+    {   name: "regex";
+        host: "192.168.0.3";
+        port: "80";
+        regex_patterns:
+                ["^(GET|POST|PUT|OPTIONS|DELETE|HEADER) [^ ]* HTTP/[0-9.]*[\r\n]*Host: host_B.acme"] }
+);
+```
