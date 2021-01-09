@@ -287,7 +287,7 @@ int is_fd_active(int fd, fd_set* set)
  * - When a file descriptor goes off, process it: read from it, write the data
  * to its corresponding pair.
  * - When a file descriptor blocks when writing, remove the read fd from fds_r,
- * move the data to a deferred buffer, and add the write fd to fds_w. Defered
+ * move the data to a deferred buffer, and add the write fd to fds_w. Deferred
  * buffer is allocated dynamically.
  * - When we can write to a file descriptor that has deferred data, we try to
  * write as much as we can. Once all data is written, remove the fd from fds_w
