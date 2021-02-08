@@ -13,7 +13,7 @@ typedef enum {
 } probe_result;
 
 struct sslhcfg_protocols_item;
-typedef int T_PROBE(const char*, int, struct sslhcfg_protocols_item*);
+typedef int T_PROBE(const char*, ssize_t, struct sslhcfg_protocols_item*);
 
 struct protocol_probe_desc {
     const char* name;
