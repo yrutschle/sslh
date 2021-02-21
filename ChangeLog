@@ -25,6 +25,8 @@ vNEXT:
 	Warn about unknown settings in the configuration
 	file.
 
+	Added per-protocol `transparent` option.
+
 v1.21: 11JUL2020
 	WARNING:
 	Moved configuration and command-line management to

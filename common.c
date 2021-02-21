@@ -295,6 +295,7 @@ int connect_addr(struct connection *cnx, int fd_from)
     struct sockaddr_storage ss;
     char buf[NI_MAXHOST];
     int fd, res, one;
+    int transparent = cnx->proto->transparent || cfg.transparent;
 
     memset(&from, 0, sizeof(from));
     from.ai_addr = (struct sockaddr*)&ss;
@@ -305,7 +306,7 @@ int connect_addr(struct connection *cnx, int fd_from)
 
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
-        if (cfg.transparent && a->ai_family != from.ai_addr->sa_family)
+        if (transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
         if (cfg.verbose)
             fprintf(stderr, "connecting to %s family %d len %d\n",
@@ -322,7 +323,7 @@ int connect_addr(struct connection *cnx, int fd_from)
             setsockopt(fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT, &one, sizeof(one));
             /* no need to check return value; if it's not supported, that's okay */
 
-            if (cfg.transparent) {
+            if (transparent) {
                 res = bind_peer(fd, fd_from);
                 CHECK_RES_RETURN(res, "bind_peer", res);
             }

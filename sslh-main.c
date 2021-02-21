@@ -92,7 +92,7 @@ static void printsettings(void)
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
         fprintf(stderr,
-                "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s]\n",
+                "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
                 p->name, 
                 sprintaddr(buf, sizeof(buf), p->saddr), 
                 p->service,
@@ -100,7 +100,9 @@ static void printsettings(void)
                 p->saddr->ai_family,
                 p->saddr->ai_addr->sa_family,
                 p->keepalive ? "keepalive" : "",
-                p->fork ? "fork" : "");
+                p->fork ? "fork" : "",
+                p->transparent ? "transparent" : ""
+                );
     }
     fprintf(stderr, "timeout: %d\non-timeout: %s\n", cfg.timeout,
             timeout_protocol()->name);
