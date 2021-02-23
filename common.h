@@ -35,6 +35,9 @@
 
 #include "version.h"
 
+#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
+
+
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) {    \
        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
