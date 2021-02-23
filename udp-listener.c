@@ -158,7 +158,9 @@ static void reap_timeouts(struct known_udp_source* sources, int n_src, fd_set* f
 }
 
 
-/* UDP listener: upon incoming packet, find where it should go */
+/* UDP listener: upon incoming packet, find where it should go
+ * This is run in its own process and never returns.
+ */
 void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
 {
     fd_set fds_r, fds_r_tmp;
