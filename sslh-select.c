@@ -27,8 +27,6 @@
 
 const char* server_type = "sslh-select";
 
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-
 /* cnx_num_alloc is the number of connection to allocate at once (at start-up,
  * and then every time we get too many simultaneous connections: e.g. start
  * with 100 slots, then if we get more than 100 connections allocate another
