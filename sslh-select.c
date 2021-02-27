@@ -37,7 +37,7 @@ const char* server_type = "sslh-select";
 static long cnx_num_alloc;
 
 /* Make the file descriptor non-block  */
-int set_nonblock(int fd)
+static int set_nonblock(int fd)
 {
     int flags;
 
@@ -52,7 +52,7 @@ int set_nonblock(int fd)
     return flags;
 }
 
-int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
+static int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
 {
     int i;
 
@@ -74,7 +74,7 @@ int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
 
 /* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
  * and FD_CLR. Need to drop connections if we go above that limit */
-int fd_is_in_range(int fd) {
+static int fd_is_in_range(int fd) {
     if (fd >= FD_SETSIZE) {
         log_message(LOG_ERR, "too many open file descriptor to monitor them all -- dropping connection\n");
         return 0;
@@ -85,7 +85,7 @@ int fd_is_in_range(int fd) {
 /* Accepts a connection from the main socket and assigns it to an empty slot.
  * If no slots are available, allocate another few. If that fails, drop the
  * connexion */
-int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_size) 
+static int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_size) 
 {
     int in_socket, free, i, res;
     struct connection *new;
@@ -135,7 +135,7 @@ int accept_new_connection(int listen_socket, struct connection *cnx[], int* cnx_
 
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
+static int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
 {
     struct queue *q = &cnx->q[1];
 
@@ -159,7 +159,7 @@ int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
 /* shovels data from active fd to the other
    returns after one socket closed or operation would block
  */
-void shovel(struct connection *cnx, int active_fd, 
+static void shovel(struct connection *cnx, int active_fd, 
             fd_set *fds_r, fd_set *fds_w)
 {
     struct queue *read_q, *write_q;
@@ -189,7 +189,7 @@ void shovel(struct connection *cnx, int active_fd,
 /* shovels data from one fd to the other and vice-versa
    returns after one socket closed
  */
-void shovel_single(struct connection *cnx)
+static void shovel_single(struct connection *cnx)
 {
    fd_set fds_r, fds_w;
    int res, i;
@@ -240,7 +240,7 @@ void shovel_single(struct connection *cnx)
 
 /* Child process that makes internal connection and proxies
  */
-void connect_proxy(struct connection *cnx)
+static void connect_proxy(struct connection *cnx)
 {
     int in_socket;
     int out_socket;
@@ -274,7 +274,7 @@ void connect_proxy(struct connection *cnx)
 }
 
 /* returns true if specified fd is initialised and present in fd_set */
-int is_fd_active(int fd, fd_set* set)
+static int is_fd_active(int fd, fd_set* set)
 {
     if (fd == -1) return 0;
     return FD_ISSET(fd, set);
