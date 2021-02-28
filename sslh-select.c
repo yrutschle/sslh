@@ -294,7 +294,7 @@ static int is_fd_active(int fd, fd_set* set)
  * IN/OUT cnx: connection data, updated if connected
  * IN/OUT info: updated if connected
  * */
-static int probing_read_process(struct connection* cnx, struct select_info* fd_info)
+static void probing_read_process(struct connection* cnx, struct select_info* fd_info)
 {
     int res;
 
@@ -309,7 +309,7 @@ static int probing_read_process(struct connection* cnx, struct select_info* fd_i
     } else {
         res = probe_client_protocol(cnx);
         if (res == PROBE_AGAIN)
-            return 0;
+            return;
     }
 
     fd_info->num_probing--;
@@ -340,10 +340,34 @@ static int probing_read_process(struct connection* cnx, struct select_info* fd_i
 
     if (res >= fd_info->max_fd)
         fd_info->max_fd = res + 1;;
-
-    return res;
 }
 
+
+/* Process a connection that is active in read */
+static void cnx_read_process(struct connection* cnx, int active_q, struct select_info* fd_info)
+{
+    switch (cnx->state) {
+
+    case ST_PROBING:
+        if (active_q == 1) {
+            fprintf(stderr, "Activity on fd2 while probing, impossible\n");
+            dump_connection(cnx);
+            exit(1);
+        }
+
+        probing_read_process(cnx, fd_info);
+
+        break;
+
+    case ST_SHOVELING:
+        shovel(cnx, active_q, &fd_info->fds_r, &fd_info->fds_w);
+        break;
+
+    default: /* illegal */
+        log_message(LOG_ERR, "Illegal connection state %d\n", cnx->state);
+        exit(1);
+    }
+}
 
 
 /* Main loop: the idea is as follow:
@@ -448,29 +472,9 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                 if (is_fd_active(cnx[i].q[j].fd, &readfds) || 
                     ((cnx[i].state == ST_PROBING) && (cnx[i].probe_timeout < time(NULL)))) {
                     if (cfg.verbose)
-                        fprintf(stderr, "processing fd%d slot %d\n", j, i);
+                        fprintf(stderr, "processing read fd%d slot %d\n", j, i);
 
-                    switch (cnx[i].state) {
-
-                    case ST_PROBING:
-                        if (j == 1) {
-                            fprintf(stderr, "Activity on fd2 while probing, impossible\n");
-                            dump_connection(&cnx[i]);
-                            exit(1);
-                        }
-
-                        res = probing_read_process(&cnx[i], &fd_info);
-
-                        break;
-
-                    case ST_SHOVELING:
-                        shovel(&cnx[i], j, &fd_info.fds_r, &fd_info.fds_w);
-                        break;
-
-                    default: /* illegal */
-                        log_message(LOG_ERR, "Illegal connection state %d\n", cnx[i].state);
-                        exit(1);
-                    }
+                    cnx_read_process(&cnx[i], j, &fd_info);
                 }
             }
         }
