@@ -1,7 +1,7 @@
 /*
    sslh-select: mono-processus server
 
-# Copyright (C) 2007-2010  Yves Rutschle
+# Copyright (C) 2007-2021  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -289,6 +289,63 @@ static int is_fd_active(int fd, fd_set* set)
     return FD_ISSET(fd, set);
 }
 
+
+/* Process read activity on a socket in probe state 
+ * IN/OUT cnx: connection data, updated if connected
+ * IN/OUT info: updated if connected
+ * */
+static int probing_read_process(struct connection* cnx, struct select_info* fd_info)
+{
+    int res;
+
+    /* If timed out it's SSH, otherwise the client sent
+     * data so probe the protocol */
+    if ((cnx->probe_timeout < time(NULL))) {
+        cnx->proto = timeout_protocol();
+        if (cfg.verbose) 
+            log_message(LOG_INFO, 
+                        "timed out, connect to %s\n", 
+                        cnx->proto->name);
+    } else {
+        res = probe_client_protocol(cnx);
+        if (res == PROBE_AGAIN)
+            return 0;
+    }
+
+    fd_info->num_probing--;
+    cnx->state = ST_SHOVELING;
+
+    /* libwrap check if required for this protocol */
+    if (cnx->proto->service &&
+        check_access_rights(cnx->q[0].fd, cnx->proto->service)) {
+        tidy_connection(cnx, &fd_info->fds_r, &fd_info->fds_w);
+        res = -1;
+    } else if (cnx->proto->fork) {
+        switch (fork()) {
+        case 0:  /* child */
+            /* TODO: close all file descriptors except 2 */
+            free(cnx);
+            connect_proxy(cnx);
+            exit(0);
+        case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+                 break;
+        default: /* parent */
+                 break;
+        }
+        tidy_connection(cnx, &fd_info->fds_r, &fd_info->fds_w);
+        res = -1;
+    } else {
+        res = connect_queue(cnx, &fd_info->fds_r, &fd_info->fds_w);
+    }
+
+    if (res >= fd_info->max_fd)
+        fd_info->max_fd = res + 1;;
+
+    return res;
+}
+
+
+
 /* Main loop: the idea is as follow:
  * - fds_r and fds_w contain the file descriptors to monitor in read and write
  * - When a file descriptor goes off, process it: read from it, write the data
@@ -402,56 +459,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                             exit(1);
                         }
 
-                        /* If timed out it's SSH, otherwise the client sent
-                         * data so probe the protocol */
-                        if ((cnx[i].probe_timeout < time(NULL))) {
-                            cnx[i].proto = timeout_protocol();
-                            if (cfg.verbose) 
-                                log_message(LOG_INFO, 
-                                            "timed out, connect to %s\n", 
-                                            cnx[i].proto->name);
-                        } else {
-                            res = probe_client_protocol(&cnx[i]);
-                            if (res == PROBE_AGAIN)
-                                continue;
-                        }
+                        res = probing_read_process(&cnx[i], &fd_info);
 
-                        fd_info.num_probing--;
-                        cnx[i].state = ST_SHOVELING;
-
-			/* libwrap check if required for this protocol */
-			if (cnx[i].proto->service &&
-			    check_access_rights(in_socket, cnx[i].proto->service)) {
-			    tidy_connection(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
-			    res = -1;
-			} else if (cnx[i].proto->fork) {
-			    struct connection *pcnx_i = &cnx[i];
-			    struct connection cnx_i = *pcnx_i;
-			    switch (fork()) {
-			    case 0:  /* child */
-				for (i = 0; i < num_addr_listen; i++)
-				    close(listen_sockets[i].socketfd);
-				for (i = 0; i < num_cnx; i++)
-				    if (&cnx[i] != pcnx_i)
-					for (j = 0; j < 2; j++)
-					    if (cnx[i].q[j].fd != -1)
-						close(cnx[i].q[j].fd);
-				free(cnx);
-				connect_proxy(&cnx_i);
-				exit(0);
-			    case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
-				     break;
-			    default: /* parent */
-				     break;
-			    }
-			    tidy_connection(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
-			    res = -1;
-			} else {
-			    res = connect_queue(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
-			}
-
-                        if (res >= fd_info.max_fd)
-                            fd_info.max_fd = res + 1;;
                         break;
 
                     case ST_SHOVELING:
