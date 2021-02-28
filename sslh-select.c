@@ -27,6 +27,15 @@
 
 const char* server_type = "sslh-select";
 
+/* Global state for a select() loop */
+struct select_info {
+    int max_fd;   /* Highest fd number to pass to select() */
+    int num_probing;     /* Number of connections currently probing 
+                          * We use this to know if we need to time out of
+                          * select() */
+    fd_set fds_r, fds_w;  /* reference fd sets (used to init working copies) */
+};
+
 /* cnx_num_alloc is the number of connection to allocate at once (at start-up,
  * and then every time we get too many simultaneous connections: e.g. start
  * with 100 slots, then if we get more than 100 connections allocate another
@@ -296,25 +305,24 @@ static int is_fd_active(int fd, fd_set* set)
  */
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
-    fd_set fds_r, fds_w;  /* reference fd sets (used to init the next 2) */
+    struct select_info fd_info = {0};
+
     fd_set readfds, writefds; /* working read and write fd sets */
     struct timeval tv;
-    int max_fd, i, j, res;
+    int i, j, res;
     int in_socket = 0;
     struct connection *cnx;
     int num_cnx;  /* Number of connections in *cnx */
-    int num_probing = 0; /* Number of connections currently probing 
-                          * We use this to know if we need to time out of
-                          * select() */
 
-    FD_ZERO(&fds_r);
-    FD_ZERO(&fds_w);
+    fd_info.num_probing = 0; 
+    FD_ZERO(&fd_info.fds_r);
+    FD_ZERO(&fd_info.fds_w);
 
     for (i = 0; i < num_addr_listen; i++) {
-        FD_SET(listen_sockets[i].socketfd, &fds_r); 
+        FD_SET(listen_sockets[i].socketfd, &fd_info.fds_r); 
         set_nonblock(listen_sockets[i].socketfd);
     }
-    max_fd = listen_sockets[num_addr_listen-1].socketfd + 1;
+    fd_info.max_fd = listen_sockets[num_addr_listen-1].socketfd + 1;
 
     cnx_num_alloc = getpagesize() / sizeof(struct connection);
 
@@ -329,25 +337,26 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         memset(&tv, 0, sizeof(tv));
         tv.tv_sec = cfg.timeout;
 
-        memcpy(&readfds, &fds_r, sizeof(readfds));
-        memcpy(&writefds, &fds_w, sizeof(writefds));
+        memcpy(&readfds, &fd_info.fds_r, sizeof(readfds));
+        memcpy(&writefds, &fd_info.fds_w, sizeof(writefds));
 
         if (cfg.verbose)
-            fprintf(stderr, "selecting... max_fd=%d num_probing=%d\n", max_fd, num_probing);
-        res = select(max_fd, &readfds, &writefds, NULL, num_probing ? &tv : NULL);
+            fprintf(stderr, "selecting... max_fd=%d num_probing=%d\n", 
+                                          fd_info.max_fd, fd_info.num_probing);
+        res = select(fd_info.max_fd, &readfds, &writefds, 
+                     NULL, fd_info.num_probing ? &tv : NULL);
         if (res < 0)
             perror("select");
-
 
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
                 in_socket = accept_new_connection(listen_sockets[i].socketfd, &cnx, &num_cnx);
                 if (in_socket > 0) {
-                    num_probing++;
-                    FD_SET(in_socket, &fds_r);
-                    if (in_socket >= max_fd)
-                        max_fd = in_socket + 1;;
+                    fd_info.num_probing++;
+                    FD_SET(in_socket, &fd_info.fds_r);
+                    if (in_socket >= fd_info.max_fd)
+                        fd_info.max_fd = in_socket + 1;;
                 }
             }
         }
@@ -359,16 +368,16 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                     if (is_fd_active(cnx[i].q[j].fd, &writefds)) {
                         res = flush_deferred(&cnx[i].q[j]);
                         if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
-                            if (cnx[i].state == ST_PROBING) num_probing--;
-                            tidy_connection(&cnx[i], &fds_r, &fds_w);
+                            if (cnx[i].state == ST_PROBING) fd_info.num_probing--;
+                            tidy_connection(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
                             if (cfg.verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
                         } else {
                             /* If no deferred data is left, stop monitoring the fd 
                              * for write, and restart monitoring the other one for reads*/
                             if (!cnx[i].q[j].deferred_data_size) {
-                                FD_CLR(cnx[i].q[j].fd, &fds_w);
-                                FD_SET(cnx[i].q[1-j].fd, &fds_r);
+                                FD_CLR(cnx[i].q[j].fd, &fd_info.fds_w);
+                                FD_SET(cnx[i].q[1-j].fd, &fd_info.fds_r);
                             }
                         }
                     }
@@ -407,13 +416,13 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                                 continue;
                         }
 
-                        num_probing--;
+                        fd_info.num_probing--;
                         cnx[i].state = ST_SHOVELING;
 
 			/* libwrap check if required for this protocol */
 			if (cnx[i].proto->service &&
 			    check_access_rights(in_socket, cnx[i].proto->service)) {
-			    tidy_connection(&cnx[i], &fds_r, &fds_w);
+			    tidy_connection(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
 			    res = -1;
 			} else if (cnx[i].proto->fork) {
 			    struct connection *pcnx_i = &cnx[i];
@@ -435,18 +444,18 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 			    default: /* parent */
 				     break;
 			    }
-			    tidy_connection(&cnx[i], &fds_r, &fds_w);
+			    tidy_connection(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
 			    res = -1;
 			} else {
-			    res = connect_queue(&cnx[i], &fds_r, &fds_w);
+			    res = connect_queue(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
 			}
 
-                        if (res >= max_fd)
-                            max_fd = res + 1;;
+                        if (res >= fd_info.max_fd)
+                            fd_info.max_fd = res + 1;;
                         break;
 
                     case ST_SHOVELING:
-                        shovel(&cnx[i], j, &fds_r, &fds_w);
+                        shovel(&cnx[i], j, &fd_info.fds_r, &fd_info.fds_w);
                         break;
 
                     default: /* illegal */
