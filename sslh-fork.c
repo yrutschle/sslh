@@ -185,7 +185,7 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
         case 0: /* In child process */
                  /* Shoveler processes don't need to hog file descriptors */
-                 for (i = 0; i < num_endpoints; ++i)
+                 for (i = 0; i < num_endpoints; i++)
                      close(endpoint[i].socketfd);
                  start_shoveler(in_socket);
                  exit(0);
