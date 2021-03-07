@@ -224,6 +224,7 @@ for my $binary (@binaries) {
         exit 0;
     }
     warn "spawned $sslh_pid\n";
+    sleep 1; # Give everyone some time to start
     sleep 5 if $valgrind;  # valgrind can be heavy -- wait 5 seconds
 
 

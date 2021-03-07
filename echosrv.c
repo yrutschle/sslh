@@ -44,6 +44,7 @@ void start_echo(int fd)
     int res;
     char buffer[1 << 20];
     int ret, prefix_len;
+    int first = 1;
 
     prefix_len = strlen(cfg.prefix);
 
@@ -56,7 +57,13 @@ void start_echo(int fd)
             fprintf(stderr, "%s", strerror(errno));
             return;
         }
-        res = write(fd, buffer, ret + prefix_len);
+        if (first) {
+            res = write(fd, buffer, ret + prefix_len);
+            first = 0;
+            write(1, buffer, ret + prefix_len);
+        } else {
+            res = write(fd, buffer + prefix_len, ret);
+        }
         if (res < 0) {
             fprintf(stderr, "%s", strerror(errno));
             return;
