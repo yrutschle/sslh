@@ -43,7 +43,7 @@ endif
 
 ifneq ($(strip $(USELIBPCRE)),)
 	CPPFLAGS+=-DLIBPCRE
-	LIBS:=$(LIBS) -lpcreposix
+	LIBS:=$(LIBS) -lpcreposix -lpcre
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
