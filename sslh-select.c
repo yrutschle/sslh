@@ -76,8 +76,8 @@ static int extend_collection(struct cnx_collection* collection)
     int i, new_length = collection->num_cnx + cnx_num_alloc;
 
     if (cfg.verbose)
-        fprintf(stderr, "allocating %ld more slots.\n", cnx_num_alloc);
-    new = realloc(&collection->cnx, new_length * sizeof(collection->cnx[0]));
+        fprintf(stderr, "allocating %ld more slots (target: %d).\n", cnx_num_alloc, new_length);
+    new = realloc(collection->cnx, new_length * sizeof(collection->cnx[0]));
     if (!new) return -1;
 
     collection->cnx = new;
@@ -165,7 +165,7 @@ static int accept_new_connection(int listen_socket, struct cnx_collection *colle
     }
     if (free >= collection->num_cnx)  {
         res = extend_collection(collection);
-        if (!res) {
+        if (res) {
             log_message(LOG_ERR, "unable to extend collection -- dropping connection\n");
             close(in_socket);
             return -1;

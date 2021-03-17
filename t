@@ -21,7 +21,7 @@ my $sslh_port = $conf->fetch_array("listen")->[0]->{port};
 my $user = (getpwuid $<)[0]; # Run under current username
 
 # Which tests do we run
-my $SSH_SHY_CNX =       1;
+my $SSH_SHY_CNX =       0;
 my $PROBES_NOFRAG =     1;
 my $PROBES_AGAIN =      1;
 my $SSL_MIX_SSH =       1;
@@ -31,12 +31,12 @@ my $SSH_MIX_SSL =       1;
 # coverage, but do not necessarily result in an actual test
 # (e.g. some tests need to be run with valgrind to check all
 # memory management code).
-my $RB_CNX_NOSERVER =           1;
-my $RB_PARAM_NOHOST =           1;
-my $RB_WRONG_USERNAME =         1;
-my $RB_OPEN_PID_FILE =          1;
-my $RB_RESOLVE_ADDRESS =        1;
-my $RB_CL_PARAMS =              1;
+my $RB_CNX_NOSERVER =           0;
+my $RB_PARAM_NOHOST =           0;
+my $RB_WRONG_USERNAME =         0;
+my $RB_OPEN_PID_FILE =          0;
+my $RB_RESOLVE_ADDRESS =        0;
+my $RB_CL_PARAMS =              0;
 
 `lcov --directory . --zerocounters`;
 
@@ -208,7 +208,8 @@ foreach my $s (@{$conf->fetch_array("protocols")}) {
 }
 
 
-my @binaries = ('sslh-select', 'sslh-fork');
+#my @binaries = ('sslh-select', 'sslh-fork');
+my @binaries = ('sslh-select');
 
 for my $binary (@binaries) {
     warn "Testing $binary\n";
