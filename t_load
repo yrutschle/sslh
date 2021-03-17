@@ -44,8 +44,8 @@ my $stop_client_probability = .001;
 # What protocols we test, and on what ports
 # Just comment out protocols you don't want to use.
 my %protocols = (
-    "ssh" => { address => "localhost:9001", client => client("ssh") },
-    "ssl" => { address => "localhost:9002", client => client("ssl") },
+    #"ssh" => { address => "localhost:9001", client => client("ssh") },
+    #    "tls" => { address => "localhost:9002", client => client("tls") },
     "openvpn" => {address => "localhost:9003", client => client("openvpn") },
     "tinc" => {address => "localhost:9004", client => client("tinc") },
 );
@@ -58,30 +58,57 @@ my %protocols = (
 my $sslh_address = "localhost:9000";
 my $pidfile = "/tmp/sslh_test.pid";
 
+
+
+sub connect_service {
+    my ($cnx, $service) = @_;
+
+    my ($test_data, $r);
+
+    sleep 5 if $service eq "ssh";
+    if ($service eq "openvpn") {
+        $test_data = "\x00\x00";
+        syswrite $cnx, $test_data;
+        sleep 1;
+        sysread $cnx, $r, 11; # length "openvpn: \x0\x0" => 11
+    }
+    if ($service eq "tinc") {
+        $test_data = "0 ";
+        syswrite $cnx, $test_data;
+        sleep 1;
+        sysread $cnx, $r, 8; # length "tinc: 0 " => 10 
+    }
+    my $expected = "$service: $test_data";
+    ($? = 1, die "* $service got [$r] expected [$expected]\n") if ($r ne $expected);
+}
+
+
 sub client {
     my ($service) = @_;
 
     return sub {
-        while (1) {
-            my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
-            my $test_data = "$service testing " x int(rand($block_rpt)+1) . "\n";
+        my ($client_id) = @_;
 
-            sleep 5 if $service eq "ssh";
-            if ($service eq "openvpn") {
-                syswrite $cnx, "\x00\x0F\x38\n";
-                my $msg;
-                sysread $cnx, $msg, 14; # length "openvpn: \x0\xF\x38\n" => 14
-            }
-            if ($service eq "tinc") {
-                syswrite $cnx, "0 \n";
-                my $msg;
-                sysread $cnx, $msg, 10; # length "tinc: 0 \n" => 10 
-            }
+        while (1) {
+            my $r;
+            my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
+            my $cnt = 0;
+
+            warn "starting $service\n";
+
+            connect_service($cnx, $service);
+
             while (1) {
+                my $test_data = "$service $cnt" x int(rand($block_rpt)+1) . "\n";
                 print $cnx $test_data;
-                my $r = <$cnx>;
-                ($? = 1, die "$service got [$r]\n") if ($r ne "$service: $test_data");
-                last if rand(1) < $stop_client_probability;
+                $r = <$cnx>;
+                my $expected= "$test_data";
+                my $r_l = length $r;
+                my $e_l = length $expected;
+                warn ("len $r_l / $e_l (". ($r_l - $e_l). ")\t$client_id\t$service\n");
+                ($? = 1, die "$service got [$r] expected [$expected]\n") if ($r ne $expected);
+                #last if rand(1) < $stop_client_probability;
+                $cnt++;
             }
         }
         exit 0;
@@ -90,29 +117,32 @@ sub client {
 
 foreach my $p (keys %protocols) {
     if (!fork) {
-        exec "./echosrv --listen $protocols{$p}->{address} --prefix '$p: '";
+        my $cmd = "./echosrv --listen $protocols{$p}->{address} --prefix '$p: '";
+        print "$cmd\n";
+        exec $cmd;
     }
 }
 
 # Start sslh with the right plumbing
 my $sslh_pid;
+if (0) {
 if (!($sslh_pid = fork)) {
     my $user = (getpwuid $<)[0]; # Run under current username
     my $prots = join " ", map "--$_ $protocols{$_}->{address}", keys %protocols;
-    my $cmd = "$sslh_binary -f -t 3 -u $user --listen $sslh_address $prots -P $pidfile";
+    my $cmd = "$sslh_binary -f -v3 -t 3 -u $user --listen $sslh_address $prots -P $pidfile";
     print "$cmd\n";
     exec $cmd;
     exit 0;
 }
 warn "spawned $sslh_pid\n";
 sleep 2;  # valgrind can be heavy -- wait 5 seconds
+}
 
 
-for (1 .. $NUM_CNX) {
+for my $client_id (1 .. $NUM_CNX) {
     foreach my $p (keys %protocols) {
         if (!fork) {
-            warn "starting $p\n";
-            &{$protocols{$p}->{client}};
+            &{$protocols{$p}->{client}}($client_id);
             exit;
         }
         # Give a little time so we don't overrun the
