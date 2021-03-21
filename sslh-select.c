@@ -475,23 +475,23 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         }
 
         /* Check all sockets for write activity */
-        struct connection* cnx = collection.cnx;
         for (i = 0; i < collection.num_cnx; i++) {
-            if (cnx[i].q[0].fd != -1) {
+            struct connection* cnx = &collection.cnx[i];
+            if (cnx->q[0].fd != -1) {
                 for (j = 0; j < 2; j++) {
-                    if (is_fd_active(cnx[i].q[j].fd, &writefds)) {
-                        res = flush_deferred(&cnx[i].q[j]);
+                    if (is_fd_active(cnx->q[j].fd, &writefds)) {
+                        res = flush_deferred(&cnx->q[j]);
                         if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
-                            if (cnx[i].state == ST_PROBING) fd_info.num_probing--;
-                            tidy_connection(&cnx[i], &fd_info.fds_r, &fd_info.fds_w);
+                            if (cnx->state == ST_PROBING) fd_info.num_probing--;
+                            tidy_connection(cnx, &fd_info.fds_r, &fd_info.fds_w);
                             if (cfg.verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
                         } else {
                             /* If no deferred data is left, stop monitoring the fd 
                              * for write, and restart monitoring the other one for reads*/
-                            if (!cnx[i].q[j].deferred_data_size) {
-                                FD_CLR(cnx[i].q[j].fd, &fd_info.fds_w);
-                                FD_SET(cnx[i].q[1-j].fd, &fd_info.fds_r);
+                            if (!cnx->q[j].deferred_data_size) {
+                                FD_CLR(cnx->q[j].fd, &fd_info.fds_w);
+                                FD_SET(cnx->q[1-j].fd, &fd_info.fds_r);
                             }
                         }
                     }
@@ -501,13 +501,14 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
         /* Check all sockets for read activity */
         for (i = 0; i < collection.num_cnx; i++) {
+            struct connection* cnx = &collection.cnx[i];
             for (j = 0; j < 2; j++) {
-                if (is_fd_active(cnx[i].q[j].fd, &readfds) || 
-                    ((cnx[i].state == ST_PROBING) && (cnx[i].probe_timeout < time(NULL)))) {
+                if (is_fd_active(cnx->q[j].fd, &readfds) || 
+                    ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL)))) {
                     if (cfg.verbose)
                         fprintf(stderr, "processing read fd%d slot %d\n", j, i);
 
-                    cnx_read_process(&cnx[i], j, &fd_info);
+                    cnx_read_process(cnx, j, &fd_info);
                 }
             }
         }
