@@ -56,9 +56,11 @@ static int set_nonblock(int fd)
     return flags;
 }
 
-static int tidy_connection(struct connection *cnx, fd_set *fds, fd_set *fds2)
+static int tidy_connection(struct connection *cnx, struct select_info* fd_info)
 {
     int i;
+    fd_set* fds = &fd_info->fds_r;
+    fd_set* fds2 = &fd_info->fds_w;
 
     for (i = 0; i < 2; i++) {
         if (cnx->q[i].fd != -1) {
@@ -118,7 +120,7 @@ static int accept_new_connection(int listen_socket, struct cnx_collection *colle
 
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-static int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
+static int connect_queue(struct connection *cnx, struct select_info* fd_info)
 {
     struct queue *q = &cnx->q[1];
 
@@ -128,13 +130,13 @@ static int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
         set_nonblock(q->fd);
         flush_deferred(q);
         if (q->deferred_data) {
-            FD_SET(q->fd, fds_w);
-            FD_CLR(cnx->q[0].fd, fds_r);
+            FD_SET(q->fd, &fd_info->fds_w);
+            FD_CLR(cnx->q[0].fd, &fd_info->fds_r);
         }
-        FD_SET(q->fd, fds_r);
+        FD_SET(q->fd, &fd_info->fds_r);
         return q->fd;
     } else {
-        tidy_connection(cnx, fds_r, fds_w);
+        tidy_connection(cnx, fd_info);
         return -1;
     }
 }
@@ -142,8 +144,7 @@ static int connect_queue(struct connection *cnx, fd_set *fds_r, fd_set *fds_w)
 /* shovels data from active fd to the other
    returns after one socket closed or operation would block
  */
-static void shovel(struct connection *cnx, int active_fd, 
-            fd_set *fds_r, fd_set *fds_w)
+static void shovel(struct connection *cnx, int active_fd, struct select_info* fd_info)
 {
     struct queue *read_q, *write_q;
 
@@ -156,12 +157,12 @@ static void shovel(struct connection *cnx, int active_fd,
     switch(fd2fd(write_q, read_q)) {
     case -1:
     case FD_CNXCLOSED:
-        tidy_connection(cnx, fds_r, fds_w);
+        tidy_connection(cnx, fd_info);
         break;
 
     case FD_STALLED:
-        FD_SET(write_q->fd, fds_w);
-        FD_CLR(read_q->fd, fds_r);
+        FD_SET(write_q->fd, &fd_info->fds_w);
+        FD_CLR(read_q->fd, &fd_info->fds_r);
         break;
 
     default: /* Nothing */
@@ -292,7 +293,7 @@ static void probing_read_process(struct connection* cnx, struct select_info* fd_
     /* libwrap check if required for this protocol */
     if (cnx->proto->service &&
         check_access_rights(cnx->q[0].fd, cnx->proto->service)) {
-        tidy_connection(cnx, &fd_info->fds_r, &fd_info->fds_w);
+        tidy_connection(cnx, fd_info);
         res = -1;
     } else if (cnx->proto->fork) {
         switch (fork()) {
@@ -306,10 +307,10 @@ static void probing_read_process(struct connection* cnx, struct select_info* fd_
         default: /* parent */
                  break;
         }
-        tidy_connection(cnx, &fd_info->fds_r, &fd_info->fds_w);
+        tidy_connection(cnx, fd_info);
         res = -1;
     } else {
-        res = connect_queue(cnx, &fd_info->fds_r, &fd_info->fds_w);
+        res = connect_queue(cnx, fd_info);
     }
 
     if (res >= fd_info->max_fd)
@@ -334,7 +335,7 @@ static void cnx_read_process(struct connection* cnx, int active_q, struct select
         break;
 
     case ST_SHOVELING:
-        shovel(cnx, active_q, &fd_info->fds_r, &fd_info->fds_w);
+        shovel(cnx, active_q, fd_info);
         break;
 
     default: /* illegal */
@@ -418,7 +419,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                         res = flush_deferred(&cnx->q[j]);
                         if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
                             if (cnx->state == ST_PROBING) fd_info.num_probing--;
-                            tidy_connection(cnx, &fd_info.fds_r, &fd_info.fds_w);
+                            tidy_connection(cnx, &fd_info);
                             if (cfg.verbose)
                                 fprintf(stderr, "closed slot %d\n", i);
                         } else {
