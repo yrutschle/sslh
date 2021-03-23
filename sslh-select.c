@@ -73,7 +73,7 @@ static int tidy_connection(struct connection *cnx, struct select_info* fd_info)
                 free(cnx->q[i].deferred_data);
         }
     }
-    init_cnx(cnx);
+    collection_remove_cnx(fd_info->collection, cnx);
     return 0;
 }
 
