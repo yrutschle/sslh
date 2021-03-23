@@ -35,9 +35,8 @@ struct select_info {
                           * We use this to know if we need to time out of
                           * select() */
     fd_set fds_r, fds_w;  /* reference fd sets (used to init working copies) */
+    cnx_collection* collection; /* Collection of connections linked to this loop */
 };
-
-
 
 
 /* Make the file descriptor non-block  */
@@ -367,7 +366,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     struct timeval tv;
     int i, j, res;
     int in_socket = 0;
-    cnx_collection* collection;
 
     fd_info.num_probing = 0; 
     FD_ZERO(&fd_info.fds_r);
@@ -379,7 +377,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     }
     fd_info.max_fd = listen_sockets[num_addr_listen-1].socketfd + 1;
 
-    collection = collection_init();
+    fd_info.collection = collection_init();
 
     while (1)
     {
@@ -400,7 +398,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
-                in_socket = accept_new_connection(listen_sockets[i].socketfd, collection);
+                in_socket = accept_new_connection(listen_sockets[i].socketfd, fd_info.collection);
                 if (in_socket > 0) {
                     fd_info.num_probing++;
                     FD_SET(in_socket, &fd_info.fds_r);
@@ -411,8 +409,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         }
 
         /* Check all sockets for write activity */
-        for (i = 0; i < collection_get_length(collection); i++) {
-            struct connection* cnx = collection_get_cnx(collection, i);
+        for (i = 0; i < collection_get_length(fd_info.collection); i++) {
+            struct connection* cnx = collection_get_cnx(fd_info.collection, i);
             if (cnx->q[0].fd != -1) {
                 for (j = 0; j < 2; j++) {
                     if (is_fd_active(cnx->q[j].fd, &writefds)) {
@@ -436,8 +434,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         }
 
         /* Check all sockets for read activity */
-        for (i = 0; i < collection_get_length(collection); i++) {
-            struct connection* cnx = collection_get_cnx(collection, i);
+        for (i = 0; i < collection_get_length(fd_info.collection); i++) {
+            struct connection* cnx = collection_get_cnx(fd_info.collection, i);
             for (j = 0; j < 2; j++) {
                 if (is_fd_active(cnx->q[j].fd, &readfds) || 
                     ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL)))) {
