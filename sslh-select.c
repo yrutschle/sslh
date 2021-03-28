@@ -108,7 +108,7 @@ static int accept_new_connection(int listen_socket, struct cnx_collection *colle
         return -1;
     }
 
-    res = collection_add_fd(collection, in_socket);
+    res = collection_alloc_cnx_from_fd(collection, in_socket);
     if (res == -1) {
         close(in_socket);
         return -1;
@@ -339,6 +339,7 @@ static void cnx_read_process(struct connection* cnx, int active_q, struct select
 
     default: /* illegal */
         log_message(LOG_ERR, "Illegal connection state %d\n", cnx->state);
+        dump_connection(cnx);
         exit(1);
     }
 }
@@ -441,7 +442,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                     ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL)))) {
                     if (cfg.verbose)
                         fprintf(stderr, "processing read fd%d slot %d\n", j, i);
-
                     cnx_read_process(cnx, j, &fd_info);
                 }
             }
