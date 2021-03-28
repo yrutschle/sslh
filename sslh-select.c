@@ -119,8 +119,9 @@ static int accept_new_connection(int listen_socket, struct cnx_collection *colle
 
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-static int connect_queue(struct connection *cnx, struct select_info* fd_info)
+static int connect_queue(cnx_collection* collection, int cnx_index, struct select_info* fd_info)
 {
+    struct connection *cnx = collection_get_cnx(collection, cnx_index);
     struct queue *q = &cnx->q[1];
 
     q->fd = connect_addr(cnx, cnx->q[0].fd);
@@ -133,6 +134,7 @@ static int connect_queue(struct connection *cnx, struct select_info* fd_info)
             FD_CLR(cnx->q[0].fd, &fd_info->fds_r);
         }
         FD_SET(q->fd, &fd_info->fds_r);
+        collection_add_fd(collection, q->fd, cnx_index);
         return q->fd;
     } else {
         tidy_connection(cnx, fd_info);
@@ -268,8 +270,9 @@ static int is_fd_active(int fd, fd_set* set)
  * IN/OUT cnx: connection data, updated if connected
  * IN/OUT info: updated if connected
  * */
-static void probing_read_process(struct connection* cnx, struct select_info* fd_info)
+static void probing_read_process(cnx_collection* collection, int cnx_index, struct select_info* fd_info)
 {
+    struct connection* cnx = collection_get_cnx(collection, cnx_index);
     int res;
 
     /* If timed out it's SSH, otherwise the client sent
@@ -309,7 +312,7 @@ static void probing_read_process(struct connection* cnx, struct select_info* fd_
         tidy_connection(cnx, fd_info);
         res = -1;
     } else {
-        res = connect_queue(cnx, fd_info);
+        res = connect_queue(collection, cnx_index, fd_info);
     }
 
     if (res >= fd_info->max_fd)
@@ -318,8 +321,10 @@ static void probing_read_process(struct connection* cnx, struct select_info* fd_
 
 
 /* Process a connection that is active in read */
-static void cnx_read_process(struct connection* cnx, int active_q, struct select_info* fd_info)
+static void cnx_read_process(cnx_collection* collection, int cnx_index,  int active_q, struct select_info* fd_info)
 {
+    struct connection* cnx = collection_get_cnx(collection, cnx_index);
+
     switch (cnx->state) {
 
     case ST_PROBING:
@@ -329,7 +334,7 @@ static void cnx_read_process(struct connection* cnx, int active_q, struct select
             exit(1);
         }
 
-        probing_read_process(cnx, fd_info);
+        probing_read_process(collection, cnx_index, fd_info);
 
         break;
 
@@ -442,7 +447,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                     ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL)))) {
                     if (cfg.verbose)
                         fprintf(stderr, "processing read fd%d slot %d\n", j, i);
-                    cnx_read_process(cnx, j, &fd_info);
+                    cnx_read_process(fd_info.collection, i, j, &fd_info);
                 }
             }
         }
