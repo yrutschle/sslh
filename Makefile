@@ -78,7 +78,7 @@ version.h:
 
 sslh: sslh-fork sslh-select
 
-$(OBJS): version.h
+$(OBJS): version.h common.h collection.h sslh-conf.h
 
 sslh-conf.c: sslhconf.cfg
 	conf2struct sslhconf.cfg
