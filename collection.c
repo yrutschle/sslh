@@ -132,11 +132,28 @@ static int extend_fd2cnx(cnx_collection* collection)
     return 0;
 }
 
+/* Points the file descriptor to the specified connection index */
+int collection_add_fd(cnx_collection* collection, int fd, int cnx_index)
+{
+    if (fd > collection->num_fd) {
+        int res = extend_fd2cnx(collection);
+        if (res) {
+            log_message(LOG_ERR, "unable to extend fd2cnx -- dropping connection\n");
+            return -1;
+        }
+    }
+    collection->fd2cnx[fd] = cnx_index;
+    return 0;
+}
 
-int collection_add_fd(struct cnx_collection* collection, int fd)
+
+/* Allocates a connection and inits it with specified file descriptor */
+int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
 {
     int free, res;
     struct connection* cnx = collection->cnx;
+
+    if (cfg.verbose) fprintf(stderr, "collection_add_fd %d\n", fd);
 
     /* Find an empty slot */
     for (free = 0; (free < collection->num_cnx) && (cnx[free].q[0].fd != -1); free++) {
@@ -153,14 +170,7 @@ int collection_add_fd(struct cnx_collection* collection, int fd)
     collection->cnx[free].state = ST_PROBING;
     collection->cnx[free].probe_timeout = time(NULL) + cfg.timeout;
 
-    if (fd > collection->num_fd) {
-        res = extend_fd2cnx(collection);
-        if (res) {
-            log_message(LOG_ERR, "unable to extend fd2cnx -- dropping connection\n");
-            return -1;
-        }
-    }
-    collection->fd2cnx[fd] = free;
+    collection_add_fd(collection, fd, free);
 
     if (cfg.verbose) 
         fprintf(stderr, "accepted fd %d on slot %d\n", fd, free);
