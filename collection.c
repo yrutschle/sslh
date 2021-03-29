@@ -31,7 +31,7 @@ struct cnx_collection {
     struct connection *cnx; /* pointer to array of connections */
 
     int num_fd; /* Number of file descriptors */
-    int* fd2cnx; /* Array indexed by file descriptor to index in cnx[] */
+    struct connection** fd2cnx; /* Array indexed by file descriptor to things in cnx[] */
     /* We don't try to keep the size of cnx and fd2cnx in sync at all,
      * so that the implementation is independant of other uses for file
      * descriptors, e.g. if sslh get integrated in another process */
@@ -77,7 +77,7 @@ cnx_collection* collection_init(void)
     CHECK_ALLOC(collection->fd2cnx, "malloc(collection->fd2cnx)");
 
     for (i = 0; i < collection->num_fd; i++) {
-        collection->fd2cnx[i] = -1;
+        collection->fd2cnx[i] = NULL;
     }
 
     return collection;
@@ -112,20 +112,20 @@ static int extend_cnx(struct cnx_collection* collection)
 
 static int extend_fd2cnx(cnx_collection* collection)
 {
-    int* new_i;
+    struct connection** new_array;
     int i, new_length;
 
     new_length = collection->num_fd + fd_num_alloc;
 
-    new_i = realloc(collection->fd2cnx, new_length * sizeof(*new_i));
-    if (!new_i) {
+    new_array = realloc(collection->fd2cnx, new_length * sizeof(*new_array));
+    if (!new_array) {
         return -1;
     }
 
-    collection->fd2cnx = new_i;
+    collection->fd2cnx = new_array;
 
     for (i = collection->num_fd; i < new_length; i++) {
-        collection->fd2cnx[i] = -1;
+        collection->fd2cnx[i] = NULL;
     }
     collection->num_fd = new_length;
 
@@ -133,7 +133,7 @@ static int extend_fd2cnx(cnx_collection* collection)
 }
 
 /* Points the file descriptor to the specified connection index */
-int collection_add_fd(cnx_collection* collection, int fd, int cnx_index)
+int collection_add_fd(cnx_collection* collection, struct connection* cnx, int fd)
 {
     if (fd > collection->num_fd) {
         int res = extend_fd2cnx(collection);
@@ -142,7 +142,9 @@ int collection_add_fd(cnx_collection* collection, int fd, int cnx_index)
             return -1;
         }
     }
-    collection->fd2cnx[fd] = cnx_index;
+    collection->fd2cnx[fd] = cnx;
+    int cnx_index = cnx - collection->cnx;
+    if(cfg.verbose) fprintf(stderr, "added fd %d on slot %d\n", fd, cnx_index);
     return 0;
 }
 
@@ -152,8 +154,6 @@ int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
 {
     int free, res;
     struct connection* cnx = collection->cnx;
-
-    if (cfg.verbose) fprintf(stderr, "collection_add_fd %d\n", fd);
 
     /* Find an empty slot */
     for (free = 0; (free < collection->num_cnx) && (cnx[free].q[0].fd != -1); free++) {
@@ -170,7 +170,7 @@ int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
     collection->cnx[free].state = ST_PROBING;
     collection->cnx[free].probe_timeout = time(NULL) + cfg.timeout;
 
-    collection_add_fd(collection, fd, free);
+    collection_add_fd(collection, &collection->cnx[free], fd);
 
     if (cfg.verbose) 
         fprintf(stderr, "accepted fd %d on slot %d\n", fd, free);
@@ -180,16 +180,22 @@ int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
 /* Remove a connection from the collection */
 int collection_remove_cnx(cnx_collection* collection, struct connection *cnx)
 {
-    collection->fd2cnx[cnx->q[0].fd] = -1;
-    collection->fd2cnx[cnx->q[1].fd] = -1;
+    collection->fd2cnx[cnx->q[0].fd] = NULL;
+    collection->fd2cnx[cnx->q[1].fd] = NULL;
     init_cnx(cnx);
     return 0;
 }
 
 /* Returns the indexed connection in the collection */
-struct connection* collection_get_cnx(struct cnx_collection* collection, int index)
+struct connection* collection_get_cnx_from_index(struct cnx_collection* collection, int index)
 {
     return & collection->cnx[index];
+}
+
+/* Returns the connection that contains the file descriptor */
+struct connection* collection_get_cnx_from_fd(struct cnx_collection* collection, int fd)
+{
+    return collection->fd2cnx[fd];
 }
 
 /* Returns the number of connections in the collection */
