@@ -466,7 +466,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
         /* Check all sockets for read activity */
         for (i = 0; i < fd_info.max_fd; i++) {
-            fprintf(stderr, "checking fd %d for read activity\n", i);
             if (FD_ISSET(i, &readfds)) {
                 struct connection* cnx = collection_get_cnx_from_fd(fd_info.collection, i);
                 if (cfg.verbose) {
