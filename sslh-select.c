@@ -325,6 +325,16 @@ static void probing_read_process(cnx_collection* collection,
 }
 
 
+/* Returns the queue index that contains the specified file descriptor */
+int active_queue(struct connection* cnx, int fd)
+{
+    if (cnx->q[0].fd == fd) return 0;
+    if (cnx->q[1].fd == fd) return 1;
+
+    log_message(LOG_ERR, "file descriptor %d not found in connection object\n", fd);
+    return -1;
+}
+
 /* Process a connection that is active in read */
 static void cnx_read_process(struct select_info* fd_info,
                              int fd)
@@ -333,7 +343,7 @@ static void cnx_read_process(struct select_info* fd_info,
     struct connection* cnx = collection_get_cnx_from_fd(collection, fd);
     /* Determine active queue (0 or 1): if fd is that of q[1], active_q = 1,
      * otherwise it's 0 */
-    int active_q = (cnx->q[1].fd == fd);
+    int active_q = active_queue(cnx, fd);
 
     switch (cnx->state) {
 
@@ -356,6 +366,28 @@ static void cnx_read_process(struct select_info* fd_info,
         log_message(LOG_ERR, "Illegal connection state %d\n", cnx->state);
         dump_connection(cnx);
         exit(1);
+    }
+}
+
+
+/* Process a connection that is active in write */
+static void cnx_write_process(struct select_info* fd_info, int fd)
+{
+    struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, fd);
+    int res;
+    int queue = active_queue(cnx, fd);
+
+    res = flush_deferred(&cnx->q[queue]);
+    if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
+        if (cnx->state == ST_PROBING) fd_info->num_probing--;
+        tidy_connection(cnx, fd_info);
+    } else {
+        /* If no deferred data is left, stop monitoring the fd 
+         * for write, and restart monitoring the other one for reads*/
+        if (!cnx->q[queue].deferred_data_size) {
+            FD_CLR(cnx->q[queue].fd, &fd_info->fds_w);
+            FD_SET(cnx->q[1-queue].fd, &fd_info->fds_r);
+        }
     }
 }
 
@@ -432,20 +464,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
             if (cnx->q[0].fd != -1) {
                 for (j = 0; j < 2; j++) {
                     if (is_fd_active(cnx->q[j].fd, &writefds)) {
-                        res = flush_deferred(&cnx->q[j]);
-                        if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
-                            if (cnx->state == ST_PROBING) fd_info.num_probing--;
-                            tidy_connection(cnx, &fd_info);
-                            if (cfg.verbose)
-                                fprintf(stderr, "closed slot %d\n", i);
-                        } else {
-                            /* If no deferred data is left, stop monitoring the fd 
-                             * for write, and restart monitoring the other one for reads*/
-                            if (!cnx->q[j].deferred_data_size) {
-                                FD_CLR(cnx->q[j].fd, &fd_info.fds_w);
-                                FD_SET(cnx->q[1-j].fd, &fd_info.fds_r);
-                            }
-                        }
+                        cnx_write_process(&fd_info, cnx->q[j].fd);
                     }
                 }
             }
