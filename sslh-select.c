@@ -326,11 +326,11 @@ static void probing_read_process(cnx_collection* collection,
 
 
 /* Process a connection that is active in read */
-static void cnx_read_process(cnx_collection* collection,
-                             struct connection* cnx,
-                             int fd,
-                             struct select_info* fd_info)
+static void cnx_read_process(struct select_info* fd_info,
+                             int fd)
 {
+    cnx_collection* collection = fd_info->collection;
+    struct connection* cnx = collection_get_cnx_from_fd(collection, fd);
     /* Determine active queue (0 or 1): if fd is that of q[1], active_q = 1,
      * otherwise it's 0 */
     int active_q = (cnx->q[1].fd == fd);
@@ -452,15 +452,14 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         }
 
         /* Check all sockets for timeouts */
+        /* TODO: refactor to use a list of probing connections to avoid linear
+         * search through all connections */
         for (i = 0; i < collection_get_length(fd_info.collection); i++) {
             struct connection* cnx = collection_get_cnx_from_index(fd_info.collection, i);
-            for (j = 0; j < 2; j++) {
-                if (/*is_fd_active(cnx->q[j].fd, &readfds) ||  */
-                    ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL)))) {
-                    if (cfg.verbose)
-                        fprintf(stderr, "processing read fd%d slot %d\n", j, i);
-                    cnx_read_process(fd_info.collection, cnx, i, &fd_info);
-                }
+            if ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL))) {
+                if (cfg.verbose)
+                    fprintf(stderr, "timeout slot %d\n", i);
+                cnx_read_process(&fd_info, cnx->q[0].fd);
             }
         }
 
@@ -473,7 +472,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                     dump_connection(cnx);
                 }
 
-                cnx_read_process(fd_info.collection, cnx, i,  &fd_info);
+                cnx_read_process(&fd_info, i);
             }
         }
 
