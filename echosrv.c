@@ -53,7 +53,7 @@ void start_echo(int fd)
 
     while (1) {
         ret = read(fd, buffer + prefix_len, sizeof(buffer) - prefix_len);
-        if (ret == -1) {
+        if (ret <= 0) {
             fprintf(stderr, "%s", strerror(errno));
             return;
         }
@@ -95,26 +95,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     wait(NULL);
 }
 
-static int config_resolve_listen(struct addrinfo **listen)
-{
-    int i, res;
-    for (i = 0; i < cfg.listen_len; i++) {
-        res = resolve_split_name(listen, cfg.listen[i].host, cfg.listen[i].port);
-        if (res) return res;
-
-        /* getaddrinfo returned a list of addresses corresponding to the
-         * specification; move the pointer to the end of that list before
-         * processing the next specification, while setting flags for
-         * start_listen_sockets() through ai_flags (which is not meant for
-         * that, but is only used as hint in getaddrinfo, so it's OK) */
-        for (; *listen; listen = &((*listen)->ai_next)) {
-            if (cfg.listen[i].keepalive)
-                (*listen)->ai_flags = SO_KEEPALIVE;
-        }
-    }
-    return 0;
-}
-
 int main(int argc, char *argv[])
 {
 
@@ -130,7 +110,6 @@ int main(int argc, char *argv[])
 
    sslhcfg_fprint(stdout, &cfg, 0);
 
-   config_resolve_listen(&addr_listen);
    num_addr_listen = start_listen_sockets(&listen_sockets);
 
    main_loop(listen_sockets, num_addr_listen);
