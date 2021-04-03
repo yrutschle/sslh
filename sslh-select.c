@@ -262,14 +262,6 @@ static void connect_proxy(struct connection *cnx)
     exit(0);
 }
 
-/* returns true if specified fd is initialised and present in fd_set */
-static int is_fd_active(int fd, fd_set* set)
-{
-    if (fd == -1) return 0;
-    return FD_ISSET(fd, set);
-}
-
-
 /* Process read activity on a socket in probe state 
  * IN/OUT cnx: connection data, updated if connected
  * IN/OUT info: updated if connected
@@ -412,7 +404,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
     fd_set readfds, writefds; /* working read and write fd sets */
     struct timeval tv;
-    int i, j, res;
+    int i, res;
     int in_socket = 0;
 
     fd_info.num_probing = 0; 
