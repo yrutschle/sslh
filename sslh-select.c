@@ -459,14 +459,9 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         }
 
         /* Check all sockets for write activity */
-        for (i = 0; i < collection_get_length(fd_info.collection); i++) {
-            struct connection* cnx = collection_get_cnx_from_index(fd_info.collection, i);
-            if (cnx->q[0].fd != -1) {
-                for (j = 0; j < 2; j++) {
-                    if (is_fd_active(cnx->q[j].fd, &writefds)) {
-                        cnx_write_process(&fd_info, cnx->q[j].fd);
-                    }
-                }
+        for (i = 0; i < fd_info.max_fd; i++) {
+            if (FD_ISSET(i, &writefds)) {
+                cnx_write_process(&fd_info, i);
             }
         }
 
