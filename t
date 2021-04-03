@@ -218,7 +218,7 @@ for my $binary (@binaries) {
     my ($sslh_pid, $valgrind);
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        my $cmd = "./$binary -v 4 -f -u $user -Ftest.cfg";
+        my $cmd = "./$binary -v 4 -f -u $user -F test.cfg";
         #$valgrind = 1;
         #$cmd = "valgrind --leak-check=full $cmd";
         verbose_exec $cmd;
