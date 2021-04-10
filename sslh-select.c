@@ -383,6 +383,17 @@ static void cnx_write_process(struct select_info* fd_info, int fd)
     }
 }
 
+/* Process a connection that accepts a socket */
+void cnx_accept_process(struct select_info* fd_info, int fd)
+{
+    int in_socket = accept_new_connection(fd, fd_info->collection);
+    if (in_socket > 0) {
+        fd_info->num_probing++;
+        FD_SET(in_socket, &fd_info->fds_r);
+        if (in_socket >= fd_info->max_fd)
+            fd_info->max_fd = in_socket + 1;
+    }
+}
 
 /* Main loop: the idea is as follow:
  * - fds_r and fds_w contain the file descriptors to monitor in read and write
@@ -405,7 +416,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     fd_set readfds, writefds; /* working read and write fd sets */
     struct timeval tv;
     int i, res;
-    int in_socket = 0;
 
     fd_info.num_probing = 0; 
     FD_ZERO(&fd_info.fds_r);
@@ -438,13 +448,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
-                in_socket = accept_new_connection(listen_sockets[i].socketfd, fd_info.collection);
-                if (in_socket > 0) {
-                    fd_info.num_probing++;
-                    FD_SET(in_socket, &fd_info.fds_r);
-                    if (in_socket >= fd_info.max_fd)
-                        fd_info.max_fd = in_socket + 1;;
-                }
+                cnx_accept_process(&fd_info, listen_sockets[i].socketfd);
+
                 /* don't also process it as a read socket */
                 FD_CLR(listen_sockets[i].socketfd, &readfds);
             }
