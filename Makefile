@@ -83,11 +83,11 @@ $(OBJS): version.h common.h collection.h sslh-conf.h
 sslh-conf.c: sslhconf.cfg
 	conf2struct sslhconf.cfg
 
-sslh-fork: version.h $(OBJS) sslh-fork.o Makefile common.h
+sslh-fork: version.h $(OBJS) sslh-fork.o Makefile
 	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
 	#strip sslh-fork
 
-sslh-select: version.h $(OBJS) sslh-select.o Makefile common.h
+sslh-select: version.h $(OBJS) sslh-select.o Makefile
 	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
 	#strip sslh-select
 
