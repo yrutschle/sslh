@@ -46,16 +46,14 @@ my $stop_client_probability = .001;
 my %protocols = (
     #"ssh" => { address => "localhost:9001", client => client("ssh") },
     #    "tls" => { address => "localhost:9002", client => client("tls") },
-    "openvpn" => {address => "localhost:9003", client => client("openvpn") },
-    "tinc" => {address => "localhost:9004", client => client("tinc") },
+    "openvpn" => {address => "localhost:9004", client => client("openvpn") },
+    "tinc" => {address => "localhost:9003", client => client("tinc") },
 );
 
 ##END CONFIG
 
 
-# We use ports 9000, 9001 and 9002 -- hope that won't clash
-# with anything...
-my $sslh_address = "localhost:9000";
+my $sslh_address = "localhost:8080";
 my $pidfile = "/tmp/sslh_test.pid";
 
 
@@ -92,6 +90,8 @@ sub client {
         while (1) {
             my $r;
             my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
+            die "$@\n" if (!$cnx);
+
             my $cnt = 0;
 
             warn "starting $service\n";
