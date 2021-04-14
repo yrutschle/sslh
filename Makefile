@@ -28,7 +28,7 @@ CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
 LIBS=
-OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o
+OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o gap.o
 
 CONDITIONAL_TARGETS=
 
@@ -78,7 +78,7 @@ version.h:
 
 sslh: sslh-fork sslh-select
 
-$(OBJS): version.h common.h collection.h sslh-conf.h
+$(OBJS): version.h common.h collection.h sslh-conf.h gap.h
 
 sslh-conf.c: sslhconf.cfg
 	conf2struct sslhconf.cfg

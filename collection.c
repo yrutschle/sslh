@@ -23,183 +23,72 @@
 #include "common.h"
 #include "collection.h"
 #include "sslh-conf.h"
-
+#include "gap.h"
 
 /* Info to keep track of all connections */
 struct cnx_collection {
-    int num_cnx;  /* Number of connections in *cnx */
-    struct connection *cnx; /* pointer to array of connections */
-
-    int num_fd; /* Number of file descriptors */
-    struct connection** fd2cnx; /* Array indexed by file descriptor to things in cnx[] */
-    /* We don't try to keep the size of cnx and fd2cnx in sync at all,
-     * so that the implementation is independant of other uses for file
-     * descriptors, e.g. if sslh get integrated in another process */
+    gap_array* fd2cnx;  /* Array indexed by file descriptor to things in cnx[] */
 };
-
-/* cnx_num_alloc is the number of connection to allocate at once (at start-up,
- * and then every time we get too many simultaneous connections: e.g. start
- * with 100 slots, then if we get more than 100 connections allocate another
- * 100 slots, and so on). We never free up connection structures. We try to
- * allocate as many structures at once as will fit in one page (which is 102
- * in sslh 1.9 on Linux on x86)
- */
-static long cnx_num_alloc;
-
-static long fd_num_alloc; /* same, but for the file descriptor array */
-
-
 
 /* Allocates and initialises a new collection of connections. */
 cnx_collection* collection_init(void)
 {
-    int i;
     cnx_collection* collection;
 
     collection = malloc(sizeof(*collection));
-    CHECK_ALLOC(collection, "malloc(collection)");
+    CHECK_ALLOC(collection, "collection_init(collection)");
 
     memset(collection, 0, sizeof(*collection));
-    cnx_num_alloc = getpagesize() / sizeof(struct connection);
 
-    collection->num_cnx = cnx_num_alloc; /* Start with a set pool of slots */
-    collection->cnx = malloc(collection->num_cnx * sizeof(struct connection));
-    CHECK_ALLOC(collection->cnx, "malloc(collection->cnx)");
-
-    for (i = 0; i < collection->num_cnx; i++) {
-        init_cnx(&collection->cnx[i]);
-    }
-
-    fd_num_alloc = getpagesize() / sizeof(collection->fd2cnx[0]);
-
-    collection->num_fd = fd_num_alloc;
-    collection->fd2cnx = malloc(collection->num_fd * sizeof(collection->fd2cnx[0])); 
-    CHECK_ALLOC(collection->fd2cnx, "malloc(collection->fd2cnx)");
-
-    for (i = 0; i < collection->num_fd; i++) {
-        collection->fd2cnx[i] = NULL;
-    }
+    collection->fd2cnx = gap_init();
 
     return collection;
 }
 
+/* Caveat: might not work, as has never been used */
 void collection_destroy(cnx_collection* collection)
 {
+    /* Caveat 2: no code to free connections yet */
+    gap_destroy(collection->fd2cnx);
     free(collection);
-}
-
-/* Increases the number of slots available in a collection of connections
- * After calling, collection->cnx might have moved
- * */
-static int extend_cnx(struct cnx_collection* collection)
-{
-    struct connection* new;
-    int i, new_length = collection->num_cnx + cnx_num_alloc;
-
-    if (cfg.verbose)
-        fprintf(stderr, "allocating %ld more slots (target: %d).\n", cnx_num_alloc, new_length);
-    new = realloc(collection->cnx, new_length * sizeof(collection->cnx[0]));
-    if (!new) return -1;
-
-    collection->cnx = new;
-
-    for (i = collection->num_cnx; i < new_length; i++) {
-        init_cnx(&collection->cnx[i]); 
-    }
-    collection->num_cnx = new_length;
-    return 0;
-}
-
-static int extend_fd2cnx(cnx_collection* collection)
-{
-    struct connection** new_array;
-    int i, new_length;
-
-    new_length = collection->num_fd + fd_num_alloc;
-
-    new_array = realloc(collection->fd2cnx, new_length * sizeof(*new_array));
-    if (!new_array) {
-        return -1;
-    }
-
-    collection->fd2cnx = new_array;
-
-    for (i = collection->num_fd; i < new_length; i++) {
-        collection->fd2cnx[i] = NULL;
-    }
-    collection->num_fd = new_length;
-
-    return 0;
 }
 
 /* Points the file descriptor to the specified connection index */
 int collection_add_fd(cnx_collection* collection, struct connection* cnx, int fd)
 {
-    if (fd > collection->num_fd) {
-        int res = extend_fd2cnx(collection);
-        if (res) {
-            log_message(LOG_ERR, "unable to extend fd2cnx -- dropping connection\n");
-            return -1;
-        }
-    }
-    collection->fd2cnx[fd] = cnx;
-    int cnx_index = cnx - collection->cnx;
-    if(cfg.verbose) fprintf(stderr, "added fd %d on slot %d\n", fd, cnx_index);
+    gap_set(collection->fd2cnx, fd, cnx);
     return 0;
 }
-
 
 /* Allocates a connection and inits it with specified file descriptor */
 int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
 {
-    int free, res;
-    struct connection* cnx = collection->cnx;
+    struct connection* cnx = malloc(sizeof(*cnx));
 
-    /* Find an empty slot */
-    for (free = 0; (free < collection->num_cnx) && (cnx[free].q[0].fd != -1); free++) {
-        /* nothing */
-    }
-    if (free >= collection->num_cnx)  {
-        res = extend_cnx(collection);
-        if (res) {
-            log_message(LOG_ERR, "unable to extend collection -- dropping connection\n");
-            return -1;
-        }
-    }
-    collection->cnx[free].q[0].fd = fd;
-    collection->cnx[free].state = ST_PROBING;
-    collection->cnx[free].probe_timeout = time(NULL) + cfg.timeout;
+    if (!cnx) return -1;
 
-    collection_add_fd(collection, &collection->cnx[free], fd);
+    init_cnx(cnx);
+    cnx->q[0].fd = fd;
+    cnx->state = ST_PROBING;
+    cnx->probe_timeout = time(NULL) + cfg.timeout;
 
-    if (cfg.verbose) 
-        fprintf(stderr, "accepted fd %d on slot %d\n", fd, free);
+    gap_set(collection->fd2cnx, fd, cnx);
+
     return 0;
 }
 
 /* Remove a connection from the collection */
 int collection_remove_cnx(cnx_collection* collection, struct connection *cnx)
 {
-    collection->fd2cnx[cnx->q[0].fd] = NULL;
-    collection->fd2cnx[cnx->q[1].fd] = NULL;
-    init_cnx(cnx);
+    gap_set(collection->fd2cnx, cnx->q[0].fd, NULL);
+    gap_set(collection->fd2cnx, cnx->q[1].fd, NULL);
+    free(cnx);
     return 0;
-}
-
-/* Returns the indexed connection in the collection */
-struct connection* collection_get_cnx_from_index(struct cnx_collection* collection, int index)
-{
-    return & collection->cnx[index];
 }
 
 /* Returns the connection that contains the file descriptor */
 struct connection* collection_get_cnx_from_fd(struct cnx_collection* collection, int fd)
 {
-    return collection->fd2cnx[fd];
+    return gap_get(collection->fd2cnx, fd);
 }
 
-/* Returns the number of connections in the collection */
-int collection_get_length(cnx_collection* collection)
-{
-    return collection->num_cnx;
-}

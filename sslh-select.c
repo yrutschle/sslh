@@ -26,6 +26,8 @@
 #include "probe.h"
 #include "collection.h"
 
+static int debug = 0;
+
 const char* server_type = "sslh-select";
 
 /* Global state for a select() loop */
@@ -331,6 +333,8 @@ int active_queue(struct connection* cnx, int fd)
 static void cnx_read_process(struct select_info* fd_info,
                              int fd)
 {
+    if (debug) fprintf(stderr, "cnx_read_process fd %d\n", fd);
+
     cnx_collection* collection = fd_info->collection;
     struct connection* cnx = collection_get_cnx_from_fd(collection, fd);
     /* Determine active queue (0 or 1): if fd is that of q[1], active_q = 1,
@@ -365,6 +369,8 @@ static void cnx_read_process(struct select_info* fd_info,
 /* Process a connection that is active in write */
 static void cnx_write_process(struct select_info* fd_info, int fd)
 {
+    if (debug) fprintf(stderr, "cnx_write_process fd %d\n", fd);
+
     struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, fd);
     int res;
     int queue = active_queue(cnx, fd);
@@ -386,6 +392,8 @@ static void cnx_write_process(struct select_info* fd_info, int fd)
 /* Process a connection that accepts a socket */
 void cnx_accept_process(struct select_info* fd_info, int fd)
 {
+    if (debug) fprintf(stderr, "cnx_accept_process fd %d\n", fd);
+
     int in_socket = accept_new_connection(fd, fd_info->collection);
     if (in_socket > 0) {
         fd_info->num_probing++;
@@ -465,18 +473,23 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         /* Check all sockets for timeouts */
         /* TODO: refactor to use a list of probing connections to avoid linear
          * search through all connections */
-        for (i = 0; i < collection_get_length(fd_info.collection); i++) {
-            struct connection* cnx = collection_get_cnx_from_index(fd_info.collection, i);
-            if ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL))) {
-                if (cfg.verbose)
-                    fprintf(stderr, "timeout slot %d\n", i);
-                cnx_read_process(&fd_info, cnx->q[0].fd);
+        for (i = 0; i < fd_info.max_fd; i++) {
+            struct connection* cnx = collection_get_cnx_from_fd(fd_info.collection, i);
+            if (cnx) {
+                if ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL))) {
+                    if (cfg.verbose)
+                        fprintf(stderr, "timeout slot %d\n", i);
+                    cnx_read_process(&fd_info, cnx->q[0].fd);
+                }
             }
         }
 
         /* Check all sockets for read activity */
         for (i = 0; i < fd_info.max_fd; i++) {
-            if (FD_ISSET(i, &readfds)) {
+            /* Check if it's active AND currently monitored (if a connection
+             * died, it gets tidied, which closes both sockets, but readfs does
+             * not know about that */
+            if (FD_ISSET(i, &readfds) && FD_ISSET(i, &fd_info.fds_r)) {
                 cnx_read_process(&fd_info, i);
             }
         }
