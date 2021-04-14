@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
+
+#include "sslh-conf.h"
 #include "gap.h"
 
 
@@ -64,8 +67,7 @@ int gap_getlen(gap_array* gap)
 
 void* gap_get(gap_array* gap, int index)
 {
-    int elem_size = sizeof(gap->array[0]);
-    return gap->array[index * elem_size];
+    return gap->array[index];
 }
 
 static int gap_extend(gap_array* gap)
@@ -75,20 +77,25 @@ static int gap_extend(gap_array* gap)
     void** new = realloc(gap->array, new_length * elem_size);
     if (!new) return -1;
 
-    for (int i = gap->len; i < new_length; i++)
+    gap->array = new;
+
+    for (int i = gap->len; i < new_length; i++) {
         gap->array[i] = NULL;
+    }
+
+    gap->len = new_length;
+
     return 0;
 }
 
 int gap_set(gap_array* gap, int index, void* ptr)
 {
-    if (index > gap->len) {
+    if (index >= gap->len) {
         int res = gap_extend(gap);
         if (res == -1) return -1;
     }
 
-    int elem_size = sizeof(gap->array[0]);
-    gap->array[index * elem_size] = ptr;
+    gap->array[index] = ptr;
     return 0;
 }
 
