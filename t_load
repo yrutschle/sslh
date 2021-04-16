@@ -46,8 +46,8 @@ my $stop_client_probability = .001;
 my %protocols = (
     #"ssh" => { address => "localhost:9001", client => client("ssh") },
     #    "tls" => { address => "localhost:9002", client => client("tls") },
-    "openvpn" => {address => "localhost:9004", client => client("openvpn") },
-    "tinc" => {address => "localhost:9003", client => client("tinc") },
+    "openvpn" => {address => "localhost:9004" },
+    "tinc" => {address => "localhost:9003" },
 );
 
 ##END CONFIG
@@ -77,42 +77,44 @@ sub connect_service {
         sysread $cnx, $r, 8; # length "tinc: 0 " => 10 
     }
     my $expected = "$service: $test_data";
-    ($? = 1, die "* $service got [$r] expected [$expected]\n") if ($r ne $expected);
+    return ($r eq $expected);
 }
 
 
 sub client {
-    my ($service) = @_;
+    my ($service, $client_id, $fd_out) = @_;
 
-    return sub {
-        my ($client_id) = @_;
+    while (1) {
+        my $r;
+        my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
+        die "$@\n" if (!$cnx);
+
+        my $cnt = 0;
+
+        warn "starting $service\n";
+
+        if (not connect_service($cnx, $service)) {
+            print $fd_out "$client_id\t0\tC\n";
+            exit;
+        }
 
         while (1) {
-            my $r;
-            my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
-            die "$@\n" if (!$cnx);
-
-            my $cnt = 0;
-
-            warn "starting $service\n";
-
-            connect_service($cnx, $service);
-
-            while (1) {
-                my $test_data = "$service $cnt" x int(rand($block_rpt)+1) . "\n";
-                print $cnx $test_data;
-                $r = <$cnx>;
-                my $expected= "$test_data";
-                my $r_l = length $r;
-                my $e_l = length $expected;
-                warn ("len $r_l / $e_l (". ($r_l - $e_l). ")\t$client_id\t$service\n");
-                ($? = 1, die "$service got [$r] expected [$expected]\n") if ($r ne $expected);
-                #last if rand(1) < $stop_client_probability;
-                $cnt++;
-            }
+            my $test_data = "$service $cnt" x int(rand($block_rpt)+1) . "\n";
+            print $cnx $test_data;
+            $r = <$cnx>;
+            my $expected= "$test_data";
+            my $r_l = length $r;
+            my $e_l = length $expected;
+            $fd_out->autoflush;
+            my $error = "";
+            $error = "M" if $r ne $expected;
+            print $fd_out ("$client_id\t$r_l\t$error\n");
+            ($? = 1, die "$service got [$r] expected [$expected]\n") if ($r ne $expected);
+            #last if rand(1) < $stop_client_probability;
+            $cnt++;
         }
-        exit 0;
     }
+    exit 0;
 }
 
 foreach my $p (keys %protocols) {
@@ -139,15 +141,40 @@ sleep 2;  # valgrind can be heavy -- wait 5 seconds
 }
 
 
-for my $client_id (1 .. $NUM_CNX) {
-    foreach my $p (keys %protocols) {
-        if (!fork) {
-            &{$protocols{$p}->{client}}($client_id);
-            exit;
+my ($c_in, $c_out);
+pipe $c_in, $c_out;
+
+if (!fork) {
+    # Process that starts all the clients
+    for my $client_id (1 .. $NUM_CNX) {
+        foreach my $p (keys %protocols) {
+            if (!fork) {
+                client($p, "$p$client_id", $c_out);
+                exit;
+            }
+            # Give a little time so we don't overrun the
+            # listen(2) backlog.
+            select undef, undef, undef, $start_time_delay;
         }
-        # Give a little time so we don't overrun the
-        # listen(2) backlog.
-        select undef, undef, undef, $start_time_delay;
+    }
+} else {
+    my %data;
+
+    # Process that retrieves client output to pretty print
+    print "\033[2J";
+    while (<$c_in>) {
+        chop;
+        my ($client_id, $r_l, $error, @rest) = split /\t/, $_;
+
+        my ($curr_rcv) = ${$data{$client_id}}[0];
+        my ($curr_error) = ${$data{$client_id}}[1];
+        $data{$client_id} = [ $r_l + $curr_rcv, "$curr_error$error" ];
+
+        print "\033[0;0H";
+        foreach my $i (sort keys %data) {
+            ($r_l, $error) = @{$data{$i}};
+            print "\033[2K$i\t$r_l\t$error\n";
+        }
     }
 }
 
