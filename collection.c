@@ -61,11 +61,11 @@ int collection_add_fd(cnx_collection* collection, struct connection* cnx, int fd
 }
 
 /* Allocates a connection and inits it with specified file descriptor */
-int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
+struct connection* collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
 {
     struct connection* cnx = malloc(sizeof(*cnx));
 
-    if (!cnx) return -1;
+    if (!cnx) return NULL;
 
     init_cnx(cnx);
     cnx->q[0].fd = fd;
@@ -74,7 +74,7 @@ int collection_alloc_cnx_from_fd(struct cnx_collection* collection, int fd)
 
     gap_set(collection->fd2cnx, fd, cnx);
 
-    return 0;
+    return cnx;
 }
 
 /* Remove a connection from the collection */

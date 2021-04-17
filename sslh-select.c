@@ -113,8 +113,8 @@ static int accept_new_connection(int listen_socket, struct cnx_collection *colle
         return -1;
     }
 
-    res = collection_alloc_cnx_from_fd(collection, in_socket);
-    if (res == -1) {
+    struct connection* cnx = collection_alloc_cnx_from_fd(collection, in_socket);
+    if (!cnx) {
         close(in_socket);
         return -1;
     }
