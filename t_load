@@ -44,7 +44,7 @@ my $stop_client_probability = .001;
 # What protocols we test, and on what ports
 # Just comment out protocols you don't want to use.
 my %protocols = (
-    #"ssh" => { address => "localhost:9001", client => client("ssh") },
+    "ssh" => { address => "localhost:9000" },
     #    "tls" => { address => "localhost:9002", client => client("tls") },
     "openvpn" => {address => "localhost:9004" },
     "tinc" => {address => "localhost:9003" },
@@ -63,14 +63,22 @@ sub connect_service {
 
     my ($test_data, $r);
 
-    sleep 5 if $service eq "ssh";
+    if ($service eq "ssh") {
+        sleep rand 20;
+        $test_data = "SSH-2.0 hello";
+        syswrite $cnx, $test_data;
+        sleep 1;
+        sysread $cnx, $r, 18; # length "ssh: SSH-2.0 hello" => 18
+    }
     if ($service eq "openvpn") {
+        sleep rand 10;
         $test_data = "\x00\x00";
         syswrite $cnx, $test_data;
         sleep 1;
         sysread $cnx, $r, 11; # length "openvpn: \x0\x0" => 11
     }
     if ($service eq "tinc") {
+        sleep rand 10;
         $test_data = "0 ";
         syswrite $cnx, $test_data;
         sleep 1;
