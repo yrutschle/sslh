@@ -124,8 +124,7 @@ static int accept_new_connection(int listen_socket, struct cnx_collection *colle
 
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
-static int connect_queue(cnx_collection* collection,
-                         struct connection* cnx,
+static int connect_queue(struct connection* cnx,
                          struct select_info* fd_info)
 {
     struct queue *q = &cnx->q[1];
@@ -140,7 +139,7 @@ static int connect_queue(cnx_collection* collection,
             FD_CLR(cnx->q[0].fd, &fd_info->fds_r);
         }
         FD_SET(q->fd, &fd_info->fds_r);
-        collection_add_fd(collection, cnx, q->fd);
+        collection_add_fd(fd_info->collection, cnx, q->fd);
         return q->fd;
     } else {
         tidy_connection(cnx, fd_info);
@@ -268,8 +267,7 @@ static void connect_proxy(struct connection *cnx)
  * IN/OUT cnx: connection data, updated if connected
  * IN/OUT info: updated if connected
  * */
-static void probing_read_process(cnx_collection* collection, 
-                                 struct connection* cnx,
+static void probing_read_process(struct connection* cnx,
                                  struct select_info* fd_info)
 {
     int res;
@@ -311,7 +309,7 @@ static void probing_read_process(cnx_collection* collection,
         tidy_connection(cnx, fd_info);
         res = -1;
     } else {
-        res = connect_queue(collection, cnx, fd_info);
+        res = connect_queue(cnx, fd_info);
     }
 
     if (res >= fd_info->max_fd)
@@ -350,7 +348,7 @@ static void cnx_read_process(struct select_info* fd_info,
             exit(1);
         }
 
-        probing_read_process(collection, cnx, fd_info);
+        probing_read_process(cnx, fd_info);
 
         break;
 
@@ -479,7 +477,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                 if ((cnx->state == ST_PROBING) && (cnx->probe_timeout < time(NULL))) {
                     if (cfg.verbose)
                         fprintf(stderr, "timeout slot %d\n", i);
-                    cnx_read_process(&fd_info, cnx->q[0].fd);
+                    probing_read_process(cnx, &fd_info);
                 }
             }
         }
