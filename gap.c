@@ -60,11 +60,6 @@ gap_array* gap_init(void)
     return gap;
 }
 
-int gap_getlen(gap_array* gap)
-{
-    return gap->len;
-}
-
 void* gap_get(gap_array* gap, int index)
 {
     return gap->array[index];
