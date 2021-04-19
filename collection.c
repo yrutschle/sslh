@@ -80,8 +80,10 @@ struct connection* collection_alloc_cnx_from_fd(struct cnx_collection* collectio
 /* Remove a connection from the collection */
 int collection_remove_cnx(cnx_collection* collection, struct connection *cnx)
 {
-    gap_set(collection->fd2cnx, cnx->q[0].fd, NULL);
-    gap_set(collection->fd2cnx, cnx->q[1].fd, NULL);
+    if (cnx->q[0].fd != -1)
+        gap_set(collection->fd2cnx, cnx->q[0].fd, NULL);
+    if (cnx->q[1].fd != -1)
+        gap_set(collection->fd2cnx, cnx->q[1].fd, NULL);
     free(cnx);
     return 0;
 }

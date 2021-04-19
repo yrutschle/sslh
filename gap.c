@@ -100,3 +100,29 @@ void gap_destroy(gap_array* gap)
     free(gap);
 }
 
+
+/* In gap, find element pointing to ptr, then shift the rest of the array that
+ * is considered len elements long.
+ * A poor man's list, if you will. Currently only used to remove probing
+ * connections, so it only copies a few pointers at most.
+ * Returns -1 if ptr was not found */
+int gap_remove_ptr(gap_array* gap, void* ptr, int len)
+{
+    int start, i;
+
+    for (i = 0; i < len; i++)
+        if (gap->array[i] == ptr)
+            break;
+
+    if (i < len)
+        start = i;
+    else
+        return -1;
+
+    for (i = start; i < len; i++) {
+        gap->array[i] = gap->array[i+1];
+    }
+
+    return 0;
+}
+
