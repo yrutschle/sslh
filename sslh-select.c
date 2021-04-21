@@ -278,14 +278,12 @@ static void connect_proxy(struct connection *cnx)
 /* Removes cnx from probing list */
 static void remove_probing_cnx(struct select_info* fd_info, struct connection* cnx)
 {
-    fprintf(stderr, "remove_probing_cnx %d\n", fd_info->num_probing);
     gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing);
     fd_info->num_probing--;
 }
 
 static void add_probing_cnx(struct select_info* fd_info, struct connection* cnx)
 {
-    fprintf(stderr, "add_probing_cnx %d\n", fd_info->num_probing);
     gap_set(fd_info->probing_list, fd_info->num_probing, cnx);
     fd_info->num_probing++;
 }
