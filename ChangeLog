@@ -19,6 +19,8 @@ vNEXT:
 	accordingly. Note this could cause problems if
 	combined with incoming TLS with SNI.
 
+	sslh-select refactored to remove linear searches.
+
 	Added symbol to support libconfig 1.4.9, still in
 	use in CentOS7.
 
