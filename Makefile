@@ -80,7 +80,7 @@ sslh: sslh-fork sslh-select
 
 $(OBJS): version.h common.h collection.h sslh-conf.h gap.h
 
-sslh-conf.c: sslhconf.cfg
+sslh-conf.c sslh-conf.h: sslhconf.cfg
 	conf2struct sslhconf.cfg
 
 sslh-fork: version.h $(OBJS) sslh-fork.o Makefile
@@ -94,8 +94,11 @@ sslh-select: version.h $(OBJS) sslh-select.o Makefile
 systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
-echosrv: version.h $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o sslh-conf.o probe.o common.o tls.o argtable3.o $(LIBS)
+echosrv-conf.c echosrv-conf.h: echosrv.cfg
+	conf2struct echosrv.cfg
+
+echosrv: version.h echosrv-conf.c echosrv.o echosrv-conf.o argtable3.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o echosrv-conf.o argtable3.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)
