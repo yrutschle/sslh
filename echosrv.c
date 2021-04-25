@@ -92,24 +92,72 @@ void start_echo(int fd)
     }
 }
 
+/* TCP echo server: accepts connections to an endpoint, forks an echo for each
+ * connection, forever. Prefix is added at start of response stream */
+void tcp_echo(struct listen_endpoint* listen_socket)
+{
+    while (1) {
+        int in_socket = accept(listen_socket->socketfd, 0, 0);
+        CHECK_RES_DIE(in_socket, "accept");
+
+        if (!fork())
+        {
+            close(listen_socket->socketfd);
+            start_echo(in_socket);
+            exit(0);
+        }
+        close(in_socket);
+    }
+}
+
+/* UDP echo server: receive packets, return them, forever.
+ * Prefix is added at each packet */
+void udp_echo(struct listen_endpoint* listen_socket)
+{
+    char data[65536];
+    struct sockaddr src_addr;
+    socklen_t addrlen;
+
+    memset(data, 0, sizeof(data));
+
+    size_t prefix_len = strlen(cfg.prefix);
+    memcpy(data, cfg.prefix, prefix_len);
+
+    while (1) {
+        addrlen = sizeof(src_addr);
+        size_t len = recvfrom(listen_socket->socketfd, 
+                           data + prefix_len,
+                           sizeof(data) - prefix_len,
+                           0,
+                           &src_addr,
+                           &addrlen);
+
+        if (len < 0) {
+            perror("recvfrom");
+        }
+
+        int res = sendto(listen_socket->socketfd,
+                         data,
+                         len + prefix_len,
+                         0,
+                         &src_addr,
+                         addrlen);
+        if (res < 0) {
+            perror("sendto");
+        }
+    }
+}
+
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
-    int in_socket, i;
+    int i;
 
     for (i = 0; i < num_addr_listen; i++) {
         if (!fork()) {
-            while (1)
-            {
-                in_socket = accept(listen_sockets[i].socketfd, 0, 0);
-                CHECK_RES_DIE(in_socket, "accept");
-
-                if (!fork())
-                {
-                    close(listen_sockets[i].socketfd);
-                    start_echo(in_socket);
-                    exit(0);
-                }
-                close(in_socket);
+            if (cfg.udp) {
+                udp_echo(&listen_sockets[i]);
+            } else {
+                tcp_echo(&listen_sockets[i]);
             }
         }
     }
