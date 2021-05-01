@@ -192,8 +192,9 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
             (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
             (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
             if (cfg.verbose)
-                fprintf(stderr, "%d:\t%s\t[%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
-                        cfg.listen[i].keepalive ? "keepalive" : "");
+                fprintf(stderr, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
+                        cfg.listen[i].keepalive ? "keepalive" : "",
+                        cfg.listen[i].is_udp ? "udp" : "");
         }
         freeaddrinfo(start_addr);
     }
