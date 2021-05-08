@@ -1,11 +1,4 @@
 vNEXT:
-	CAVEAT: Refactor in progress to integrate UDP
-	support. Please test but be aware there is an
-	increase chance of failure!
-	Otherwise, stay at
-	07719f55b87c279cd56dfbf9ab6facb6a3e193cc for the
-	time being.
-
 	UDP support now works. It only works with sslh-fork,
 	which will create a single process that handles all
 	UDP connections with select(). Probes specified in
