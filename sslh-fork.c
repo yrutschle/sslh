@@ -164,7 +164,7 @@ void set_listen_procname(struct listen_endpoint *listen_socket)
 }
 
 
-/* TCP listenedr: connections, fork a child for each new connection 
+/* TCP listener: connections, fork a child for each new connection 
  * IN: 
  *      endpoint: array of listening endpoint objects
  *      num_endpoints: size of endpoint array
