@@ -27,7 +27,7 @@ endif
 CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
-LIBS=
+LIBS=-lm
 OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o gap.o
 
 CONDITIONAL_TARGETS=
