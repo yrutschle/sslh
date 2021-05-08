@@ -785,6 +785,21 @@ void set_keepcaps(int val) {
 #endif
 }
 
+/* Returns true if anything requires transparent proxying. */
+#ifdef LIBCAP
+static int use_transparent(void)
+{
+    if (cfg.transparent)
+        return 1;
+
+    for (int i = 0; i < cfg.protocols_len; i++)
+        if (cfg.protocols[i].transparent)
+            return 1;
+
+    return 0;
+}
+#endif
+
 /* set needed capabilities for effective and permitted, clear rest */
 void set_capabilities(void) {
 #ifdef LIBCAP
@@ -793,7 +808,7 @@ void set_capabilities(void) {
     cap_value_t cap_list[10];
     int ncap = 0;
 
-    if (cfg.transparent)
+    if (use_transparent())
         cap_list[ncap++] = CAP_NET_ADMIN;
 
     caps = cap_init();
