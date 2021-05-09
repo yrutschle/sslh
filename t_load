@@ -14,23 +14,22 @@
 use strict;
 use IO::Socket::INET6;
 use Data::Dumper;
+use Conf::Libconfig;
 
 ## BEGIN TEST CONFIG
 
 # Do we test sslh-select or sslh-fork?
 my $sslh_binary = "./sslh-select";
 
-# How many clients to we start for each protocol?
-my $NUM_CNX = 30;
+# How many total clients to we start? Each client will pick
+# a new protocol among what's in test.cfg.
+my $NUM_CNX = 20;
 
 # Delay between starting new processes when starting up. If
 # you start 200 processes in under a second, things go wrong
 # and it's not sslh's fault (typically the echosrv won't be
 # forking fast enough).
-my $start_time_delay = .1;
-
-# If you test 4 protocols, you'll start $NUM_CNX * 4 clients
-# (e.g. 40), starting one every $start_time_delay seconds.
+my $start_time_delay = .5;
 
 # Max times we repeat the test string: allows to test for
 # large messages.
@@ -41,70 +40,84 @@ my $block_rpt = 4096;
 # disconnecting).
 my $stop_client_probability = .001;
 
-# What protocols we test, and on what ports
-# Just comment out protocols you don't want to use.
-my %protocols = (
-    "ssh" => { address => "localhost:9000" },
-    #    "tls" => { address => "localhost:9002", client => client("tls") },
-    "openvpn" => {address => "localhost:9004" },
-    "tinc" => {address => "localhost:9003" },
-);
-
 ##END CONFIG
 
+my $conf = new Conf::Libconfig;
+$conf->read_file("test.cfg");
 
-my $sslh_address = "localhost:8080";
-my $pidfile = "/tmp/sslh_test.pid";
+
+# Pick one address for TCP and one for UDP
+my @listen = @{$conf->fetch_array("listen")};
+my ($sslh_tcp_address, $sslh_udp_address);
+
+foreach my $l (@listen) {
+    if ($l->{is_udp}) {
+        $sslh_udp_address //= "$l->{host}:$l->{port}";
+        last if defined $sslh_tcp_address;
+    } else {
+        $sslh_tcp_address //= "$l->{host}:$l->{port}";
+        last if defined $sslh_udp_address;
+    }
+}
 
 
+# code snippets to connect to each protocol
+my %connect_params = (
+    ssh => {
+        sleep => 20,  # So it times out 50% of connections
+        test_data => "SSH-2.0 hello",
+        resp_len => 18,  # length "ssh: SSH-2.0 hello" => 18
+    },
+    tinc => {
+        sleep => 10,
+        test_data => "0 ",
+        resp_len => 8, # length "tinc: 0 " => 10 
+    },
+    openvpn => {
+        sleep => 10,
+        test_data => "\x00\x00",
+        resp_len => 11,  # length "openvpn: \x0\x0" => 11
+    },
+);
 
 sub connect_service {
     my ($cnx, $service) = @_;
 
-    my ($test_data, $r);
+    my $params = $connect_params{$service};
 
-    if ($service eq "ssh") {
-        sleep rand 20;
-        $test_data = "SSH-2.0 hello";
-        syswrite $cnx, $test_data;
-        sleep 1;
-        sysread $cnx, $r, 18; # length "ssh: SSH-2.0 hello" => 18
-    }
-    if ($service eq "openvpn") {
-        sleep rand 10;
-        $test_data = "\x00\x00";
-        syswrite $cnx, $test_data;
-        sleep 1;
-        sysread $cnx, $r, 11; # length "openvpn: \x0\x0" => 11
-    }
-    if ($service eq "tinc") {
-        sleep rand 10;
-        $test_data = "0 ";
-        syswrite $cnx, $test_data;
-        sleep 1;
-        sysread $cnx, $r, 8; # length "tinc: 0 " => 10 
-    }
+    sleep rand $params->{sleep};
+    my $test_data = $params->{test_data};
+    syswrite $cnx, $test_data;
+    sleep 1;
+    sysread $cnx, my $r, $params->{resp_len}; 
+
     my $expected = "$service: $test_data";
     return ($r eq $expected);
 }
 
 
 sub client {
-    my ($service, $client_id, $fd_out) = @_;
+    my ($protocol, $client_id, $fd_out) = @_;
+
+    my $service = $protocol->{name};
 
     while (1) {
         my $r;
-        my $cnx = new IO::Socket::INET(PeerHost => $sslh_address);
+        warn "$client_id: connect $sslh_tcp_address\n";
+        my $cnx = new IO::Socket::INET(PeerHost => $sslh_tcp_address);
         die "$@\n" if (!$cnx);
 
         my $cnt = 0;
 
-        warn "starting $service\n";
+        warn "$client_id: connecting $service\n";
 
         if (not connect_service($cnx, $service)) {
             print $fd_out "$client_id\t0\tC\n";
+            warn "$client_id: connecting failed\n";
             exit;
         }
+
+        warn "$client_id: shoveling $service\n";
 
         while (1) {
             my $test_data = "$service $cnt" x int(rand($block_rpt)+1) . "\n";
@@ -128,11 +141,13 @@ sub client {
     exit 0;
 }
 
-foreach my $p (keys %protocols) {
+foreach my $p (@{$conf->fetch_array("protocols")}) {
     if (!fork) {
-        my $cmd = "./echosrv --listen $protocols{$p}->{address} --prefix '$p: '";
+        my $udp = $p->{is_udp} ? "--udp" : "";
+        my $cmd = "./echosrv $udp -p $p->{host}:$p->{port} --prefix '$p->{name}: '";
         warn "$cmd\n";
         exec $cmd;
+        exit;
     }
 }
 
@@ -140,57 +155,73 @@ foreach my $p (keys %protocols) {
 my $sslh_pid;
 if (0) {
 if (!($sslh_pid = fork)) {
-    my $user = (getpwuid $<)[0]; # Run under current username
-    my $prots = join " ", map "--$_ $protocols{$_}->{address}", keys %protocols;
-    my $cmd = "$sslh_binary -f -v3 -t 3 -u $user --listen $sslh_address $prots -P $pidfile";
+    my $cmd = "$sslh_binary -F test.cfg";
     warn "$cmd\n";
     exec $cmd;
-    exit 0;
 }
 warn "spawned $sslh_pid\n";
-sleep 2;  # valgrind can be heavy -- wait 5 seconds
 }
 
+sleep 2; # Let echosrv's and sslh start
 
 my ($c_in, $c_out);
 pipe $c_in, $c_out;
 
+my @protocols = @{$conf->fetch_array("protocols")};
+
 if (!fork) {
     # Process that starts all the clients
-    for my $client_id (1 .. $NUM_CNX) {
-        foreach my $p (keys %protocols) {
+    for my $client_num (1 .. $NUM_CNX) {
             if (!fork) {
-                client($p, "$p$client_id", $c_out);
+                my @supported_protocols = keys %connect_params;
+                my $p_name = $supported_protocols[rand @supported_protocols];
+                my @p = grep { $_->{name} eq $p_name } @protocols;
+                my $p = shift @p;
+                if ($p->{is_udp}) {
+                } else {
+                    client($p, "$p->{name}$client_num", $c_out);
+                }
                 exit;
             }
             # Give a little time so we don't overrun the
             # listen(2) backlog.
             select undef, undef, undef, $start_time_delay;
-        }
     }
+    exit;
 } else {
     my %data;
 
-    # Process that retrieves client output to pretty print
-    print "\033[2J";
-    while (<$c_in>) {
-        chop;
-        my ($client_id, $r_l, $error, @rest) = split /\t/, $_;
+    # The condition here selects between pretty output or
+    # raw output
+    if (1) {
+        # Process that retrieves client output to pretty print
+        print "\033[2J";
+        while (<$c_in>) {
+            chop;
+            my ($client_id, $r_l, $error, @rest) = split /\t/, $_;
 
-        my ($curr_rcv) = ${$data{$client_id}}[0];
-        my ($curr_error) = ${$data{$client_id}}[1] // "";
-        $error //= "";
-        $data{$client_id} = [ $r_l + $curr_rcv, "$curr_error$error" ];
+            my ($curr_rcv) = ${$data{$client_id}}[0];
+            my ($curr_error) = ${$data{$client_id}}[1] // "";
+            $error //= "";
+            $data{$client_id} = [ $r_l + $curr_rcv, "$curr_error$error" ];
 
-        print "\033[0;0H";
-        foreach my $i (sort keys %data) {
-            ($r_l, $error) = @{$data{$i}};
-            print "\033[2K$i\t$r_l\t$error\n";
+            print "\033[0;0H";
+            foreach my $i (sort keys %data) {
+                ($r_l, $error) = @{$data{$i}};
+                print "\033[2K$i\t$r_l\t$error\n";
+            }
+        }
+    } else {
+        # Just print the client outputs
+        while (<$c_in>) {
+            print;
         }
     }
 }
 
+warn "waiting\n";
 wait;
+warn "finished waiting\n";
 
 
 `killall echosrv`;
