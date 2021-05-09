@@ -786,9 +786,9 @@ void set_keepcaps(int val) {
 }
 
 /* Returns true if anything requires transparent proxying. */
-#ifdef LIBCAP
 static int use_transparent(void)
 {
+#ifdef LIBCAP
     if (cfg.transparent)
         return 1;
 
@@ -796,19 +796,21 @@ static int use_transparent(void)
         if (cfg.protocols[i].transparent)
             return 1;
 
+#endif
     return 0;
 }
-#endif
 
-/* set needed capabilities for effective and permitted, clear rest */
-void set_capabilities(void) {
+/* set needed capabilities for effective and permitted, clear rest
+ * IN: cap_net_admin: set to 1 to set CAP_NET_ADMIN
+ * */
+void set_capabilities(int cap_net_admin) {
 #ifdef LIBCAP
     int res;
     cap_t caps;
     cap_value_t cap_list[10];
     int ncap = 0;
 
-    if (use_transparent())
+    if (cap_net_admin)
         cap_list[ncap++] = CAP_NET_ADMIN;
 
     caps = cap_init();
@@ -877,7 +879,7 @@ void drop_privileges(const char* user_name, const char* chroot_path)
         res = setuid(pw->pw_uid);
         CHECK_RES_DIE(res, "setuid");
 
-        set_capabilities();
+        set_capabilities(use_transparent());
         set_keepcaps(0);
     }
 }
