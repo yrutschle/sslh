@@ -136,6 +136,7 @@ int check_access_rights(int in_socket, const char* service);
 void setup_signals(void);
 void setup_syslog(const char* bin_name);
 void drop_privileges(const char* user_name, const char* chroot_path);
+void set_capabilities(int cap_net_admin);
 void write_pid_file(const char* pidfile);
 void log_message(int type, const char* msg, ...);
 void dump_connection(struct connection *cnx);

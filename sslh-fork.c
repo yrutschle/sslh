@@ -114,6 +114,8 @@ void start_shoveler(int in_socket)
    out_socket = connect_addr(&cnx, in_socket);
    CHECK_RES_DIE(out_socket, "connect");
 
+   set_capabilities(0);
+
    cnx.q[1].fd = out_socket;
 
    get_connection_desc(&desc, &cnx);
