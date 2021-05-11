@@ -801,7 +801,7 @@ static int use_transparent(void)
 }
 
 /* set needed capabilities for effective and permitted, clear rest
- * IN: cap_net_admin: set to 1 to set CAP_NET_ADMIN
+ * IN: cap_net_admin: set to 1 to set CAP_NET_RAW
  * */
 void set_capabilities(int cap_net_admin) {
 #ifdef LIBCAP
@@ -811,7 +811,7 @@ void set_capabilities(int cap_net_admin) {
     int ncap = 0;
 
     if (cap_net_admin)
-        cap_list[ncap++] = CAP_NET_ADMIN;
+        cap_list[ncap++] = CAP_NET_RAW;
 
     caps = cap_init();
 

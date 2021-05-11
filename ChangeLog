@@ -20,10 +20,10 @@ vNEXT:
 	Warn about unknown settings in the configuration
 	file.
 
-	Added per-protocol `transparent` option. The option
-	requires CAP_NET_ADMIN to work. sslh-fork drops the
-	capability after creating the server-side
-	transparent socket.
+	Added per-protocol `transparent` option. sslh-fork
+	drops the capability after creating the server-side
+	transparent socket. Transparent now uses CAP_NET_RAW
+	instead of CAP_NET_ADMIN.
 
 v1.21: 11JUL2020
 	WARNING:
