@@ -28,7 +28,7 @@
 /* UDP support types and stuff */
 struct known_udp_source {
     int allocated;
-    struct sockaddr sockaddr;
+    struct sockaddr client_addr;
     socklen_t addrlen;
     time_t last_active;
 
@@ -52,7 +52,7 @@ static int known_source(struct known_udp_source* ks, int ks_len, struct sockaddr
 
     for (i = 0; i < ks_len; i++) {
         if (ks[i].allocated) {
-            if (!memcmp(&ks[i].sockaddr, addr, addrlen)) {
+            if (!memcmp(&ks[i].client_addr, addr, addrlen)) {
                 return i;
             }
         }
@@ -111,7 +111,7 @@ static int udp_extern_forward(int sockfd) {
         /* A probe worked: save this as an active connection */
         src = &udp_known_sources[target];
         src->allocated = 1;
-        src->sockaddr = src_addr;
+        src->client_addr = src_addr;
         src->addrlen = addrlen;
         src->last_active = time(NULL);
 
@@ -197,7 +197,7 @@ void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
                             fprintf(stderr, "recvfrom %d\n", res);
                             CHECK_RES_DIE(res, "udp_listener/recvfrom");
                             res = sendto(endpoint[active_endpoint].socketfd, data, res, 0,
-                                         &src->sockaddr, src->addrlen);
+                                         &src->client_addr, src->addrlen);
                             src->last_active = time(NULL);
                             fprintf(stderr, "sendto %d to\n", res);
                         }
