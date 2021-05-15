@@ -74,12 +74,12 @@ static int get_empty_source(struct known_udp_source* ks, int ks_len)
 struct known_udp_source udp_known_sources[MAX_UDP_SRC];
 
 
-/* Process UDP coming from outside:
+/* Process UDP coming from outside (client towards server)
  * If it's a new source, probe; otherwise, forward to previous target 
  * Returns: >= 0 sockfd of newly allocated socket, for new connections
  * -1 otherwise
  * */
-static int udp_extern_forward(int sockfd) {
+static int udp_c2s_forward(int sockfd) {
     char addr_str[NI_MAXHOST+1+NI_MAXSERV+1];
     struct sockaddr src_addr;
     struct addrinfo addrinfo;
@@ -182,7 +182,7 @@ void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
         if (res) {
             if (FD_ISSET(endpoint[active_endpoint].socketfd, &fds_r_tmp)) {
-                sockfd = udp_extern_forward(endpoint[active_endpoint].socketfd);
+                sockfd = udp_c2s_forward(endpoint[active_endpoint].socketfd);
                 if (sockfd >= 0) {
                     FD_SET(sockfd, &fds_r);
                     max_fd = MAX(max_fd, sockfd);
