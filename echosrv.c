@@ -110,12 +110,32 @@ void tcp_echo(struct listen_endpoint* listen_socket)
     }
 }
 
+void print_udp_xchange(int sockfd, struct sockaddr* addr, socklen_t addrlen)
+{
+    struct addrinfo src_addrinfo, to_addrinfo;
+    char str_addr[NI_MAXHOST+1+NI_MAXSERV+1];
+    char str_addr2[NI_MAXHOST+1+NI_MAXSERV+1];
+    struct sockaddr_storage ss;
+
+    src_addrinfo.ai_addr = (struct sockaddr*)&ss;
+    src_addrinfo.ai_addrlen = sizeof(ss);
+    getsockname(sockfd, src_addrinfo.ai_addr, &src_addrinfo.ai_addrlen);
+
+    to_addrinfo.ai_addr = addr;
+    to_addrinfo.ai_addrlen = sizeof(*addr);
+
+    fprintf(stderr, "UDP local %s remote %s\n", 
+            sprintaddr(str_addr, sizeof(str_addr), &src_addrinfo),
+            sprintaddr(str_addr2, sizeof(str_addr2), &to_addrinfo)
+           );
+}
+
 /* UDP echo server: receive packets, return them, forever.
  * Prefix is added at each packet */
 void udp_echo(struct listen_endpoint* listen_socket)
 {
     char data[65536];
-    struct sockaddr src_addr;
+    struct sockaddr src_addr, sock_name;
     socklen_t addrlen;
 
     memset(data, 0, sizeof(data));
@@ -135,6 +155,10 @@ void udp_echo(struct listen_endpoint* listen_socket)
         if (len < 0) {
             perror("recvfrom");
         }
+        *(data + prefix_len + len) = 0;
+        fprintf(stderr, "%ld: %s\n", len, data + prefix_len);
+
+        print_udp_xchange(listen_socket->socketfd, &src_addr, addrlen);
 
         int res = sendto(listen_socket->socketfd,
                          data,
