@@ -122,10 +122,16 @@ struct connection_desc {
         local[MAX_NAMELENGTH], target[MAX_NAMELENGTH];
 };
 
+typedef enum {
+    NON_BLOCKING = 0,
+    BLOCKING = 1
+} connect_blocking;
+
 
 /* common.c */
 void init_cnx(struct connection *cnx);
-int connect_addr(struct connection *cnx, int fd_from);
+int set_nonblock(int fd);
+int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking);
 int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);

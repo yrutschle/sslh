@@ -53,21 +53,6 @@ struct select_info {
 };
 
 
-/* Make the file descriptor non-block  */
-static int set_nonblock(int fd)
-{
-    int flags;
-
-    flags = fcntl(fd, F_GETFL);
-    CHECK_RES_RETURN(flags, "fcntl", -1);
-
-    flags |= O_NONBLOCK;
-
-    flags = fcntl(fd, F_SETFL, flags);
-    CHECK_RES_RETURN(flags, "fcntl", -1);
-
-    return flags;
-}
 
 static int tidy_connection(struct connection *cnx, struct select_info* fd_info)
 {
@@ -141,10 +126,9 @@ static int connect_queue(struct connection* cnx,
 {
     struct queue *q = &cnx->q[1];
 
-    q->fd = connect_addr(cnx, cnx->q[0].fd);
+    q->fd = connect_addr(cnx, cnx->q[0].fd, NON_BLOCKING);
     if ((q->fd != -1) && fd_is_in_range(q->fd)) {
         log_connection(NULL, cnx);
-        set_nonblock(q->fd);
         flush_deferred(q);
         if (q->deferred_data) {
             FD_SET(q->fd, &fd_info->fds_w);
@@ -257,7 +241,7 @@ static void connect_proxy(struct connection *cnx)
     }
 
     /* Connect the target socket */
-    out_socket = connect_addr(cnx, in_socket);
+    out_socket = connect_addr(cnx, in_socket, BLOCKING);
     CHECK_RES_DIE(out_socket, "connect");
 
     cnx->q[1].fd = out_socket;
@@ -429,6 +413,7 @@ void cnx_accept_process(struct select_info* fd_info, int fd)
             fd_info->max_fd = new_socket + 1;
     }
 }
+
 
 /* Main loop: the idea is as follow:
  * - fds_r and fds_w contain the file descriptors to monitor in read and write

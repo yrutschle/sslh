@@ -286,11 +286,28 @@ int bind_peer(int fd, int fd_from)
     return 0;
 }
 
+/* Make the file descriptor non-block  */
+int set_nonblock(int fd)
+{
+    int flags;
+
+    flags = fcntl(fd, F_GETFL);
+    CHECK_RES_RETURN(flags, "fcntl", -1);
+
+    flags |= O_NONBLOCK;
+
+    flags = fcntl(fd, F_SETFL, flags);
+    CHECK_RES_RETURN(flags, "fcntl", -1);
+
+    return flags;
+}
+
+
 /* Connect to first address that works and returns a file descriptor, or -1 if
  * none work.
  * If transparent proxying is on, use fd_from peer address on external address
  * of new file descriptor. */
-int connect_addr(struct connection *cnx, int fd_from)
+int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 {
     struct addrinfo *a, from;
     struct sockaddr_storage ss;
@@ -324,29 +341,29 @@ int connect_addr(struct connection *cnx, int fd_from)
             setsockopt(fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT, &one, sizeof(one));
             /* no need to check return value; if it's not supported, that's okay */
 
+            if (blocking == NON_BLOCKING) {
+                set_nonblock(fd);
+            }
+
             if (transparent) {
                 res = bind_peer(fd, fd_from);
                 CHECK_RES_RETURN(res, "bind_peer", res);
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
-            if (res == -1) {
-                switch (errno) {
-                case EINPROGRESS: 
-                    /* Can't be done yet, or TFO already done */
-                    break;
 
-                default:
-                    log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
-                                cnx->proto->name, strerror(errno));
-                    close(fd);
-                }
-            } else {
-                if (cnx->proto->keepalive) {
-                    res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
-                    CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)", res);
-                }
-                return fd;
+            /* EINPROGRESS indicates it might take time. If it eventually
+             * fails, it'll be caught as a failed read */
+            if ((res == -1) && (errno != EINPROGRESS)) {
+                log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
+                                     cnx->proto->name, strerror(errno));
+                close(fd);
+                continue; /* Try the next address */
             }
+            if (cnx->proto->keepalive) {
+                res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
+                CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)", res);
+            }
+            return fd;
         }
     }
     return -1;

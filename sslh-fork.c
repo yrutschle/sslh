@@ -111,7 +111,7 @@ void start_shoveler(int in_socket)
    }
 
    /* Connect the target socket */
-   out_socket = connect_addr(&cnx, in_socket);
+   out_socket = connect_addr(&cnx, in_socket, BLOCKING);
    CHECK_RES_DIE(out_socket, "connect");
 
    set_capabilities(0);
