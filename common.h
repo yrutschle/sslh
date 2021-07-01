@@ -95,7 +95,12 @@ struct queue {
     int deferred_data_size;
 };
 
+struct known_udp_source;
+
 struct connection {
+    int type;           /* SOCK_DGRAM | SOCK_STREAM */
+
+    /* SOCK_STREAM */
     enum connection_state state;
     time_t probe_timeout;
     struct sslhcfg_protocols_item* proto;
@@ -104,7 +109,11 @@ struct connection {
      * q[1]: queue for internal connection (httpd or sshd);
      * */
     struct queue q[2];
+
+    /* SOCK_DGRAM */
+    struct known_udp_source* udp_source;
 };
+
 
 struct listen_endpoint {
     int socketfd;       /* file descriptor of listening socket */

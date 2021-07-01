@@ -68,6 +68,7 @@ struct connection* collection_alloc_cnx_from_fd(struct cnx_collection* collectio
     if (!cnx) return NULL;
 
     init_cnx(cnx);
+    cnx->type = SOCK_STREAM;
     cnx->q[0].fd = fd;
     cnx->state = ST_PROBING;
     cnx->probe_timeout = time(NULL) + cfg.timeout;

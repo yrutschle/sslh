@@ -23,13 +23,17 @@
 #include "common.h"
 #include "probe.h"
 #include "sslh-conf.h"
+#include "udp-listener.h"
 
 
 /* UDP support types and stuff */
 struct known_udp_source {
     int allocated;
-    struct sockaddr client_addr;
+    struct sockaddr client_addr; /* Contains the remote client address */
     socklen_t addrlen;
+
+    int local_endpoint; /* Contains the local address */
+
     time_t last_active;
 
     struct sslhcfg_protocols_item* proto; /* Where to connect it to */
@@ -73,13 +77,13 @@ static int get_empty_source(struct known_udp_source* ks, int ks_len)
 /* Array to keep the UDP sources we have seen before */
 struct known_udp_source udp_known_sources[MAX_UDP_SRC];
 
-
 /* Process UDP coming from outside (client towards server)
  * If it's a new source, probe; otherwise, forward to previous target 
  * Returns: >= 0 sockfd of newly allocated socket, for new connections
  * -1 otherwise
  * */
-static int udp_c2s_forward(int sockfd) {
+int udp_c2s_forward(int sockfd, cnx_collection* collection)
+{
     char addr_str[NI_MAXHOST+1+NI_MAXSERV+1];
     struct sockaddr src_addr;
     struct addrinfo addrinfo;
@@ -91,7 +95,6 @@ static int udp_c2s_forward(int sockfd) {
                          This will do.  Dynamic allocation is possible with the MSG_PEEK flag in recvfrom(2), but that'd imply
                          malloc/free overhead for each packet, when really 64K is not that much */
 
-    fprintf(stderr, "recvfrom(%d)\n", getpid());
     addrlen = sizeof(src_addr);
     len = recvfrom(sockfd, data, sizeof(data), 0, &src_addr, &addrlen);
     if (len < 0) {
@@ -104,107 +107,85 @@ static int udp_c2s_forward(int sockfd) {
     addrinfo.ai_addrlen = addrlen;
     if (cfg.verbose) 
         fprintf(stderr, "received %ld UDP from %d:%s\n", len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
+
     if (target == -1) {
         target = get_empty_source(udp_known_sources, ARRAY_SIZE(udp_known_sources));
         fprintf(stderr, "source target index %d\n", target);
-        if (target == -1) exit(0); /* TODO handle this properly */
-        /* A probe worked: save this as an active connection */
+        if (target == -1) {
+            fprintf(stderr, "Out of UDP structs\n");
+            exit(0); /* TODO handle this properly */
+        }
+
+        /* save this as an active connection */
         src = &udp_known_sources[target];
         src->allocated = 1;
         src->client_addr = src_addr;
         src->addrlen = addrlen;
-        src->last_active = time(NULL);
+        src->local_endpoint = sockfd;
 
         res = probe_buffer(data, len, &src->proto);
         /* First version: if we can't work out the protocol from the first
          * packet, drop it. Conceivably, we could store several packets to
          * run probes on packet sets */
         if (cfg.verbose) fprintf(stderr, "UDP probed: %d\n", res);
-        if (res != PROBE_MATCH) return -1;
+        if (res != PROBE_MATCH) {
+            src->allocated = 0;
+            return -1;
+        }
 
         src->target_sock = socket(src->proto->saddr->ai_family, SOCK_DGRAM, 0);
         out = src->target_sock;
+
+        struct connection* cnx = collection_alloc_cnx_from_fd(collection, out);
+        cnx->type = SOCK_DGRAM;
+        cnx->udp_source = &udp_known_sources[target];
     }
 
     src = &udp_known_sources[target];
+
     /* at this point src is the UDP connection */
     res = sendto(src->target_sock, data, len, 0, 
                  src->proto->saddr->ai_addr, src->proto->saddr->ai_addrlen);
     src->last_active = time(NULL);
-    fprintf(stderr, "sending %d to %s", 
+    fprintf(stderr, "sending %d to %s\n", 
             res, sprintaddr(data, sizeof(data), src->proto->saddr));
     return out;
 }
 
 
+void udp_s2c_forward(struct known_udp_source* src)
+{
+    int sockfd = src->target_sock;
+    char data[65536];
+    int res;
+
+    res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
+    fprintf(stderr, "recvfrom %d\n", res);
+    CHECK_RES_DIE(res, "udp_listener/recvfrom");
+    res = sendto(src->local_endpoint, data, res, 0,
+                 &src->client_addr, src->addrlen);
+    src->last_active = time(NULL);
+    fprintf(stderr, "sendto %d to\n", res);
+}
+
+
 /* Clears old connections from udp_known_sources, and from passed fd_set */
 #define UDP_TIMEOUT 60   /* Timeout before forgetting the connection, in seconds */
-static void reap_timeouts(struct known_udp_source* sources, int n_src, fd_set* fd)
+int udp_timedout(struct connection* cnx)
 {
     int i;
     time_t now = time(NULL);
-    struct known_udp_source* src;
+    struct known_udp_source* src = cnx->udp_source;
 
-    for (i = 0; i < n_src; i++) {
-        src = &sources[i];
-        if (src->allocated && (now - src->last_active > UDP_TIMEOUT)) {
-            close(src->target_sock);
-            FD_CLR(src->target_sock, fd);
-            memset(&sources[i], 0, sizeof(sources[i]));
-            if (cfg.verbose > 3) 
-                fprintf(stderr, "disconnect %d\n", i);
-        }
+    if (!cnx->udp_source) return 0; /* Not a UDP connection */
+
+    if (src->allocated && (now - src->last_active > UDP_TIMEOUT)) {
+        close(src->target_sock);
+        memset(src, 0, sizeof(*src));
+        if (cfg.verbose > 3) 
+            fprintf(stderr, "disconnect timed out UDP %d\n", i);
+        return 1;
     }
+    return 0;
 }
 
-
-/* UDP listener: upon incoming packet, find where it should go
- * This is run in its own process and never returns.
- */
-void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
-{
-    fd_set fds_r, fds_r_tmp;
-    char data[65536]; /* TODO what? */
-    int max_fd, res, sockfd, i;
-    struct known_udp_source* src;
-    struct timeval tv;
-
-    FD_ZERO(&fds_r);
-    FD_SET(endpoint[active_endpoint].socketfd, &fds_r);
-    max_fd = endpoint[active_endpoint].socketfd + 1;
-
-    while (1) {
-        fds_r_tmp = fds_r;
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        res = select(max_fd + 1,  &fds_r_tmp, NULL, NULL, &tv);
-        CHECK_RES_DIE(res, "select");
-
-        if (res) {
-            if (FD_ISSET(endpoint[active_endpoint].socketfd, &fds_r_tmp)) {
-                sockfd = udp_c2s_forward(endpoint[active_endpoint].socketfd);
-                if (sockfd >= 0) {
-                    FD_SET(sockfd, &fds_r);
-                    max_fd = MAX(max_fd, sockfd);
-                }
-            } else {
-                for (i = 0; i < ARRAY_SIZE(udp_known_sources); i++) {
-                    src = &udp_known_sources[i];
-                    if (src->allocated) {
-                        sockfd = src->target_sock;
-                        if (FD_ISSET(sockfd, &fds_r_tmp)) {
-                            res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
-                            fprintf(stderr, "recvfrom %d\n", res);
-                            CHECK_RES_DIE(res, "udp_listener/recvfrom");
-                            res = sendto(endpoint[active_endpoint].socketfd, data, res, 0,
-                                         &src->client_addr, src->addrlen);
-                            src->last_active = time(NULL);
-                            fprintf(stderr, "sendto %d to\n", res);
-                        }
-                    }
-                }
-            }
-        }
-        reap_timeouts(udp_known_sources, ARRAY_SIZE(udp_known_sources), &fds_r);
-    }
-}

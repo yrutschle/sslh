@@ -32,6 +32,7 @@
 
 #include "common.h"
 #include "probe.h"
+#include "udp-listener.h"
 #include "collection.h"
 #include "gap.h"
 
@@ -339,7 +340,7 @@ int active_queue(struct connection* cnx, int fd)
 }
 
 /* Process a connection that is active in read */
-static void cnx_read_process(struct select_info* fd_info,
+static void tcp_read_process(struct select_info* fd_info,
                              int fd)
 {
     if (debug) fprintf(stderr, "cnx_read_process fd %d\n", fd);
@@ -374,6 +375,26 @@ static void cnx_read_process(struct select_info* fd_info,
     }
 }
 
+static void cnx_read_process(struct select_info* fd_info, int fd)
+{
+    cnx_collection* collection = fd_info->collection;
+    struct connection* cnx = collection_get_cnx_from_fd(collection, fd);
+    switch (cnx->type)  {
+    case SOCK_STREAM:
+        tcp_read_process(fd_info, fd);
+        break;
+
+    case SOCK_DGRAM:
+        udp_s2c_forward(cnx->udp_source);
+        break;
+
+    default:
+        log_message(LOG_ERR, "cnx_read_process: Illegal connection type %d\n", cnx->type);
+        dump_connection(cnx);
+        exit(1);
+    }
+
+}
 
 /* Process a connection that is active in write */
 static void cnx_write_process(struct select_info* fd_info, int fd)
@@ -398,20 +419,45 @@ static void cnx_write_process(struct select_info* fd_info, int fd)
     }
 }
 
-/* Process a connection that accepts a socket */
-void cnx_accept_process(struct select_info* fd_info, int fd)
+/* Process a connection that accepts a socket
+ * (For UDP, this means all traffic coming from remote clients)
+ * */
+void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* listen_socket)
 {
+    int fd = listen_socket->socketfd;
+    int type = listen_socket->type;
+    struct connection* cnx;
+    int new_fd;
+
     if (debug) fprintf(stderr, "cnx_accept_process fd %d\n", fd);
 
-    struct connection* cnx = accept_new_connection(fd, fd_info->collection);
+    switch (type) {
+    case SOCK_STREAM:
+        cnx = accept_new_connection(fd, fd_info->collection);
 
-    if (cnx) {
-        add_probing_cnx(fd_info, cnx);
-        int new_socket = cnx->q[0].fd;
-        FD_SET(new_socket, &fd_info->fds_r);
-        if (new_socket >= fd_info->max_fd)
-            fd_info->max_fd = new_socket + 1;
+        if (cnx) {
+            add_probing_cnx(fd_info, cnx);
+            new_fd = cnx->q[0].fd;
+        }
+        break;
+
+    case SOCK_DGRAM:
+        new_fd = udp_c2s_forward(fd, fd_info->collection);
+        fprintf(stderr, "new_fd %d\n", new_fd);
+        if (new_fd == -1)
+            return;
+        break;
+
+    default:
+        log_message(LOG_ERR, "Inconsistent cnx type: %d\n", type);
+        exit(1);
+        return;
     }
+
+    FD_SET(new_fd, &fd_info->fds_r);
+    if (new_fd >= fd_info->max_fd)
+        fd_info->max_fd = new_fd + 1;
+
 }
 
 
@@ -465,10 +511,25 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         if (res < 0)
             perror("select");
 
+
+        /* UDP timeouts: clear out connections after some idle time */
+        for (i = 0; i < fd_info.max_fd; i++) {
+            /* if it's either in read or write set, there is a connection
+             * behind that file descriptor */
+            if (FD_ISSET(i, &fd_info.fds_r) || FD_ISSET(i, &fd_info.fds_w)) {
+                struct connection* cnx = collection_get_cnx_from_fd(fd_info.collection, i);
+                if (cnx && udp_timedout(cnx)) {
+                    FD_CLR(i, &fd_info.fds_r);
+                    FD_CLR(i, &fd_info.fds_w);
+                    collection_remove_cnx(fd_info.collection, cnx);
+                }
+            }
+        }
+
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
-                cnx_accept_process(&fd_info, listen_sockets[i].socketfd);
+                cnx_accept_process(&fd_info, &listen_sockets[i]);
 
                 /* don't also process it as a read socket */
                 FD_CLR(listen_sockets[i].socketfd, &readfds);
@@ -507,7 +568,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                 cnx_read_process(&fd_info, i);
             }
         }
-
     }
 }
 

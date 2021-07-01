@@ -135,7 +135,7 @@ void print_udp_xchange(int sockfd, struct sockaddr* addr, socklen_t addrlen)
 void udp_echo(struct listen_endpoint* listen_socket)
 {
     char data[65536];
-    struct sockaddr src_addr, sock_name;
+    struct sockaddr src_addr;
     socklen_t addrlen;
 
     memset(data, 0, sizeof(data));

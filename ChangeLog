@@ -1,8 +1,6 @@
 vNEXT:
-	UDP support now works. It only works with sslh-fork,
-	which will create a single process that handles all
-	UDP connections with select(). Probes specified in
-	the `protocols` configuration entry are tried on
+	UDP support now works. It only works with sslh-select.
+	Probes specified in the `protocols` configuration entry are tried on
 	incoming packets, TCP or UDP, and forwarded based on
 	the input protocol (an incoming TCP connection will
 	be forwarded as TCP, and same with UDP).
@@ -11,6 +9,14 @@ vNEXT:
 	assumed to be a DNS request and forwarded
 	accordingly. Note this could cause problems if
 	combined with incoming TLS with SNI.
+	UDP clients and servers need to agree on the
+	IPv4/IPv6 they use: use the same protocol on all
+	sides! Often, this means explicitely using
+	'ip4-localhost'.
+	Currently there is a hard limit of MAX_UDP_SRC
+	(1024) UDP connections tracked at once, which get
+	forgotten after a hardcoded timeout of UDP_TIMEOUT
+	(60s), all defined in udp-listener.c.
 
 	sslh-select refactored to remove linear searches.
 

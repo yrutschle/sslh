@@ -220,7 +220,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         case 0:
             set_listen_procname(&listen_sockets[i]);
             if (listen_sockets[i].type == SOCK_DGRAM)
-                udp_listener(listen_sockets, num_addr_listen, i);
+                log_message(LOG_ERR, "UDP not (yet?) supported in sslh-fork\n");
             else
                 tcp_listener(listen_sockets, num_addr_listen, i);
 	    break;
