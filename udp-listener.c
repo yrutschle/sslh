@@ -173,7 +173,6 @@ void udp_s2c_forward(struct known_udp_source* src)
 #define UDP_TIMEOUT 60   /* Timeout before forgetting the connection, in seconds */
 int udp_timedout(struct connection* cnx)
 {
-    int i;
     time_t now = time(NULL);
     struct known_udp_source* src = cnx->udp_source;
 
@@ -181,9 +180,9 @@ int udp_timedout(struct connection* cnx)
 
     if (src->allocated && (now - src->last_active > UDP_TIMEOUT)) {
         close(src->target_sock);
-        memset(src, 0, sizeof(*src));
         if (cfg.verbose > 3) 
-            fprintf(stderr, "disconnect timed out UDP %d\n", i);
+            fprintf(stderr, "disconnect timed out UDP %d\n", src->target_sock);
+        memset(src, 0, sizeof(*src));
         return 1;
     }
     return 0;
