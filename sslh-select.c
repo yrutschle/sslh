@@ -385,7 +385,7 @@ static void cnx_read_process(struct select_info* fd_info, int fd)
         break;
 
     case SOCK_DGRAM:
-        udp_s2c_forward(cnx->udp_source);
+        udp_s2c_forward(cnx);
         break;
 
     default:
@@ -442,7 +442,7 @@ void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* lis
         break;
 
     case SOCK_DGRAM:
-        new_fd = udp_c2s_forward(fd, fd_info->collection);
+        new_fd = udp_c2s_forward(fd, fd_info->collection, fd_info->max_fd);
         fprintf(stderr, "new_fd %d\n", new_fd);
         if (new_fd == -1)
             return;

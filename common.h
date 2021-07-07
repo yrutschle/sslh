@@ -95,15 +95,13 @@ struct queue {
     int deferred_data_size;
 };
 
-struct known_udp_source;
-
 struct connection {
     int type;           /* SOCK_DGRAM | SOCK_STREAM */
+    struct sslhcfg_protocols_item* proto; /* Where to connect to */
 
     /* SOCK_STREAM */
     enum connection_state state;
     time_t probe_timeout;
-    struct sslhcfg_protocols_item* proto;
 
     /* q[0]: queue for external connection (client);
      * q[1]: queue for internal connection (httpd or sshd);
@@ -111,7 +109,16 @@ struct connection {
     struct queue q[2];
 
     /* SOCK_DGRAM */
-    struct known_udp_source* udp_source;
+    struct sockaddr client_addr; /* Contains the remote client address */
+    socklen_t addrlen;
+
+    int local_endpoint; /* Contains the local address */
+
+    time_t last_active;
+
+    /* We need one local socket for each target server, so we know where to
+     * forward server responses */
+    int target_sock;  
 };
 
 

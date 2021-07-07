@@ -14,13 +14,14 @@ void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
  * Returns: >= 0 sockfd of newly allocated socket, for new connections
  * -1 otherwise
  * */
-int udp_c2s_forward(int sockfd, cnx_collection* collection);
+int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd);
 
 /* Process UDP coming from inside (server towards client) */
-void udp_s2c_forward(struct known_udp_source* src);
+void udp_s2c_forward(struct connection* cnx);
 
 
-/* Checks if a connection timed out, in which case clear it. */
+/* Checks if a connection timed out, in which case close the socket and return
+ * 1; otherwise return 0. */
 int udp_timedout(struct connection* cnx);
 
 #endif /* UDPLISTENER_H */
