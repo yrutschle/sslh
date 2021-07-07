@@ -130,7 +130,7 @@ sub client {
             my $e_l = length $expected;
             $fd_out->autoflush;
             my $error = "";
-            $error = "M" if $r ne $expected;
+            $error = "E" if $r ne $expected;
             print $fd_out ("$client_id\t$r_l\t$error\n");
             ($? = 1, die "$service got [$r] expected [$expected]\n") if ($r ne $expected);
             if (rand(1) < $stop_client_probability) {
@@ -245,6 +245,10 @@ if (!fork) {
             my ($curr_rcv) = ${$data{$client_id}}[0] + $r_l;;
             $error //= "";
             my ($curr_error) = "${$data{$client_id}}[1]$error";
+            # Consolidate into... roman numerals!
+            $curr_error =~ s/D{10}/X/;
+            $curr_error =~ s/X{10}/C/;
+            $curr_error =~ s/C{10}/M/;
 
             $data{$client_id} = [ $r_l + $curr_rcv, "$curr_error$error" ];
 
