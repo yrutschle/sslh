@@ -335,3 +335,17 @@ many connections to ssh from the same IP address...)
 
 See example files in scripts/fail2ban.
 
+UDP
+---
+
+`sslh` can perform demultiplexing on UDP packets as well.
+This only works with `sslh-select` (it is not possible to
+support UDP with a forking model). Specify a listening
+address and target protocols with `is_udp: true`. `sslh`
+will wait for incoming UDP packets, run the probes in the
+usual fashion, and forward packets to the appropriate
+target. `sslh` will then remember the association between
+remote host to target server for 60 seconds by default,
+which can be overriden with `udp_timeout`. This allows to
+process both single-datagram protocols such as DNS, and
+connection-based protocols such as QUIC.
