@@ -1,24 +1,27 @@
 vNEXT:
-	UDP support now works. It only works with sslh-select.
-	Probes specified in the `protocols` configuration entry are tried on
-	incoming packets, TCP or UDP, and forwarded based on
-	the input protocol (an incoming TCP connection will
-	be forwarded as TCP, and same with UDP).
+	sslh-select now supports UDP protocols.
+	Probes specified in the `protocols`
+	configuration entry are tried on incoming packets,
+	TCP or UDP, and forwarded based on the input
+	protocol (an incoming TCP connection will be
+	forwarded as TCP, and same with UDP).
 	This has been tested with DNS as shown in udp.cfg:
 	incoming packets that contain my domain name are
 	assumed to be a DNS request and forwarded
 	accordingly. Note this could cause problems if
-	combined with incoming TLS with SNI.
-	UDP clients and servers need to agree on the
-	IPv4/IPv6 they use: use the same protocol on all
-	sides! Often, this means explicitely using
-	'ip4-localhost'.
-	Currently there is a hard limit of MAX_UDP_SRC
-	(1024) UDP connections tracked at once, which get
-	forgotten after a hardcoded timeout of UDP_TIMEOUT
-	(60s), all defined in udp-listener.c.
+	combined with incoming TLS with SNI.  UDP clients
+	and servers need to agree on the IPv4/IPv6 they use:
+	use the same protocol on all sides! Often, this
+	means explicitely using 'ip4-localhost'.
+	UDP sender-receiver pairs (connections, so to speak)
+	are kept for 60s, which can be changed with
+	`udp_timeout` in the configuration.
 
-	sslh-select refactored to remove linear searches.
+	sslh-select refactored to change linear searches
+	through connections to linear searches through
+	fd_set.
+
+	Fixed a libconfig call to support libconfig 1.7.3.
 
 	Added symbol to support libconfig 1.4.9, still in
 	use in CentOS7.
