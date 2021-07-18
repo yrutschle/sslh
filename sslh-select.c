@@ -460,6 +460,21 @@ void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* lis
 
 }
 
+void udp_timeouts(struct select_info* fd_info)
+{
+    for (int i = 0; i < fd_info->max_fd; i++) {
+        /* if it's either in read or write set, there is a connection
+         * behind that file descriptor */
+        if (FD_ISSET(i, &fd_info->fds_r) || FD_ISSET(i, &fd_info->fds_w)) {
+            struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
+            if (cnx && udp_timedout(cnx)) {
+                FD_CLR(i, &fd_info->fds_r);
+                FD_CLR(i, &fd_info->fds_w);
+                collection_remove_cnx(fd_info->collection, cnx);
+            }
+        }
+    }
+}
 
 /* Main loop: the idea is as follow:
  * - fds_r and fds_w contain the file descriptors to monitor in read and write
@@ -513,18 +528,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
 
         /* UDP timeouts: clear out connections after some idle time */
-        for (i = 0; i < fd_info.max_fd; i++) {
-            /* if it's either in read or write set, there is a connection
-             * behind that file descriptor */
-            if (FD_ISSET(i, &fd_info.fds_r) || FD_ISSET(i, &fd_info.fds_w)) {
-                struct connection* cnx = collection_get_cnx_from_fd(fd_info.collection, i);
-                if (cnx && udp_timedout(cnx)) {
-                    FD_CLR(i, &fd_info.fds_r);
-                    FD_CLR(i, &fd_info.fds_w);
-                    collection_remove_cnx(fd_info.collection, cnx);
-                }
-            }
-        }
+        udp_timeouts(&fd_info);
 
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
