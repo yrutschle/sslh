@@ -468,6 +468,7 @@ void udp_timeouts(struct select_info* fd_info)
         if (FD_ISSET(i, &fd_info->fds_r) || FD_ISSET(i, &fd_info->fds_w)) {
             struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
             if (cnx && udp_timedout(cnx)) {
+                close(cnx->target_sock);
                 FD_CLR(i, &fd_info->fds_r);
                 FD_CLR(i, &fd_info->fds_w);
                 collection_remove_cnx(fd_info->collection, cnx);

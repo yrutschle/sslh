@@ -137,9 +137,8 @@ int udp_timedout(struct connection* cnx)
     if (cnx->type != SOCK_DGRAM) return 0; /* Not a UDP connection */
 
     if ((now - cnx->last_active > cnx->proto->udp_timeout)) {
-        close(cnx->target_sock);
         if (cfg.verbose > 3) 
-            fprintf(stderr, "disconnect timed out UDP %d\n", cnx->target_sock);
+            fprintf(stderr, "timed out UDP %d\n", cnx->target_sock);
         return 1;
     }
     return 0;
