@@ -34,6 +34,11 @@ vNEXT:
 	transparent socket. Transparent now uses CAP_NET_RAW
 	instead of CAP_NET_ADMIN.
 
+	Removed compile-time option to use POSIX regex. Now
+	regex must be PCRE2 (Perl-Compatible). This was in
+	fact the case since v1.21, as PCRE are used to parse
+	the config file.
+
 v1.21: 11JUL2020
 	WARNING:
 	Moved configuration and command-line management to

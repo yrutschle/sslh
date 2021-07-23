@@ -27,7 +27,7 @@
 #endif
 #ifdef ENABLE_REGEX
 #ifdef LIBPCRE
-#include <pcreposix.h>
+#include <pcre2posix.h>
 #else
 #include <regex.h>
 #endif

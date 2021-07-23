@@ -22,11 +22,9 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #ifdef ENABLE_REGEX
-#ifdef LIBPCRE
-#include <pcreposix.h>
-#else
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #include <regex.h>
-#endif
 #endif
 #include <ctype.h>
 #include "probe.h"

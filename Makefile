@@ -5,7 +5,6 @@ VERSION=$(shell ./genver.sh -r)
 # change any of these
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
-USELIBPCRE=1	# Use libpcre? (needed for regex on musl)
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 USESYSTEMD=     # Make use of systemd socket activation
@@ -25,9 +24,9 @@ ifneq ($(strip $(COV_TEST)),)
 endif
 
 CC ?= gcc
-CFLAGS ?=-Wall -g $(CFLAGS_COV)
+CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV)
 
-LIBS=-lm
+LIBS=-lm -lpcre2-8
 OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o gap.o
 
 CONDITIONAL_TARGETS=
@@ -39,11 +38,6 @@ endif
 
 ifneq ($(strip $(ENABLE_REGEX)),)
 	CPPFLAGS+=-DENABLE_REGEX
-endif
-
-ifneq ($(strip $(USELIBPCRE)),)
-	CPPFLAGS+=-DLIBPCRE
-	LIBS:=$(LIBS) -lpcreposix -lpcre
 endif
 
 ifneq ($(strip $(USELIBCONFIG)),)
