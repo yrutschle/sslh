@@ -81,7 +81,9 @@ void start_echo(int fd)
         if (first) {
             res = write(fd, buffer, ret + prefix_len);
             first = 0;
-            write(1, buffer, ret + prefix_len);
+            if (write(1, buffer, ret + prefix_len) < 0) {
+                fprintf(stderr, "%s", strerror(errno));
+            }
         } else {
             res = write(fd, buffer + prefix_len, ret);
         }
