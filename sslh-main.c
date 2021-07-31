@@ -109,11 +109,9 @@ static void printsettings(void)
 static void setup_regex_probe(struct sslhcfg_protocols_item *p)
 #ifdef ENABLE_REGEX
 {
-    int num_patterns, i, res, error;
+    int num_patterns, i, error;
     pcre2_code** pattern_list;
     PCRE2_SIZE error_offset;
-    size_t errsize;
-    char* err;
     PCRE2_UCHAR8 err_str[120];
 
     num_patterns = p->regex_patterns_len;
