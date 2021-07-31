@@ -26,11 +26,8 @@
 #include <libconfig.h>
 #endif
 #ifdef ENABLE_REGEX
-#ifdef LIBPCRE
-#include <pcre2posix.h>
-#else
-#include <regex.h>
-#endif
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #endif
 
 #ifdef LIBBSD
@@ -110,12 +107,14 @@ static void printsettings(void)
 
 
 static void setup_regex_probe(struct sslhcfg_protocols_item *p)
-#ifdef LIBCONFIG
+#ifdef ENABLE_REGEX
 {
-    int num_patterns, i, res;
-    regex_t** pattern_list;
+    int num_patterns, i, res, error;
+    pcre2_code** pattern_list;
+    PCRE2_SIZE error_offset;
     size_t errsize;
     char* err;
+    PCRE2_UCHAR8 err_str[120];
 
     num_patterns = p->regex_patterns_len;
 
@@ -124,15 +123,13 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
     p->data = (void*)pattern_list;
 
     for (i = 0; i < num_patterns; i++) {
-        pattern_list[i] = malloc(sizeof(*(pattern_list[i])));
-        CHECK_ALLOC(pattern_list[i], "malloc");
-        res = regcomp(pattern_list[i], p->regex_patterns[i], REG_EXTENDED);
-        if (res) {
-            err = malloc(errsize = regerror(res, pattern_list[i], NULL, 0));
-            CHECK_ALLOC(err, "malloc");
-            regerror(res, pattern_list[i], err, errsize);
-            fprintf(stderr, "%s:%s\n", p->regex_patterns[i], err);
-            free(err);
+        pattern_list[i] = pcre2_compile((PCRE2_SPTR8)p->regex_patterns[i], 
+                                        PCRE2_ZERO_TERMINATED, 0,
+                                        &error, &error_offset, NULL);
+        if (!pattern_list[i]) {
+            pcre2_get_error_message(error, err_str, sizeof(err_str));
+            fprintf(stderr, "compiling pattern /%s/:%d:%s at offset %ld\n",
+                    p->regex_patterns[i], error, err_str, error_offset);
             exit(1);
         }
     }

@@ -24,7 +24,6 @@
 #ifdef ENABLE_REGEX
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
-#include <regex.h>
 #endif
 #include <ctype.h>
 #include "probe.h"
@@ -301,13 +300,17 @@ static int is_socks5_protocol(const char *p_in, ssize_t len, struct sslhcfg_prot
 static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
 #ifdef ENABLE_REGEX
-    regex_t **probe = proto->data;
-    regmatch_t pos = { 0, len };
+    pcre2_code**probe = (pcre2_code**)proto->data;
+    pcre2_match_data* matches;
 
-    for (; *probe && regexec(*probe, p, 0, &pos, REG_STARTEND); probe++)
-        /* try them all */;
+    matches = pcre2_match_data_create(1, NULL);
 
-    return (*probe != NULL);
+    for (; *probe; probe++) {
+        int res = pcre2_match(*probe, (PCRE2_SPTR8)p, len, 0, 0, matches, NULL);
+        if (res >= 0) return 1;
+
+    }
+    return 0;
 #else
     /* Should never happen as we check when loading config file */
     fprintf(stderr, "FATAL: regex probe called but not built in\n");
