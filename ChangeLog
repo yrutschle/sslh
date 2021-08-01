@@ -17,6 +17,8 @@ vNEXT:
 	are kept for 60s, which can be changed with
 	`udp_timeout` in the configuration.
 
+	Added probes for UDP protocols QUICK and Teamspeak.
+
 	sslh-select refactored to change linear searches
 	through connections to linear searches through
 	fd_set.
