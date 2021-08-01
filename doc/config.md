@@ -84,21 +84,17 @@ processes.
 Alternatively, you may use filesystem capabilities instead
 of starting sslh as root and asking it to drop privileges.
 You will need `CAP_NET_BIND_SERVICE` for listening on port 443
-and `CAP_NET_ADMIN` for transparent proxying (see
+and `CAP_NET_RAW` for transparent proxying (see
 `capabilities(7)`).
 
 You can use the `setcap(8)` utility to give these capabilities
 to the executable:
 
-	sudo setcap cap_net_bind_service,cap_net_admin+pe sslh-select
+	sudo setcap cap_net_bind_service,cap_net_raw+pe sslh-select
 
 Then you can run sslh-select as an unpriviledged user, e.g.:
 
 	sslh-select -p myname:443 --ssh localhost:22 --ssl localhost:443
-
-Caveat: `CAP_NET_ADMIN` does give sslh too many rights, e.g.
-configuring the interface. If you're not going to use
-transparent proxying, just don't use it (or use the libcap method).
 
 Transparent proxy support
 -------------------------
@@ -126,7 +122,7 @@ but to the network setup that surrounds it.
 Linux:
 
 `sslh` needs extended rights to perform this: you'll need to
-give it `CAP_NET_ADMIN` capabilities (see appropriate chapter)
+give it `CAP_NET_RAW` capabilities (see appropriate chapter)
 or run it as root (but don't do that).
 
 The firewalling tables also need to be adjusted as follows.
@@ -286,7 +282,7 @@ Example service unit:
 	[Service]
 	ExecStart=/usr/sbin/sslh -v -f --ssh 127.0.0.1:22 --ssl 127.0.0.1:443
 	KillMode=process
-	CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_SETGID CAP_SETUID
+	CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
 	PrivateTmp=true
 	PrivateDevices=true
 	ProtectSystem=full

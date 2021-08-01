@@ -9,7 +9,7 @@
 # is needed in order to run as sslh user
 #
 #SSLH_USER=sslh
-#setcap cap_net_bind_service,cap_net_admin=+ep $SSLH
+#setcap cap_net_bind_service,cap_net_raw=+ep $SSLH
 
 #
 # Configuration file for sslh
