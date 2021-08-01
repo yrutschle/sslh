@@ -38,6 +38,7 @@ static int is_http_protocol(const char *p, ssize_t len, struct sslhcfg_protocols
 static int is_tls_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_adb_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_socks5_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
+static int is_quick_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_true(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -52,6 +53,7 @@ static struct protocol_probe_desc builtins[] = {
     { "tls",        is_tls_protocol },
     { "adb",        is_adb_protocol },
     { "socks5",     is_socks5_protocol },
+    { "quick50",    is_quick_protocol },
     { "anyprot",    is_true }
 };
 
@@ -295,6 +297,11 @@ static int is_socks5_protocol(const char *p_in, ssize_t len, struct sslhcfg_prot
             return PROBE_NEXT;
     }
     return PROBE_MATCH;
+}
+
+static int is_quick_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
+{
+    return memmem(p, len, "Q050", 4) ? 1 : 0;
 }
 
 static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
