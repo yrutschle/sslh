@@ -19,6 +19,8 @@ vNEXT:
 
 	Added probes for UDP protocols QUICK and Teamspeak.
 
+	Added probes for syslog protocol.
+
 	sslh-select refactored to change linear searches
 	through connections to linear searches through
 	fd_set.
