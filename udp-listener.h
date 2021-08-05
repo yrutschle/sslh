@@ -22,6 +22,6 @@ void udp_s2c_forward(struct connection* cnx);
 
 /* Checks if a connection timed out, in which case close the socket and return
  * 1; otherwise return 0. */
-int udp_timedout(struct connection* cnx);
+int udp_timedout(time_t now, struct connection* cnx);
 
 #endif /* UDPLISTENER_H */

@@ -462,12 +462,14 @@ void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* lis
 
 void udp_timeouts(struct select_info* fd_info)
 {
+    time_t now = time(NULL);
+
     for (int i = 0; i < fd_info->max_fd; i++) {
         /* if it's either in read or write set, there is a connection
          * behind that file descriptor */
         if (FD_ISSET(i, &fd_info->fds_r) || FD_ISSET(i, &fd_info->fds_w)) {
             struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
-            if (cnx && udp_timedout(cnx)) {
+            if (cnx && udp_timedout(now, cnx)) {
                 close(cnx->target_sock);
                 FD_CLR(i, &fd_info->fds_r);
                 FD_CLR(i, &fd_info->fds_w);
