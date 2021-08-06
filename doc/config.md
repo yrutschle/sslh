@@ -94,7 +94,7 @@ to the executable:
 
 Then you can run sslh-select as an unpriviledged user, e.g.:
 
-	sslh-select -p myname:443 --ssh localhost:22 --ssl localhost:443
+	sslh-select -p myname:443 --ssh localhost:22 --tls localhost:443
 
 Transparent proxy support
 -------------------------
@@ -229,11 +229,11 @@ This will only work if `sslh` does not use any loopback
 addresses (no `127.0.0.1` or `localhost`), you'll need to use
 explicit IP addresses (or names):
 
-	sslh --listen 192.168.0.1:443 --ssh 192.168.0.1:22 --ssl 192.168.0.1:4443
+	sslh --listen 192.168.0.1:443 --ssh 192.168.0.1:22 --tls 192.168.0.1:4443
 
 This will not work:
 
-	sslh --listen 192.168.0.1:443 --ssh 127.0.0.1:22 --ssl 127.0.0.1:4443
+	sslh --listen 192.168.0.1:443 --ssh 127.0.0.1:22 --tls 127.0.0.1:4443
     
 Transparent proxying means the target server sees the real
 origin address, so it means if the client connects using
@@ -280,7 +280,7 @@ Example service unit:
 	PartOf=sslh.socket
 	
 	[Service]
-	ExecStart=/usr/sbin/sslh -v -f --ssh 127.0.0.1:22 --ssl 127.0.0.1:443
+	ExecStart=/usr/sbin/sslh -v -f --ssh 127.0.0.1:22 --tls 127.0.0.1:443
 	KillMode=process
 	CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
 	PrivateTmp=true
