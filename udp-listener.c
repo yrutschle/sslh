@@ -128,17 +128,11 @@ void udp_s2c_forward(struct connection* cnx)
 }
 
 
-/* Checks if a connection timed out, in which case close the socket and return
- * 1; otherwise return 0. */
-int udp_timedout(time_t now, struct connection* cnx)
+/* returns date at which this socket times out. */
+int udp_timeout(struct connection* cnx)
 {
     if (cnx->type != SOCK_DGRAM) return 0; /* Not a UDP connection */
 
-    if ((now - cnx->last_active > cnx->proto->udp_timeout)) {
-        if (cfg.verbose > 3) 
-            fprintf(stderr, "timed out UDP %d\n", cnx->target_sock);
-        return 1;
-    }
-    return 0;
+    return cnx->proto->udp_timeout + cnx->last_active;
 }
 

@@ -20,8 +20,9 @@ int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd);
 void udp_s2c_forward(struct connection* cnx);
 
 
-/* Checks if a connection timed out, in which case close the socket and return
- * 1; otherwise return 0. */
-int udp_timedout(time_t now, struct connection* cnx);
+/* returns how many seconds before socket times out. Negative if timed out
+ * already.
+ */
+int udp_timeout(struct connection* cnx);
 
 #endif /* UDPLISTENER_H */

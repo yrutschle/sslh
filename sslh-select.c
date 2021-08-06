@@ -30,6 +30,8 @@
 
 #define __LINUX__
 
+#include <limits.h>
+
 #include "common.h"
 #include "probe.h"
 #include "udp-listener.h"
@@ -51,6 +53,8 @@ struct select_info {
 
     fd_set fds_r, fds_w;  /* reference fd sets (used to init working copies) */
     cnx_collection* collection; /* Collection of connections linked to this loop */
+
+    time_t next_timeout; /* time at which next UDP connection times out */
 };
 
 
@@ -460,22 +464,41 @@ void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* lis
 
 }
 
-void udp_timeouts(struct select_info* fd_info)
+/* Check all connections to see if a UDP connections has timed out, then free
+ * it. At the same time, keep track of the closest, next timeout. Only do the
+ * search through connections if that timeout actually happened. If the
+ * connection that would have timed out has had activity, it doesn't matter: we
+ * go through connections to find the next timeout, which was needed anyway. */
+static void udp_timeouts(struct select_info* fd_info)
 {
     time_t now = time(NULL);
 
+    if (now < fd_info->next_timeout) return;
+
     for (int i = 0; i < fd_info->max_fd; i++) {
+        time_t next_timeout = INT_MAX;
+
         /* if it's either in read or write set, there is a connection
          * behind that file descriptor */
         if (FD_ISSET(i, &fd_info->fds_r) || FD_ISSET(i, &fd_info->fds_w)) {
             struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
-            if (cnx && udp_timedout(now, cnx)) {
-                close(cnx->target_sock);
-                FD_CLR(i, &fd_info->fds_r);
-                FD_CLR(i, &fd_info->fds_w);
-                collection_remove_cnx(fd_info->collection, cnx);
+            if (cnx) {
+                time_t timeout = udp_timeout(cnx);
+                if (cnx && (timeout <= now)) {
+                    if (cfg.verbose > 3)
+                        fprintf(stderr, "timed out UDP %d\n", cnx->target_sock);
+                    close(cnx->target_sock);
+                    FD_CLR(i, &fd_info->fds_r);
+                    FD_CLR(i, &fd_info->fds_w);
+                    collection_remove_cnx(fd_info->collection, cnx);
+                } else {
+                    if (timeout < next_timeout) next_timeout = timeout;
+                }
             }
         }
+
+        if (next_timeout != INT_MAX)
+            fd_info->next_timeout = next_timeout;
     }
 }
 
