@@ -24,7 +24,7 @@ ifneq ($(strip $(COV_TEST)),)
 endif
 
 CC ?= gcc
-CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV)
+CFLAGS +=-Wall -DLIBPCRE -g $(CFLAGS_COV)
 
 LIBS=-lm -lpcre2-8
 OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o gap.o
