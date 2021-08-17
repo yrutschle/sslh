@@ -42,7 +42,7 @@ For Fedora, you'll need packages `libconfig` and
 If you want to rebuild `sslh-conf.c` (after a `make
 distclean` for example), you will also need to add
 [conf2struct](https://www.rutschle.net/tech/conf2struct/README.html)
-(v1.4) to your path.
+(v1.5) to your path.
 
 Compilation
 -----------

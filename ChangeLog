@@ -1,4 +1,4 @@
-vNEXT:
+v1.22: 17AUG2021
 	sslh-select now supports UDP protocols.
 	Probes specified in the `protocols`
 	configuration entry are tried on incoming packets,
