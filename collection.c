@@ -30,8 +30,9 @@ struct cnx_collection {
     gap_array* fd2cnx;  /* Array indexed by file descriptor to things in cnx[] */
 };
 
-/* Allocates and initialises a new collection of connections. */
-cnx_collection* collection_init(void)
+/* Allocates and initialises a new collection of connections with at least
+ * `len` elements. */
+cnx_collection* collection_init(int len)
 {
     cnx_collection* collection;
 
@@ -40,7 +41,7 @@ cnx_collection* collection_init(void)
 
     memset(collection, 0, sizeof(*collection));
 
-    collection->fd2cnx = gap_init();
+    collection->fd2cnx = gap_init(len);
 
     return collection;
 }

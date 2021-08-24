@@ -527,7 +527,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     fd_info.num_probing = 0; 
     FD_ZERO(&fd_info.fds_r);
     FD_ZERO(&fd_info.fds_w);
-    fd_info.probing_list = gap_init();
+    fd_info.probing_list = gap_init(0);
 
     for (i = 0; i < num_addr_listen; i++) {
         FD_SET(listen_sockets[i].socketfd, &fd_info.fds_r); 
@@ -535,7 +535,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     }
     fd_info.max_fd = listen_sockets[num_addr_listen-1].socketfd + 1;
 
-    fd_info.collection = collection_init();
+    fd_info.collection = collection_init(fd_info.max_fd);
 
     while (1)
     {

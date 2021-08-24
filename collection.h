@@ -4,7 +4,7 @@
 typedef struct cnx_collection cnx_collection;
 
 
-cnx_collection* collection_init(void);
+cnx_collection* collection_init(int len);
 void collection_destroy(cnx_collection* collection);
 
 struct connection* collection_alloc_cnx_from_fd(cnx_collection* collection, int fd);

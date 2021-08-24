@@ -42,8 +42,8 @@ static int gap_len_alloc(int elem_size)
     return getpagesize() / elem_size;
 }
 
-/* Creates a new gap, all pointers are initialised at NULL */
-gap_array* gap_init(void)
+/* Creates a new gap at least `len` big, all pointers are initialised at NULL */
+gap_array* gap_init(int len)
 {
     gap_array* gap = malloc(sizeof(*gap));
     if (!gap) return NULL;
@@ -51,6 +51,7 @@ gap_array* gap_init(void)
 
     int elem_size = sizeof(gap->array[0]);
     gap->len = gap_len_alloc(elem_size);
+    if (gap->len < len) gap->len = len;
     gap->array = malloc(gap->len * elem_size);
     if (!gap->array) return NULL;
 
@@ -85,7 +86,7 @@ static int gap_extend(gap_array* gap)
 
 int gap_set(gap_array* gap, int index, void* ptr)
 {
-    if (index >= gap->len) {
+    while (index >= gap->len) {
         int res = gap_extend(gap);
         if (res == -1) return -1;
     }
