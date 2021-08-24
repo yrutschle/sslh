@@ -475,15 +475,16 @@ static void udp_timeouts(struct select_info* fd_info)
 
     if (now < fd_info->next_timeout) return;
 
-    for (int i = 0; i < fd_info->max_fd; i++) {
-        time_t next_timeout = INT_MAX;
+    time_t next_timeout = INT_MAX;
 
+    for (int i = 0; i < fd_info->max_fd; i++) {
         /* if it's either in read or write set, there is a connection
          * behind that file descriptor */
         if (FD_ISSET(i, &fd_info->fds_r) || FD_ISSET(i, &fd_info->fds_w)) {
             struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
             if (cnx) {
                 time_t timeout = udp_timeout(cnx);
+                if (!timeout) continue; /* Not a UDP connection */
                 if (cnx && (timeout <= now)) {
                     if (cfg.verbose > 3)
                         fprintf(stderr, "timed out UDP %d\n", cnx->target_sock);
@@ -496,10 +497,10 @@ static void udp_timeouts(struct select_info* fd_info)
                 }
             }
         }
-
-        if (next_timeout != INT_MAX)
-            fd_info->next_timeout = next_timeout;
     }
+
+    if (next_timeout != INT_MAX)
+        fd_info->next_timeout = next_timeout;
 }
 
 /* Main loop: the idea is as follow:
