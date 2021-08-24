@@ -171,7 +171,6 @@ int flush_deferred(struct queue *q);
 
 extern struct sslhcfg_item cfg;
 extern struct addrinfo *addr_listen;
-extern const char* USAGE_STRING;
 extern const char* server_type;
 
 /* sslh-fork.c */

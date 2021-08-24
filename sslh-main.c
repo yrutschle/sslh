@@ -37,29 +37,6 @@
 #include "common.h"
 #include "probe.h"
 
-const char* USAGE_STRING =
-"sslh " VERSION "\n" \
-"usage:\n" \
-"\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F<file>]\n"
-"\t[-t <timeout>] [-P <pidfile>] [-u <username>] [-C <chroot>] -p <addr> [-p <addr> ...] \n" \
-"%s\n\n" /* Dynamically built list of builtin protocols */  \
-"\t[--on-timeout <addr>]\n" \
-"-v: verbose\n" \
-"-V: version\n" \
-"-f: foreground\n" \
-"-n: numeric output\n" \
-"-u: specify under which user to run\n" \
-"-C: specify under which chroot path to run\n" \
-"--transparent: behave as a transparent proxy\n" \
-"-F: use configuration file (warning: no space between -F and file name!)\n" \
-"--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
-"-t: seconds to wait before connecting to --on-timeout address.\n" \
-"-p: address and port to listen on.\n    Can be used several times to bind to several addresses.\n" \
-"--[ssh,ssl,...]: where to connect connections from corresponding protocol.\n" \
-"-P: PID file.\n" \
-"-i: Run as a inetd service.\n" \
-"";
-
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
 
@@ -209,6 +186,12 @@ int main(int argc, char *argv[], char* envp[])
    if (res) exit(6);
    if (cfg.verbose > 3)
        sslhcfg_fprint(stderr, &cfg, 0);
+
+   if (cfg.version) {
+       printf("%s %s\n", server_type, VERSION);
+       exit(0);
+   }
+
    config_protocols();
    config_sanity_check(&cfg);
 
