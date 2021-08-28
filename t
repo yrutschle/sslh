@@ -26,6 +26,7 @@ my $PROBES_NOFRAG =     1;
 my $PROBES_AGAIN =      1;
 my $SSL_MIX_SSH =       1;
 my $SSH_MIX_SSL =       1;
+my $DROP_CNX =          1;
 
 # Robustness tests. These are mostly to achieve full test
 # coverage, but do not necessarily result in an actual test
@@ -282,6 +283,19 @@ for my $binary (@binaries) {
             print $cnx_h $test_data;
             my $data = <$cnx_h>;
             my_is($data, "ssh: $test_data", "$binary: SSH connection interrupted by SSL");
+        }
+    }
+
+# Test: Drop connection without writing anything
+    if ($DROP_CNX) {
+        print "***Test: Connect but don't write anything\n";
+        my $cnx_h = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+        warn "$!\n" unless $cnx_h;
+        if ($cnx_h) {
+            close $cnx_h;
+            my_is(1, "$binary: Connect and write nothing");
+            # The goal of the test is to check sslh doesn't
+            # crash
         }
     }
 
