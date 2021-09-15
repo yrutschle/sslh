@@ -4,7 +4,6 @@
  * No code here should assume whether sockets are blocking or not.
  **/
 
-#define SYSLOG_NAMES
 #define _GNU_SOURCE
 #include <stddef.h>
 #include <stdarg.h>
@@ -41,8 +40,6 @@ struct sslhcfg_item cfg;
 
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
-
-static int do_syslog = 1; /* Should we syslog? controled by syslog_facility = "none" */
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -590,23 +587,6 @@ void resolve_name(struct addrinfo **out, char* fullname)
    }
 }
 
-/* Log to syslog or stderr if foreground */
-void log_message(int type, const char* msg, ...)
-{
-    va_list ap;
-
-    va_start(ap, msg);
-    if (cfg.foreground)
-        vfprintf(stderr, msg, ap);
-    va_end(ap);
-
-    if (do_syslog) {
-        va_start(ap, msg);
-        vsyslog(type, msg, ap);
-        va_end(ap);
-    }
-}
-
 
 /* Fills a connection description; returns 0 on failure */
 int get_connection_desc(struct connection_desc* desc, const struct connection *cnx)
@@ -641,30 +621,6 @@ int get_connection_desc(struct connection_desc* desc, const struct connection *c
     return 1;
 }
 
-/* syslogs who connected to where 
- * desc: string description of the connection. if NULL, log_connection will
- * manage on its own
- * cnx: connection descriptor
- * */
-void log_connection(struct connection_desc* desc, const struct connection *cnx)
-{
-    struct connection_desc d;
-
-    if (cnx->proto->log_level < 1)
-        return;
-
-    if (!desc) {
-        desc = &d;
-        get_connection_desc(desc, cnx);
-    }
-
-    log_message(LOG_INFO, "%s:connection from %s to %s forwarded from %s to %s\n",
-                cnx->proto->name,
-                desc->peer,
-                desc->service,
-                desc->local,
-                desc->target);
-}
 
 void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx)
 {
@@ -760,35 +716,6 @@ void setup_signals(void)
 
 }
 
-/* Open syslog connection with appropriate banner;
- * banner is made up of basename(bin_name)+"[pid]" */
-void setup_syslog(const char* bin_name) {
-    char *name1, *name2;
-    int res, fn;
-
-    if (!strcmp(cfg.syslog_facility, "none")) {
-        do_syslog = 0;
-        return;
-    }
-
-    name1 = strdup(bin_name);
-    res = asprintf(&name2, "%s[%d]", basename(name1), getpid());
-    CHECK_RES_DIE(res, "asprintf");
-
-    for (fn = 0; facilitynames[fn].c_val != -1; fn++)
-        if (strcmp(facilitynames[fn].c_name, cfg.syslog_facility) == 0)
-            break;
-    if (facilitynames[fn].c_val == -1) {
-        fprintf(stderr, "Unknown facility %s\n", cfg.syslog_facility);
-        exit(1);
-    }
-
-    openlog(name2, LOG_CONS, facilitynames[fn].c_val);
-    free(name1);
-    /* Don't free name2, as openlog(3) uses it (at least in glibc) */
-
-    log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
-}
 
 /* Ask OS to keep capabilities over a setuid(nonzero) */
 void set_keepcaps(int val) {
