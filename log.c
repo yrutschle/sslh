@@ -57,6 +57,13 @@ msg_info msg_system_error = {
 };
 
 
+msg_info msg_packets = {
+    LOG_INFO,
+    &cfg.verbose_packets
+};
+
+
+
 
 /* Bitmasks in verbose-* values */
 #define MSG_STDOUT 1

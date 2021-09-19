@@ -17,6 +17,7 @@ extern msg_info msg_config;
 extern msg_info msg_config_error;
 
 extern msg_info msg_fd;
+extern msg_info msg_packets;
 
 extern msg_info msg_int_error;
 extern msg_info msg_system_error;
