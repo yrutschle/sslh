@@ -16,4 +16,9 @@ void print_message(msg_info info, const char* str, ...);
 extern msg_info msg_config;
 extern msg_info msg_config_error;
 
+extern msg_info msg_fd;
+
+extern msg_info msg_int_error;
+extern msg_info msg_system_error;
+
 #endif /* LOG_H */

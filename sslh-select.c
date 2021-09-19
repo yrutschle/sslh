@@ -37,6 +37,7 @@
 #include "udp-listener.h"
 #include "collection.h"
 #include "gap.h"
+#include "log.h"
 
 const char* server_type = "sslh-select";
 
@@ -65,8 +66,7 @@ static int tidy_connection(struct connection *cnx, struct select_info* fd_info)
 
     for (i = 0; i < 2; i++) {
         if (cnx->q[i].fd != -1) {
-            if (cfg.verbose)
-                fprintf(stderr, "closing fd %d\n", cnx->q[i].fd);
+            print_message(msg_fd, "closing fd %d\n", cnx->q[i].fd);
 
             FD_CLR(cnx->q[i].fd, fds);
             FD_CLR(cnx->q[i].fd, fds2);
@@ -97,7 +97,7 @@ static struct connection* accept_new_connection(int listen_socket, struct cnx_co
     int in_socket, res;
 
 
-    if (cfg.verbose) fprintf(stderr, "accepting from %d\n", listen_socket);
+    print_message(msg_fd, "accepting from %d\n", listen_socket);
 
     in_socket = accept(listen_socket, 0, 0);
     CHECK_RES_RETURN(in_socket, "accept", NULL);
@@ -156,8 +156,7 @@ static void shovel(struct connection *cnx, int active_fd, struct select_info* fd
     read_q = &cnx->q[active_fd];
     write_q = &cnx->q[1-active_fd];
 
-    if (cfg.verbose)
-        fprintf(stderr, "activity on fd%d\n", read_q->fd);
+    print_message(msg_fd, "activity on fd%d\n", read_q->fd);
 
     switch(fd2fd(write_q, read_q)) {
     case -1:
@@ -210,16 +209,14 @@ static void shovel_single(struct connection *cnx)
           if (FD_ISSET(cnx->q[i].fd, &fds_w)) {
               res = flush_deferred(&cnx->q[i]);
               if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
-                  if (cfg.verbose)
-                      fprintf(stderr, "%s socket closed\n", i ? "server" : "client");
+                  print_message(msg_fd, "%s socket closed\n", i ? "server" : "client");
                   return;
               }
           }
           if (FD_ISSET(cnx->q[i].fd, &fds_r)) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
               if (!res) {
-                  if (cfg.verbose)
-                      fprintf(stderr, "socket closed\n");
+                  print_message(msg_fd, "socket closed\n");
                   return;
               }
           }
@@ -256,8 +253,7 @@ static void connect_proxy(struct connection *cnx)
     close(in_socket);
     close(out_socket);
 
-    if (cfg.verbose)
-        fprintf(stderr, "connection closed down\n");
+    print_message(msg_fd, "connection closed down\n");
 
     exit(0);
 }
@@ -315,7 +311,7 @@ static void probing_read_process(struct connection* cnx,
             /* free(cnx); */
             connect_proxy(cnx);
             exit(0);
-        case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+        case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
                  break;
         default: /* parent */
                  break;
@@ -337,7 +333,7 @@ int active_queue(struct connection* cnx, int fd)
     if (cnx->q[0].fd == fd) return 0;
     if (cnx->q[1].fd == fd) return 1;
 
-    log_message(LOG_ERR, "file descriptor %d not found in connection object\n", fd);
+    print_message(msg_int_error, "file descriptor %d not found in connection object\n", fd);
     return -1;
 }
 
@@ -355,7 +351,7 @@ static void tcp_read_process(struct select_info* fd_info,
 
     case ST_PROBING:
         if (active_q == 1) {
-            fprintf(stderr, "Activity on fd2 while probing, impossible\n");
+            print_message(msg_int_error, "Activity on fd2 while probing, impossible\n");
             dump_connection(cnx);
             exit(1);
         }
@@ -369,7 +365,7 @@ static void tcp_read_process(struct select_info* fd_info,
         break;
 
     default: /* illegal */
-        log_message(LOG_ERR, "Illegal connection state %d\n", cnx->state);
+        print_message(msg_int_error, "Illegal connection state %d\n", cnx->state);
         dump_connection(cnx);
         exit(1);
     }
@@ -389,11 +385,10 @@ static void cnx_read_process(struct select_info* fd_info, int fd)
         break;
 
     default:
-        log_message(LOG_ERR, "cnx_read_process: Illegal connection type %d\n", cnx->type);
+        print_message(msg_int_error, "cnx_read_process: Illegal connection type %d\n", cnx->type);
         dump_connection(cnx);
         exit(1);
     }
-
 }
 
 /* Process a connection that is active in write */
@@ -439,13 +434,13 @@ void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* lis
 
     case SOCK_DGRAM:
         new_fd = udp_c2s_forward(fd, fd_info->collection, fd_info->max_fd);
-        fprintf(stderr, "new_fd %d\n", new_fd);
+        print_message(msg_fd, "new_fd %d\n", new_fd);
         if (new_fd == -1)
             return;
         break;
 
     default:
-        log_message(LOG_ERR, "Inconsistent cnx type: %d\n", type);
+        print_message(msg_int_error, "Inconsistent cnx type: %d\n", type);
         exit(1);
         return;
     }
@@ -478,8 +473,7 @@ static void udp_timeouts(struct select_info* fd_info)
                 time_t timeout = udp_timeout(cnx);
                 if (!timeout) continue; /* Not a UDP connection */
                 if (cnx && (timeout <= now)) {
-                    if (cfg.verbose > 3)
-                        fprintf(stderr, "timed out UDP %d\n", cnx->target_sock);
+                    print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
                     close(cnx->target_sock);
                     FD_CLR(i, &fd_info->fds_r);
                     FD_CLR(i, &fd_info->fds_w);
@@ -537,8 +531,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         memcpy(&readfds, &fd_info.fds_r, sizeof(readfds));
         memcpy(&writefds, &fd_info.fds_w, sizeof(writefds));
 
-        if (cfg.verbose)
-            fprintf(stderr, "selecting... max_fd=%d num_probing=%d\n", 
+        print_message(msg_fd, "selecting... max_fd=%d num_probing=%d\n", 
                                           fd_info.max_fd, fd_info.num_probing);
         res = select(fd_info.max_fd, &readfds, &writefds, 
                      NULL, fd_info.num_probing ? &tv : NULL);
@@ -570,14 +563,13 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         for (i = 0; i < fd_info.num_probing; i++) {
             struct connection* cnx = gap_get(fd_info.probing_list, i);
             if (!cnx || cnx->state != ST_PROBING) {
-                log_message(LOG_ERR, "Inconsistent probing: cnx=%0xp\n", cnx);
+                print_message(msg_int_error, "Inconsistent probing: cnx=%0xp\n", cnx);
                 if (cnx)
-                    log_message(LOG_ERR, "Inconsistent probing: state=%d\n", cnx);
+                    print_message(msg_int_error, "Inconsistent probing: state=%d\n", cnx);
                 exit(1);
             }
             if (cnx->probe_timeout < time(NULL)) {
-                if (cfg.verbose)
-                    fprintf(stderr, "timeout slot %d\n", i);
+                print_message(msg_fd, "timeout slot %d\n", i);
                 probing_read_process(cnx, &fd_info);
             }
         }
@@ -596,7 +588,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
 
 void start_shoveler(int listen_socket) {
-    fprintf(stderr, "inetd mode is not supported in select mode\n");
+    print_message(msg_config_error, "inetd mode is not supported in select mode\n");
     exit(1);
 }
 

@@ -34,11 +34,28 @@ msg_info msg_config = {
     &cfg.verbose_config
 };
 
-
 msg_info msg_config_error = {
     LOG_ERR,
     &cfg.verbose_config_error
 };
+
+msg_info msg_fd = {
+    LOG_DEBUG,
+    &cfg.verbose_fd
+};
+
+/* Internal errors: inconsistent states, impossible values, things that should never happen, and are therefore the sign of memory corruption: hence the LOG_CRIT */
+msg_info msg_int_error = {
+    LOG_CRIT,
+    &cfg.verbose_system_error
+};
+
+/* System errors: when the system around us fails us: memory allocation, fork, ... */
+msg_info msg_system_error = {
+    LOG_ERR,
+    &cfg.verbose_system_error
+};
+
 
 
 /* Bitmasks in verbose-* values */
