@@ -104,7 +104,7 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
                                         &error, &error_offset, NULL);
         if (!pattern_list[i]) {
             pcre2_get_error_message(error, err_str, sizeof(err_str));
-            fprintf(stderr, "compiling pattern /%s/:%d:%s at offset %ld\n",
+            print_message(msg_config_error, "compiling pattern /%s/:%d:%s at offset %ld\n",
                     p->regex_patterns[i], error, err_str, error_offset);
             exit(1);
         }
