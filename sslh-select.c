@@ -83,7 +83,7 @@ static int tidy_connection(struct connection *cnx, struct select_info* fd_info)
  * and FD_CLR. Need to drop connections if we go above that limit */
 static int fd_is_in_range(int fd) {
     if (fd >= FD_SETSIZE) {
-        log_message(LOG_ERR, "too many open file descriptor to monitor them all -- dropping connection\n");
+        print_message(msg_system_error, "too many open file descriptor to monitor them all -- dropping connection\n");
         return 0;
     }
     return 1;
@@ -286,10 +286,7 @@ static void probing_read_process(struct connection* cnx,
      * data so probe the protocol */
     if ((cnx->probe_timeout < time(NULL))) {
         cnx->proto = timeout_protocol();
-        if (cfg.verbose) 
-            log_message(LOG_INFO, 
-                        "timed out, connect to %s\n", 
-                        cnx->proto->name);
+        print_message(msg_fd, "timed out, connect to %s\n", cnx->proto->name);
     } else {
         res = probe_client_protocol(cnx);
         if (res == PROBE_AGAIN)
