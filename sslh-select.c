@@ -38,8 +38,6 @@
 #include "collection.h"
 #include "gap.h"
 
-static int debug = 0;
-
 const char* server_type = "sslh-select";
 
 /* Global state for a select() loop */
@@ -347,8 +345,6 @@ int active_queue(struct connection* cnx, int fd)
 static void tcp_read_process(struct select_info* fd_info,
                              int fd)
 {
-    if (debug) fprintf(stderr, "cnx_read_process fd %d\n", fd);
-
     cnx_collection* collection = fd_info->collection;
     struct connection* cnx = collection_get_cnx_from_fd(collection, fd);
     /* Determine active queue (0 or 1): if fd is that of q[1], active_q = 1,
@@ -403,8 +399,6 @@ static void cnx_read_process(struct select_info* fd_info, int fd)
 /* Process a connection that is active in write */
 static void cnx_write_process(struct select_info* fd_info, int fd)
 {
-    if (debug) fprintf(stderr, "cnx_write_process fd %d\n", fd);
-
     struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, fd);
     int res;
     int queue = active_queue(cnx, fd);
@@ -432,8 +426,6 @@ void cnx_accept_process(struct select_info* fd_info, struct listen_endpoint* lis
     int type = listen_socket->type;
     struct connection* cnx;
     int new_fd;
-
-    if (debug) fprintf(stderr, "cnx_accept_process fd %d\n", fd);
 
     switch (type) {
     case SOCK_STREAM:
