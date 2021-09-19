@@ -29,6 +29,39 @@
 #include "common.h"
 #include "log.h"
 
+msg_info msg_config = {
+    LOG_INFO,
+    &cfg.verbose_config
+};
+
+
+msg_info msg_config_error = {
+    LOG_ERR,
+    &cfg.verbose_config_error
+};
+
+
+/* Bitmasks in verbose-* values */
+#define MSG_STDOUT 1
+#define MSG_SYSLOG 2
+
+/* Prints a message to stderr and/or syslog if appropriate */
+void print_message(msg_info info, const char* str, ...)
+{
+    va_list ap;
+
+    va_start(ap, str);
+
+    if ((*info.verbose & MSG_STDOUT) && ! cfg.inetd)
+        vfprintf(stderr, str, ap);
+
+    if (*info.verbose & MSG_SYSLOG) {
+        va_start(ap, str);
+        vsyslog(info.log_level, str, ap);
+        va_end(ap);
+    }
+}
+
 static int do_syslog = 1; /* Should we syslog? controled by syslog_facility = "none" */
 
 /* Open syslog connection with appropriate banner;
@@ -57,8 +90,6 @@ void setup_syslog(const char* bin_name) {
     openlog(name2, LOG_CONS, facilitynames[fn].c_val);
     free(name1);
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
-
-    log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
 }
 
 

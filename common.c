@@ -15,6 +15,7 @@
 
 #include "common.h"
 #include "probe.h"
+#include "log.h"
 #include "sslh-conf.h"
 
 /* Added to make the code compilable under CYGWIN
@@ -174,7 +175,7 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
 
     *sockfd = NULL;
 
-    if (cfg.verbose) fprintf(stderr, "Listening to:\n");
+    print_message(msg_config, "Listening to:\n");
 
     for (i = 0; i < cfg.listen_len; i++) {
         keepalive = cfg.listen[i].keepalive;
@@ -188,10 +189,9 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
             *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
             (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
             (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
-            if (cfg.verbose)
-                fprintf(stderr, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
-                        cfg.listen[i].keepalive ? "keepalive" : "",
-                        cfg.listen[i].is_udp ? "udp" : "");
+            print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
+                          cfg.listen[i].keepalive ? "keepalive" : "",
+                          cfg.listen[i].is_udp ? "udp" : "");
         }
         freeaddrinfo(start_addr);
     }
@@ -793,16 +793,14 @@ void drop_privileges(const char* user_name, const char* chroot_path)
     if (user_name) {
         pw = getpwnam(user_name);
         if (!pw) {
-            fprintf(stderr, "%s: not found\n", user_name);
+            print_message(msg_config_error, "%s: not found\n", user_name);
             exit(2);
         }
-        if (cfg.verbose)
-            fprintf(stderr, "turning into %s\n", user_name);
+        print_message(msg_config, "turning into %s\n", user_name);
     }
 
     if (chroot_path) {
-        if (cfg.verbose)
-            fprintf(stderr, "chrooting into %s\n", chroot_path);
+        print_message(msg_config, "chrooting into %s\n", chroot_path);
 
         res = chroot(chroot_path);
         CHECK_RES_DIE(res, "chroot");

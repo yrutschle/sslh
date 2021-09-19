@@ -36,6 +36,7 @@
 
 #include "common.h"
 #include "probe.h"
+#include "log.h"
 
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
@@ -50,7 +51,7 @@ static void printcaps(void) {
 
     desc = cap_to_text(caps, &len);
 
-    fprintf(stderr, "capabilities: %s\n", desc);
+    print_message(msg_config, "capabilities: %s\n", desc);
 
     cap_free(caps);
     cap_free(desc);
@@ -65,7 +66,7 @@ static void printsettings(void)
     
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
-        fprintf(stderr,
+        print_message(msg_config, 
                 "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
                 p->name, 
                 sprintaddr(buf, sizeof(buf), p->saddr), 
@@ -78,7 +79,7 @@ static void printsettings(void)
                 p->transparent ? "transparent" : ""
                 );
     }
-    fprintf(stderr, "timeout: %d\non-timeout: %s\n", cfg.timeout,
+    print_message(msg_config, "timeout: %d\non-timeout: %s\n", cfg.timeout,
             timeout_protocol()->name);
 }
 
@@ -124,13 +125,13 @@ static void config_protocols()
     for (i = 0; i < cfg.protocols_len; i++) {
         struct sslhcfg_protocols_item* p = &(cfg.protocols[i]);
         if (resolve_split_name(&(p->saddr), p->host, p->port)) {
-            fprintf(stderr, "cannot resolve %s:%s\n", p->host, p->port);
+            print_message(msg_config_error, "cannot resolve %s:%s\n", p->host, p->port);
             exit(4);
         }
 
         p->probe = get_probe(p->name);
         if (!p->probe) {
-            fprintf(stderr, "%s: probe unknown\n", p->name);
+            print_message(msg_config_error, "%s: probe unknown\n", p->name);
             exit(1);
         }
 
@@ -155,14 +156,14 @@ static void config_protocols()
 
 void config_sanity_check(struct sslhcfg_item* cfg) {
     if (!cfg->protocols_len) {
-        fprintf(stderr, "At least one target protocol must be specified.\n");
+        print_message(msg_config_error, "At least one target protocol must be specified.\n");
         exit(2);
     }
 
 /* If compiling with systemd socket support no need to require listen address */
 #ifndef SYSTEMD
     if (!cfg->listen_len && !cfg->inetd) {
-        fprintf(stderr, "No listening address specified; use at least one -p option\n");
+        print_message(msg_config_error, "No listening address specified; use at least one -p option\n");
         exit(1);
     }
 #endif
@@ -184,8 +185,6 @@ int main(int argc, char *argv[], char* envp[])
    memset(&cfg, 0, sizeof(cfg));
    res = sslhcfg_cl_parse(argc, argv, &cfg);
    if (res) exit(6);
-   if (cfg.verbose > 3)
-       sslhcfg_fprint(stderr, &cfg, 0);
 
    if (cfg.version) {
        printf("%s %s\n", server_type, VERSION);
@@ -202,14 +201,13 @@ int main(int argc, char *argv[], char* envp[])
        exit(0);
    }
 
-   if (cfg.verbose)
-       printsettings();
+   printsettings();
 
    num_addr_listen = start_listen_sockets(&listen_sockets);
 
 #ifdef SYSTEMD
    if (num_addr_listen < 1) {
-     fprintf(stderr, "No listening sockets found, restart sockets or specify addresses in config\n");
+     print_message(msg_config_error, "No listening sockets found, restart sockets or specify addresses in config\n");
      exit(1);
     }
 #endif
@@ -235,8 +233,9 @@ int main(int argc, char *argv[], char* envp[])
    if (cfg.user || cfg.chroot)
        drop_privileges(cfg.user, cfg.chroot);
 
-   if (cfg.verbose)
-       printcaps();
+   printcaps();
+
+   print_message(msg_config, "%s %s started\n", server_type, VERSION);
 
    main_loop(listen_sockets, num_addr_listen);
 
