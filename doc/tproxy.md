@@ -1,17 +1,14 @@
-﻿Transparent Proxy to Two Hosts
-==============================
+﻿# Transparent Proxy to Two Hosts
 
 Tutorial by Sean Warner.  19 June 2019 20:35
 
-Aim
----
+## Aim
 
 * Show that `sslh` can transparently proxy requests from the internet to services on two separate hosts that are both on the same LAN.
 * The IP address of the client initiating the request is what the destination should see… and not the IP address of the host that `sslh` is running on, which is what happens when `sslh` is not running in transparent mode.
 * The solution here only works for my very specific use-case but hopefully others can adapt it to suits their needs.
 
-Overview of my Network
-----------------------
+## Overview of my Network
 
 Two Raspberry Pis on my home LAN:
 * Pi A: 192.168.1.124 – `sslh` (Port 4433), Apache2 web server for https (port 443), `stunnel` (port 4480) to decrypt ssh traffic and forward to SSH server (also on Pi A at Port 1022)
@@ -20,8 +17,7 @@ Two Raspberry Pis on my home LAN:
 
 ![Architecture](tproxy.svg)
 
-`sslh` build
-------------
+## `sslh` build
  
 `sslh` Version: sslh v1.19c-2-gf451cc8-dirty.
 
@@ -47,8 +43,7 @@ MAN=sslh.8.gz          # man page name
 # itself
 ```
  
-systemd setup
--------------
+## systemd setup
 
 Create an sslh systemd service file...
 ```
@@ -83,8 +78,7 @@ Start it again to test…
 # systemctl start sslh
 ```
  
-Configure `sslh`
-----------------
+## Configure `sslh`
 
 First stop `sslh` then open the config file and replace with below, save and start `sslh` again
 ```
@@ -123,8 +117,7 @@ protocols:
 );
 ```
  
-Configure `stunnel`
--------------------
+## Configure `stunnel`
 
 First stop `stunnel` then open the config file and replace with below, save and start `stunnel` again
 ```
@@ -151,8 +144,7 @@ connect = 192.168.1.124:1022
 TIMEOUTclose  = 0
 ```
  
-Configure iptables for Pi A
---------------------------
+## Configure iptables for Pi A
 
 The `_add.sh` script creates the rules, the `_rm.sh` script removes the rules.
 They will be lost if you reboot but there are ways to make them load again on start-up..
@@ -194,8 +186,7 @@ Now run the "add" script on Pi A!
 # piA_tproxy_rm.sh
 ```
  
-Configure iptables for Pi B
---------------------------
+# Configure iptables for Pi B
 
 ```
 # nano /usr/local/sbin/piB_tproxy_add.sh
@@ -235,8 +226,8 @@ Now run the "add" script on Pi B!
 # piB_tproxy_rm.sh
 ```
  
-Testing
--------
+## Testing
+
 * Getting to sshd on PiA
 
 I did this test using 4G from my phone (outside the LAN)
