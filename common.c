@@ -323,15 +323,14 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
         /* When transparent, make sure both connections use the same address family */
         if (transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
-        if (cfg.verbose)
-            fprintf(stderr, "connecting to %s family %d len %d\n",
+        print_message(msg_connections_try, "trying to connect to %s family %d len %d\n",
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
 
         /* XXX Needs to match ai_family from fd_from when being transparent! */
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
-            log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
+            print_message(msg_connections_error, "forward to %s failed:socket: %s\n",
                         cnx->proto->name, strerror(errno));
         } else {
             one = 1;
@@ -351,7 +350,7 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
             /* EINPROGRESS indicates it might take time. If it eventually
              * fails, it'll be caught as a failed read */
             if ((res == -1) && (errno != EINPROGRESS)) {
-                log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
+                print_message(msg_connections_error, "forward to %s failed:connect: %s\n",
                                      cnx->proto->name, strerror(errno));
                 close(fd);
                 continue; /* Try the next address */
@@ -371,9 +370,8 @@ int defer_write(struct queue *q, void* data, int data_size)
 {
     char *p;
     ptrdiff_t data_offset = q->deferred_data - q->begin_deferred_data;
-    if (cfg.verbose)
-        fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
+    print_message(msg_fd, "writing deferred on fd %d\n", q->fd);
     p = realloc(q->begin_deferred_data, data_offset + q->deferred_data_size + data_size);
     CHECK_ALLOC(p, "realloc");
 
@@ -394,8 +392,7 @@ int flush_deferred(struct queue *q)
 {
     int n;
 
-    if (cfg.verbose)
-        fprintf(stderr, "flushing deferred data to fd %d\n", q->fd);
+    print_message(msg_fd, "flushing deferred data to fd %d\n", q->fd);
 
     n = write(q->fd, q->deferred_data, q->deferred_data_size);
     if (n == -1)
@@ -570,7 +567,7 @@ void resolve_name(struct addrinfo **out, char* fullname)
    /* Find port */
    char *sep = strrchr(fullname, ':');
    if (!sep) { /* No separator: parameter is just a port */
-      fprintf(stderr, "%s: names must be fully specified as hostname:port\n", fullname);
+      print_message(msg_config_error, "%s: names must be fully specified as hostname:port\n", fullname);
       exit(1);
    }
    serv = sep+1;
@@ -580,9 +577,9 @@ void resolve_name(struct addrinfo **out, char* fullname)
 
    res = resolve_split_name(out, host, serv);
    if (res) {
-      fprintf(stderr, "%s `%s'\n", gai_strerror(res), fullname);
+      print_message(msg_config_error, "%s `%s'\n", gai_strerror(res), fullname);
       if (res == EAI_SERVICE)
-         fprintf(stderr, "(Check you have specified all ports)\n");
+         print_message(msg_config_error, "(Check you have specified all ports)\n");
       exit(4);
    }
 }
@@ -664,8 +661,7 @@ int check_access_rights(int in_socket, const char* service)
     /* extract peer address */
     res = getnameinfo(&peer.saddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);
     if (res) {
-        if (cfg.verbose)
-            fprintf(stderr, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
+        print_message(msg_system_error, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
         strcpy(addr_str, STRING_UNKNOWN);
     }
     /* extract peer name */
@@ -673,15 +669,12 @@ int check_access_rights(int in_socket, const char* service)
     if (!cfg.numeric) {
         res = getnameinfo(&peer.saddr, size, host, sizeof(host), NULL, 0, NI_NAMEREQD);
         if (res) {
-            if (cfg.verbose)
-                fprintf(stderr, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
+            print_message(msg_system_error, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
         }
     }
 
     if (!hosts_ctl(service, host, addr_str, STRING_UNKNOWN)) {
-        if (cfg.verbose)
-            fprintf(stderr, "access denied\n");
-        log_message(LOG_INFO, "connection from %s(%s): access denied", host, addr_str);
+        print_message(msg_connections, "connection from %s(%s): access denied", host, addr_str);
         close(in_socket);
         return -1;
     }

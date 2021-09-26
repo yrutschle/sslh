@@ -56,10 +56,27 @@ msg_info msg_system_error = {
     &cfg.verbose_system_error
 };
 
-
 msg_info msg_packets = {
     LOG_INFO,
     &cfg.verbose_packets
+};
+
+/* additional info when attempting outgoing connections */
+msg_info msg_connections_try = {
+    LOG_DEBUG,
+    &cfg.verbose_connections_try
+};
+
+/* Connection information and failures (e.g. forbidden by policy) */
+msg_info msg_connections = {
+    LOG_INFO,
+    &cfg.verbose_connections
+};
+
+/* Connection failures, e.g. target server not present */
+msg_info msg_connections_error = {
+    LOG_ERR,
+    &cfg.verbose_connections_error
 };
 
 

@@ -22,4 +22,8 @@ extern msg_info msg_packets;
 extern msg_info msg_int_error;
 extern msg_info msg_system_error;
 
+extern msg_info msg_connections_try;
+extern msg_info msg_connections_error;
+extern msg_info msg_connections;
+
 #endif /* LOG_H */
