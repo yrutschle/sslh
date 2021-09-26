@@ -33,6 +33,7 @@
 #include <fnmatch.h> /* fnmatch() */
 #include "tls.h"
 #include "sslh-conf.h"
+#include "log.h"
 
 #define TLS_HEADER_LEN 5
 #define TLS_HANDSHAKE_CONTENT_TYPE 0x16
@@ -82,14 +83,14 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     tls_content_type = data[0];
     if (tls_content_type != TLS_HANDSHAKE_CONTENT_TYPE) {
-        if (cfg.verbose) fprintf(stderr, "Request did not begin with TLS handshake.\n");
+        print_message(msg_probe_error, "Request did not begin with TLS handshake.\n");
         return TLS_EPROTOCOL;
     }
 
     tls_version_major = data[1];
     tls_version_minor = data[2];
     if (tls_version_major < 3) {
-        if (cfg.verbose) fprintf(stderr, "Received SSL %d.%d handshake which cannot be parsed.\n",
+        print_message(msg_probe_error, "Received SSL %d.%d handshake which cannot be parsed.\n",
               tls_version_major, tls_version_minor);
 
         return TLS_EVERSION;
@@ -111,7 +112,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
         return TLS_EPROTOCOL;
     }
     if (data[pos] != TLS_HANDSHAKE_TYPE_CLIENT_HELLO) {
-        if (cfg.verbose) fprintf(stderr, "Not a client hello\n");
+        print_message(msg_probe_error, "Not a client hello\n");
 
         return TLS_EPROTOCOL;
     }
@@ -228,7 +229,7 @@ parse_server_name_extension(const struct TLSProtocol *tls_data, const char *data
                     return TLS_ENOEXT;
                 }
             default:
-                if (cfg.verbose) fprintf(stderr, "Unknown server name extension name type: %d\n",
+                print_message(msg_probe_error, "Unknown server name extension name type: %d\n",
                       data[pos]);
         }
         pos += 3 + len;
@@ -254,7 +255,7 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
         if (len > 0 && has_match(tls_data->alpn_protocol_list, tls_data->alpn_list_len, data + pos + 1, len)) {
             return len;
         } else if (len > 0) {
-            if (cfg.verbose) fprintf(stderr, "Unknown ALPN name: %.*s\n", (int)len, data + pos + 1);
+            print_message(msg_probe_error, "Unknown ALPN name: %.*s\n", (int)len, data + pos + 1);
         }
         pos += 1 + len;
     }
@@ -276,7 +277,7 @@ has_match(const char** list, size_t list_len, const char* name, size_t name_len)
 
     for (i = 0; i < list_len; i++) {
         item = &list[i];
-        if (cfg.verbose) fprintf(stderr, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
+        print_message(msg_probe_error, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
         if(!fnmatch(*item, name_nullterminated, 0)) {
             free(name_nullterminated);
             return 1;

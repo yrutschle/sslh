@@ -334,7 +334,7 @@ static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item
     return 0;
 #else
     /* Should never happen as we check when loading config file */
-    fprintf(stderr, "FATAL: regex probe called but not built in\n");
+    print_message(msg_int_error, "FATAL: regex probe called but not built in\n");
     exit(5);
 #endif
 }
@@ -362,20 +362,21 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
 
         if (! p->probe) continue;
 
-        if (cfg.verbose) fprintf(stderr, "probing for %s\n", p->name);
+        print_message(msg_probe_info, "probing for %s\n", p->name);
 
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
         if ((i == cfg.protocols_len - 1) && (!strcmp(p->name, "anyprot")))
             break;
 
         if (p->minlength_is_present && (len < p->minlength )) {
-            fprintf(stderr, "input too short, %d bytes but need %d\n", len , p->minlength);
+            print_message(msg_probe_info, "input too short, %d bytes but need %d\n", 
+                          len , p->minlength);
             again++;
             continue;
         }
 
         res = p->probe(buf, len, p);
-        if (cfg.verbose) fprintf(stderr, "probed for %s: %s\n", p->name, probe_str[res]);
+        print_message(msg_probe_info, "probed for %s: %s\n", p->name, probe_str[res]);
 
         if (res == PROBE_MATCH) {
             *proto = p;

@@ -80,6 +80,18 @@ msg_info msg_connections_error = {
 };
 
 
+/* comment the probing process */
+msg_info msg_probe_info = {
+    LOG_INFO,
+    &cfg.verbose_probe_info
+};
+
+/* probing errors, e.g. inconsistent data in connections */
+msg_info msg_probe_error = {
+    LOG_ERR,
+    &cfg.verbose_probe_error
+};
+
 
 
 /* Bitmasks in verbose-* values */
