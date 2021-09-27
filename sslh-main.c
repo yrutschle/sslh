@@ -197,6 +197,7 @@ int main(int argc, char *argv[], char* envp[])
    if (cfg.inetd)
    {
        cfg.verbose = 0;
+       close(fileno(stderr)); /* Make sure no error will go to client */
        start_shoveler(0);
        exit(0);
    }
