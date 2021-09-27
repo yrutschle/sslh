@@ -40,7 +40,7 @@
 
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) {    \
-       fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+       print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
        perror(str);     \
        exit(1);         \
     }
@@ -53,7 +53,7 @@
 
 #define CHECK_ALLOC(a, str) \
     if (!a) { \
-        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+        print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
         perror(str); \
         exit(1); \
     }
