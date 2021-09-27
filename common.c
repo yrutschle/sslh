@@ -503,7 +503,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
                cfg.numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
 
    if (res) {
-       log_message(LOG_ERR, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
+       print_message(msg_system_error, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
        /* Name resolution failed: do it numerically instead */
        res = getnameinfo(a->ai_addr, a->ai_addrlen,
                          host, sizeof(host),
@@ -511,7 +511,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
                          NI_NUMERICHOST | NI_NUMERICSERV);
        /* should not fail but... */
        if (res) {
-           log_message(LOG_ERR, "sprintaddr:getnameinfo(NUM): %s\n", gai_strerror(res));
+           print_message(msg_system_error, "sprintaddr:getnameinfo(NUM): %s\n", gai_strerror(res));
            strcpy(host, "?");
            strcpy(serv, "?");
        }
@@ -549,7 +549,7 @@ int resolve_split_name(struct addrinfo **out, char* host, char* serv)
 
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
-      log_message(LOG_ERR, "%s `%s:%s'\n", gai_strerror(res), host, serv);
+      print_message(msg_system_error, "%s `%s:%s'\n", gai_strerror(res), host, serv);
    return res;
 }
 

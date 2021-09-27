@@ -47,7 +47,7 @@
 
 #define CHECK_RES_RETURN(res, str, ret) \
     if (res == -1) {                                    \
-        log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
+        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
         return ret;                                     \
     } 
 

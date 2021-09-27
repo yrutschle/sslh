@@ -146,24 +146,6 @@ void setup_syslog(const char* bin_name) {
 }
 
 
-/* Log to syslog or stderr if foreground */
-void log_message(int type, const char* msg, ...)
-{
-    va_list ap;
-
-    va_start(ap, msg);
-    if (cfg.foreground)
-        vfprintf(stderr, msg, ap);
-    va_end(ap);
-
-    if (do_syslog) {
-        va_start(ap, msg);
-        vsyslog(type, msg, ap);
-        va_end(ap);
-    }
-}
-
-
 /* syslogs who connected to where 
  * desc: string description of the connection. if NULL, log_connection will
  * manage on its own
@@ -181,7 +163,7 @@ void log_connection(struct connection_desc* desc, const struct connection *cnx)
         get_connection_desc(desc, cnx);
     }
 
-    log_message(LOG_INFO, "%s:connection from %s to %s forwarded from %s to %s\n",
+    print_message(msg_connections, "%s:connection from %s to %s forwarded from %s to %s\n",
                 cnx->proto->name,
                 desc->peer,
                 desc->service,
