@@ -350,10 +350,8 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
     struct sslhcfg_protocols_item* p;
     int i, res, again = 0;
 
-    if (cfg.verbose > 1) {
-        print_message(msg_packets, "hexdump of incoming packet:\n");
-        hexdump(msg_packets, buf, len);
-    }
+    print_message(msg_packets, "hexdump of incoming packet:\n");
+    hexdump(msg_packets, buf, len);
 
     *proto = NULL;
     for (i = 0; i < cfg.protocols_len; i++) {
