@@ -58,7 +58,7 @@ void check_res_dump(CR_ACTION act, int res, struct addrinfo *addr, char* syscall
     char buf[NI_MAXHOST];
 
     if (res == -1) {
-        fprintf(stderr, "%s:%s: %s\n",
+        print_message(msg_system_error, "%s:%s: %s\n",
                 sprintaddr(buf, sizeof(buf), addr),
                 syscall,
                 strerror(errno));

@@ -145,7 +145,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
     pos += 1 + len;
 
     if (pos == data_len && tls_version_major == 3 && tls_version_minor == 0) {
-        if (cfg.verbose) fprintf(stderr, "Received SSL 3.0 handshake without extensions\n");
+        print_message(msg_probe_error, "Received SSL 3.0 handshake without extensions\n");
         return TLS_EVERSION;
     }
 
