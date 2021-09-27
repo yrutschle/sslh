@@ -75,7 +75,7 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
 #ifdef SYSTEMD
     sd = sd_listen_fds(0);
     if (sd < 0) {
-      fprintf(stderr, "sd_listen_fds(): %s\n", strerror(-sd));
+      print_message(msg_system_error, "sd_listen_fds(): %s\n", strerror(-sd));
       exit(1);
     }
     if (sd > 0) {
@@ -453,8 +453,6 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
    if (size_r == -1) {
        switch (errno) {
        case EAGAIN:
-           if (cfg.verbose)
-               fprintf(stderr, "reading 0 from %d\n", from);
            return FD_NODATA;
 
        case ECONNRESET:
@@ -542,7 +540,7 @@ int resolve_split_name(struct addrinfo **out, char* host, char* serv)
    if (host[0] == '[') {
        end = strrchr(host, ']');
        if (!end) {
-           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
+           print_message(msg_config_error, "%s: no closing bracket in IPv6 address?\n", host);
            return -1;
        }
        host++; /* skip first bracket */
