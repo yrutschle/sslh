@@ -99,8 +99,7 @@ void start_shoveler(int in_socket)
        } else {
            /* Timed out: it's necessarily SSH */
            cnx.proto = timeout_protocol();
-           if (cfg.verbose) 
-               print_message(msg_fd, "timed out, connect to %s\n", cnx.proto->name);
+           print_message(msg_fd, "timed out, connect to %s\n", cnx.proto->name);
            break;
        }
    }
