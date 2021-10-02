@@ -821,14 +821,24 @@ void drop_privileges(const char* user_name, const char* chroot_path)
 void write_pid_file(const char* pidfile)
 {
     FILE *f;
+    int res;
 
     f = fopen(pidfile, "w");
     if (!f) {
-        perror(pidfile);
+        print_message(msg_system_error, "write_pid_file:%s:%s", pidfile, strerror(errno));
         exit(3);
     }
 
-    fprintf(f, "%d\n", getpid());
-    fclose(f);
+    res = fprintf(f, "%d\n", getpid());
+    if (res < 0) {
+        print_message(msg_system_error, "write_pid_file:fprintf:%s", strerror(errno));
+        exit(3);
+    }
+
+    res = fclose(f);
+    if (res == EOF) {
+        print_message(msg_system_error, "write_pid_file:fclose:%s", strerror(errno));
+        exit(3);
+    }
 }
 
