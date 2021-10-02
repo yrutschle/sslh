@@ -3,8 +3,6 @@
 
 void setup_syslog(const char* bin_name);
 
-void log_message(int type, const char* msg, ...);
-
 void log_connection(struct connection_desc* desc, const struct connection *cnx);
 
 typedef struct s_msg_info{
