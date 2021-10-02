@@ -1,3 +1,14 @@
+vNEXT:
+	New log system: instead of --verbose with arbitrary
+	levels, there are now several message classes. Each
+	message class can be set to go to stderr, syslog, or
+	both. Classes are documented in example.cfg.
+
+	inetd merges stderr output to what is sent to the
+	client, which is a security issue as it might give
+	information to an attacker. When inetd is activated,
+	stderr is forcibly closed.
+
 v1.22: 17AUG2021
 	sslh-select now supports UDP protocols.
 	Probes specified in the `protocols`

@@ -76,15 +76,15 @@ int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd)
     target = known_source(collection, max_fd, &src_addr, addrlen);
     addrinfo.ai_addr = &src_addr;
     addrinfo.ai_addrlen = addrlen;
-    if (cfg.verbose) 
-        fprintf(stderr, "received %ld UDP from %d:%s\n", len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
+    print_message(msg_probe_info, "received %ld UDP from %d:%s\n", 
+                  len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
 
     if (target == -1) {
         res = probe_buffer(data, len, &proto);
         /* First version: if we can't work out the protocol from the first
          * packet, drop it. Conceivably, we could store several packets to
          * run probes on packet sets */
-        if (cfg.verbose) fprintf(stderr, "UDP probed: %d\n", res);
+        print_message(msg_probe_info, "UDP probed: %d\n", res);
         if (res != PROBE_MATCH) {
             return -1;
         }
@@ -106,7 +106,7 @@ int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd)
     res = sendto(cnx->target_sock, data, len, 0,
                  cnx->proto->saddr->ai_addr, cnx->proto->saddr->ai_addrlen);
     cnx->last_active = time(NULL);
-    fprintf(stderr, "sending %d to %s\n", 
+    print_message(msg_fd, "sending %d to %s\n", 
             res, sprintaddr(data, sizeof(data), cnx->proto->saddr));
     return out;
 }
@@ -119,12 +119,10 @@ void udp_s2c_forward(struct connection* cnx)
     int res;
 
     res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
-    fprintf(stderr, "recvfrom %d\n", res);
     CHECK_RES_DIE(res, "udp_listener/recvfrom");
     res = sendto(cnx->local_endpoint, data, res, 0,
                  &cnx->client_addr, cnx->addrlen);
     cnx->last_active = time(NULL);
-    fprintf(stderr, "sendto %d to\n", res);
 }
 
 

@@ -100,7 +100,10 @@ void tcp_echo(struct listen_endpoint* listen_socket)
 {
     while (1) {
         int in_socket = accept(listen_socket->socketfd, 0, 0);
-        CHECK_RES_DIE(in_socket, "accept");
+        if (in_socket == -1) {
+            perror("tcp_echo:accept");
+            exit(1);
+        }
 
         if (!fork())
         {

@@ -1,7 +1,7 @@
 /*
 # probe.c: Code for probing protocols
 #
-# Copyright (C) 2007-2019  Yves Rutschle
+# Copyright (C) 2007-2021  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -27,6 +27,7 @@
 #endif
 #include <ctype.h>
 #include "probe.h"
+#include "log.h"
 
 
 
@@ -81,33 +82,38 @@ struct sslhcfg_protocols_item* timeout_protocol(void)
 
 /* From http://grapsus.net/blog/post/Hexadecimal-dump-in-C */
 #define HEXDUMP_COLS 16
-void hexdump(const char *mem, unsigned int len)
+void hexdump(msg_info msg_info, const char *mem, unsigned int len)
 {
     unsigned int i, j;
+    char str[10 + HEXDUMP_COLS * 4 + 2];
+    int c = 0; /* index in str */
 
     for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++)
     {
         /* print offset */
         if(i % HEXDUMP_COLS == 0)
-            fprintf(stderr, "0x%06x: ", i);
+            c += sprintf(&str[c], "0x%06x: ", i);
 
         /* print hex data */
         if(i < len)
-            fprintf(stderr, "%02x ", 0xFF & mem[i]);
+            c += sprintf(&str[c], "%02x ", 0xFF & mem[i]);
         else /* end of block, just aligning for ASCII dump */
-            fprintf(stderr, "   ");
+            c+= sprintf(&str[c], "   ");
 
         /* print ASCII dump */
         if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1)) {
             for(j = i - (HEXDUMP_COLS - 1); j <= i; j++) {
                 if(j >= len) /* end of block, not really printing */
-                    fputc(' ', stderr);
+                    str[c++] = ' ';
                 else if(isprint(mem[j])) /* printable char */
-                    fputc(0xFF & mem[j], stderr);
+                    str[c++] = 0xFF & mem[j];
                 else /* other char */
-                    fputc('.', stderr);
+                    str[c++] = '.';
             }
-            fputc('\n', stderr);
+            str[c++] = '\n';
+            str[c++] = 0;
+            print_message(msg_info, str);
+            c = 0;
         }
     }
 }
@@ -328,7 +334,7 @@ static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item
     return 0;
 #else
     /* Should never happen as we check when loading config file */
-    fprintf(stderr, "FATAL: regex probe called but not built in\n");
+    print_message(msg_int_error, "FATAL: regex probe called but not built in\n");
     exit(5);
 #endif
 }
@@ -344,10 +350,8 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
     struct sslhcfg_protocols_item* p;
     int i, res, again = 0;
 
-    if (cfg.verbose > 1) {
-        fprintf(stderr, "hexdump of incoming packet:\n");
-        hexdump(buf, len);
-    }
+    print_message(msg_packets, "hexdump of incoming packet:\n");
+    hexdump(msg_packets, buf, len);
 
     *proto = NULL;
     for (i = 0; i < cfg.protocols_len; i++) {
@@ -356,20 +360,21 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
 
         if (! p->probe) continue;
 
-        if (cfg.verbose) fprintf(stderr, "probing for %s\n", p->name);
+        print_message(msg_probe_info, "probing for %s\n", p->name);
 
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
         if ((i == cfg.protocols_len - 1) && (!strcmp(p->name, "anyprot")))
             break;
 
         if (p->minlength_is_present && (len < p->minlength )) {
-            fprintf(stderr, "input too short, %d bytes but need %d\n", len , p->minlength);
+            print_message(msg_probe_info, "input too short, %d bytes but need %d\n", 
+                          len , p->minlength);
             again++;
             continue;
         }
 
         res = p->probe(buf, len, p);
-        if (cfg.verbose) fprintf(stderr, "probed for %s: %s\n", p->name, probe_str[res]);
+        print_message(msg_probe_info, "probed for %s: %s\n", p->name, probe_str[res]);
 
         if (res == PROBE_MATCH) {
             *proto = p;

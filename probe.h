@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "tls.h"
+#include "log.h"
 
 typedef enum {
     PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */
@@ -59,6 +60,6 @@ void set_ontimeout(const char* name);
  */
 struct sslhcfg_protocols_item* timeout_protocol(void);
 
-void hexdump(const char*, unsigned int);
+void hexdump(msg_info, const char*, unsigned int);
 
 #endif

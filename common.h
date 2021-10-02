@@ -40,20 +40,20 @@
 
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) {    \
-       fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+       print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
        perror(str);     \
        exit(1);         \
     }
 
 #define CHECK_RES_RETURN(res, str, ret) \
     if (res == -1) {                                    \
-        log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
+        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
         return ret;                                     \
     } 
 
 #define CHECK_ALLOC(a, str) \
     if (!a) { \
-        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+        print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
         perror(str); \
         exit(1); \
     }
@@ -160,7 +160,6 @@ void setup_syslog(const char* bin_name);
 void drop_privileges(const char* user_name, const char* chroot_path);
 void set_capabilities(int cap_net_admin);
 void write_pid_file(const char* pidfile);
-void log_message(int type, const char* msg, ...);
 void dump_connection(struct connection *cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
