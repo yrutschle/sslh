@@ -83,9 +83,6 @@ enum connection_state {
     ST_SHOVELING   /* Connexion is established */
 };
 
-/* this is used to pass protocols through the command-line parameter parsing */
-#define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
-
 /* A 'queue' is composed of a file descriptor (which can be read from or
  * written to), and a queue for deferred write data */
 struct queue {
@@ -152,11 +149,9 @@ int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);
 int get_connection_desc(struct connection_desc* desc, const struct connection *cnx);
-void log_connection(struct connection_desc* desc, const struct connection *cnx);
 void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx);
 int check_access_rights(int in_socket, const char* service);
 void setup_signals(void);
-void setup_syslog(const char* bin_name);
 void drop_privileges(const char* user_name, const char* chroot_path);
 void set_capabilities(int cap_net_admin);
 void write_pid_file(const char* pidfile);
