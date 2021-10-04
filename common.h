@@ -35,30 +35,6 @@
 
 #include "version.h"
 
-#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
-
-
-#define CHECK_RES_DIE(res, str) \
-    if (res == -1) {    \
-       print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
-       perror(str);     \
-       exit(1);         \
-    }
-
-#define CHECK_RES_RETURN(res, str, ret) \
-    if (res == -1) {                                    \
-        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
-        return ret;                                     \
-    } 
-
-#define CHECK_ALLOC(a, str) \
-    if (!a) { \
-        print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
-        perror(str); \
-        exit(1); \
-    }
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 #if 1
 #define TRACE fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
@@ -140,6 +116,7 @@ typedef enum {
     BLOCKING = 1
 } connect_blocking;
 
+#include "log.h"
 
 /* common.c */
 void init_cnx(struct connection *cnx);
@@ -171,5 +148,30 @@ extern const char* server_type;
 void start_shoveler(int);
 
 void main_loop(struct listen_endpoint *listen_sockets, int num_addr_listen);
+
+#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
+
+
+#define CHECK_RES_DIE(res, str) \
+    if (res == -1) {    \
+       print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
+       perror(str);     \
+       exit(1);         \
+    }
+
+#define CHECK_RES_RETURN(res, str, ret) \
+    if (res == -1) {                                    \
+        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
+        return ret;                                     \
+    } 
+
+#define CHECK_ALLOC(a, str) \
+    if (!a) { \
+        print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
+        perror(str); \
+        exit(1); \
+    }
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 #endif
