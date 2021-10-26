@@ -1,14 +1,13 @@
 #ifndef PROCESSES_H
 #define PROCESSES_H
 
-#ifndef WATCHERS_TYPE_DEFINED
-#error Define watchers type before including processes.h
-#endif
-
 #include "common.h"
 #include "collection.h"
 #include "gap.h"
 
+/* Provided by event loop, sslh-ev or sslh-select, for implementation-dependant
+ * data */
+typedef struct watchers watchers; 
 
 /* Global state for a loop */
 struct loop_info {
@@ -17,7 +16,7 @@ struct loop_info {
                           * select() */
     gap_array* probing_list;  /* Pointers to cnx that are in probing mode */
 
-    watchers watchers;
+    watchers* watchers;
 
     cnx_collection* collection; /* Collection of connections linked to this loop */
 
@@ -26,10 +25,20 @@ struct loop_info {
 
 void cnx_read_process(struct loop_info* fd_info, int fd);
 void cnx_write_process(struct loop_info* fd_info, int fd);
-void cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
+int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
 void probing_read_process(struct connection* cnx, struct loop_info* fd_info);
 
 void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx);
 void add_probing_cnx(struct loop_info* fd_info, struct connection* cnx);
+int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
+
+
+/* These must be declared in the loop handler, sslh-ev or sslh-select */
+void watchers_init(watchers** w);
+void watchers_add_read(watchers* w, int fd);
+void watchers_del_read(watchers* w, int fd);
+void watchers_add_write(watchers* w, int fd);
+void watchers_del_write(watchers* w, int fd);
+int watchers_maxfd(watchers* w);
 
 #endif

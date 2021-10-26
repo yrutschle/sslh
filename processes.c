@@ -20,7 +20,9 @@
 
 */
 
+#include "udp-listener.h"
 #include "processes.h"
+#include "probe.h"
 #include "log.h"
 
 /* Removes cnx from probing list */
@@ -35,6 +37,65 @@ void add_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
     gap_set(fd_info->probing_list, fd_info->num_probing, cnx);
     fd_info->num_probing++;
 }
+
+/* Returns the queue index that contains the specified file descriptor */
+static int active_queue(struct connection* cnx, int fd)
+{
+    if (cnx->q[0].fd == fd) return 0;
+    if (cnx->q[1].fd == fd) return 1;
+
+    print_message(msg_int_error, "file descriptor %d not found in connection object\n", fd);
+    return -1;
+}
+
+int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        if (cnx->q[i].fd != -1) {
+            print_message(msg_fd, "closing fd %d\n", cnx->q[i].fd);
+
+            watchers_del_read(fd_info->watchers, cnx->q[i].fd);
+            watchers_del_write(fd_info->watchers, cnx->q[i].fd);
+            close(cnx->q[i].fd);
+            if (cnx->q[i].deferred_data)
+                free(cnx->q[i].deferred_data);
+        }
+    }
+    collection_remove_cnx(fd_info->collection, cnx);
+    return 0;
+}
+
+
+/* shovels data from active fd to the other
+   returns after one socket closed or operation would block
+ */
+static void shovel(struct connection *cnx, int active_fd, struct loop_info* fd_info)
+{
+    struct queue *read_q, *write_q;
+
+    read_q = &cnx->q[active_fd];
+    write_q = &cnx->q[1-active_fd];
+
+    print_message(msg_fd, "activity on fd%d\n", read_q->fd);
+
+    switch(fd2fd(write_q, read_q)) {
+    case -1:
+    case FD_CNXCLOSED:
+        tidy_connection(cnx, fd_info);
+        break;
+
+    case FD_STALLED:
+        watchers_add_write(fd_info->watchers, write_q->fd);
+        watchers_del_read(fd_info->watchers, read_q->fd);
+        break;
+
+    default: /* Nothing */
+        break;
+    }
+}
+
 
 /* Process a connection that is active in read */
 static void tcp_read_process(struct loop_info* fd_info,
@@ -107,8 +168,8 @@ void cnx_write_process(struct loop_info* fd_info, int fd)
         /* If no deferred data is left, stop monitoring the fd 
          * for write, and restart monitoring the other one for reads*/
         if (!cnx->q[queue].deferred_data_size) {
-            watchers_del_write(&fd_info->watchers, cnx->q[queue].fd);
-            watchers_add_read(&fd_info->watchers, cnx->q[1-queue].fd);
+            watchers_del_write(fd_info->watchers, cnx->q[queue].fd);
+            watchers_add_read(fd_info->watchers, cnx->q[1-queue].fd);
         }
     }
 }
@@ -145,7 +206,7 @@ static struct connection* accept_new_connection(int listen_socket, struct cnx_co
  * (For UDP, this means all traffic coming from remote clients)
  * Returns new file descriptor, or -1
  * */
-void cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket)
+int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket)
 {
     int fd = listen_socket->socketfd;
     int type = listen_socket->type;
@@ -163,49 +224,21 @@ void cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* liste
         break;
 
     case SOCK_DGRAM:
-        new_fd = udp_c2s_forward(fd, fd_info->collection, fd_info->watchers.max_fd);
+        new_fd = udp_c2s_forward(fd, fd_info->collection, watchers_maxfd(fd_info->watchers));
         print_message(msg_fd, "new_fd %d\n", new_fd);
         if (new_fd == -1)
-            return;
+            return -1;
         break;
 
     default:
         print_message(msg_int_error, "Inconsistent cnx type: %d\n", type);
         exit(1);
-        return;
     }
 
-    watchers_add_read(&fd_info->watchers, new_fd);
+    watchers_add_read(fd_info->watchers, new_fd);
+    return new_fd;
 }
 
-
-/* shovels data from active fd to the other
-   returns after one socket closed or operation would block
- */
-static void shovel(struct connection *cnx, int active_fd, struct loop_info* fd_info)
-{
-    struct queue *read_q, *write_q;
-
-    read_q = &cnx->q[active_fd];
-    write_q = &cnx->q[1-active_fd];
-
-    print_message(msg_fd, "activity on fd%d\n", read_q->fd);
-
-    switch(fd2fd(write_q, read_q)) {
-    case -1:
-    case FD_CNXCLOSED:
-        tidy_connection(cnx, fd_info);
-        break;
-
-    case FD_STALLED:
-        watchers_add_write(&fd_info->watchers, write_q->fd);
-        watchers_del_read(&fd_info->watchers, read_q->fd);
-        break;
-
-    default: /* Nothing */
-        break;
-    }
-}
 
 /* shovels data from one fd to the other and vice-versa
    returns after one socket closed
@@ -292,6 +325,33 @@ static void connect_proxy(struct connection *cnx)
     exit(0);
 }
 
+
+/* Connect queue 1 of connection to SSL; returns new file descriptor */
+static int connect_queue(struct connection* cnx,
+                         struct loop_info* fd_info)
+{
+    struct queue *q = &cnx->q[1];
+
+    q->fd = connect_addr(cnx, cnx->q[0].fd, NON_BLOCKING);
+    if (q->fd != -1) {
+        log_connection(NULL, cnx);
+        flush_deferred(q);
+        if (q->deferred_data) {
+            /*
+            FD_SET(q->fd, &fd_info->watchers->fds_w);
+            FD_CLR(cnx->q[0].fd, &fd_info->watchers->fds_r); */
+            watchers_add_write(fd_info->watchers, q->fd);
+            watchers_del_read(fd_info->watchers, cnx->q[0].fd);
+        }
+        /* FD_SET(q->fd, &fd_info->watchers->fds_r); */
+        watchers_add_read(fd_info->watchers, q->fd);
+        collection_add_fd(fd_info->collection, cnx, q->fd);
+        return q->fd;
+    } else {
+        tidy_connection(cnx, fd_info);
+        return -1;
+    }
+}
 
 
 /* Process read activity on a socket in probe state 

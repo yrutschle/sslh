@@ -42,18 +42,19 @@
 const char* server_type = "sslh-select";
 
 /* watcher type for a select() loop */
-typedef struct watchers {
+struct watchers {
     fd_set fds_r, fds_w;  /* reference fd sets (used to init working copies) */
     int max_fd;   /* Highest fd number to pass to select() */
-} watchers;
+};
 #define WATCHERS_TYPE_DEFINED /* To notify processes.h */
 
 #include "processes.h"
 
-void watchers_init(watchers* w)
+void watchers_init(watchers** w)
 {
-    FD_ZERO(&w->fds_r);
-    FD_ZERO(&w->fds_w);
+    *w = malloc(sizeof(**w));
+    FD_ZERO(&(*w)->fds_r);
+    FD_ZERO(&(*w)->fds_w);
 }
 
 void watchers_add_read(watchers* w, int fd)
@@ -79,32 +80,22 @@ void watchers_del_write(watchers* w, int fd)
 {
     FD_CLR(fd, &w->fds_w);
 }
+
+/* To remove after moving UDP lookups to hash table */
+int watchers_maxfd(watchers* w)
+{
+    return w->max_fd;
+}
+
 /* /end watchers */
 
 
 
 
-static int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
-{
-    int i;
-
-    for (i = 0; i < 2; i++) {
-        if (cnx->q[i].fd != -1) {
-            print_message(msg_fd, "closing fd %d\n", cnx->q[i].fd);
-
-            watchers_del_read(&fd_info->watchers, cnx->q[i].fd);
-            watchers_del_write(&fd_info->watchers, cnx->q[i].fd);
-            close(cnx->q[i].fd);
-            if (cnx->q[i].deferred_data)
-                free(cnx->q[i].deferred_data);
-        }
-    }
-    collection_remove_cnx(fd_info->collection, cnx);
-    return 0;
-}
-
 /* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
  * and FD_CLR. Need to drop connections if we go above that limit */
+#warning strange things will happen if more than FD_SETSIZE descriptors are used
+/* This test is currently not done */
 static int fd_is_in_range(int fd) {
     if (fd >= FD_SETSIZE) {
         print_message(msg_system_error, "too many open file descriptor to monitor them all -- dropping connection\n");
@@ -114,40 +105,6 @@ static int fd_is_in_range(int fd) {
 }
 
 
-
-/* Connect queue 1 of connection to SSL; returns new file descriptor */
-static int connect_queue(struct connection* cnx,
-                         struct loop_info* fd_info)
-{
-    struct queue *q = &cnx->q[1];
-
-    q->fd = connect_addr(cnx, cnx->q[0].fd, NON_BLOCKING);
-    if ((q->fd != -1) && fd_is_in_range(q->fd)) {
-        log_connection(NULL, cnx);
-        flush_deferred(q);
-        if (q->deferred_data) {
-            FD_SET(q->fd, &fd_info->watchers.fds_w);
-            FD_CLR(cnx->q[0].fd, &fd_info->watchers.fds_r);
-        }
-        FD_SET(q->fd, &fd_info->watchers.fds_r);
-        collection_add_fd(fd_info->collection, cnx, q->fd);
-        return q->fd;
-    } else {
-        tidy_connection(cnx, fd_info);
-        return -1;
-    }
-}
-
-
-/* Returns the queue index that contains the specified file descriptor */
-int active_queue(struct connection* cnx, int fd)
-{
-    if (cnx->q[0].fd == fd) return 0;
-    if (cnx->q[1].fd == fd) return 1;
-
-    print_message(msg_int_error, "file descriptor %d not found in connection object\n", fd);
-    return -1;
-}
 
 
 
@@ -164,10 +121,10 @@ static void udp_timeouts(struct loop_info* fd_info)
 
     time_t next_timeout = INT_MAX;
 
-    for (int i = 0; i < fd_info->watchers.max_fd; i++) {
+    for (int i = 0; i < fd_info->watchers->max_fd; i++) {
         /* if it's either in read or write set, there is a connection
          * behind that file descriptor */
-        if (FD_ISSET(i, &fd_info->watchers.fds_r) || FD_ISSET(i, &fd_info->watchers.fds_w)) {
+        if (FD_ISSET(i, &fd_info->watchers->fds_r) || FD_ISSET(i, &fd_info->watchers->fds_w)) {
             struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
             if (cnx) {
                 time_t timeout = udp_timeout(cnx);
@@ -175,8 +132,8 @@ static void udp_timeouts(struct loop_info* fd_info)
                 if (cnx && (timeout <= now)) {
                     print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
                     close(cnx->target_sock);
-                    watchers_del_read(&fd_info->watchers, i);
-                    watchers_del_write(&fd_info->watchers, i);
+                    watchers_del_read(fd_info->watchers, i);
+                    watchers_del_write(fd_info->watchers, i);
                     collection_remove_cnx(fd_info->collection, cnx);
                 } else {
                     if (timeout < next_timeout) next_timeout = timeout;
@@ -216,23 +173,23 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     watchers_init(&fd_info.watchers);
 
     for (i = 0; i < num_addr_listen; i++) {
-        watchers_add_read(&fd_info.watchers, listen_sockets[i].socketfd);
+        watchers_add_read(fd_info.watchers, listen_sockets[i].socketfd);
         set_nonblock(listen_sockets[i].socketfd);
     }
 
-    fd_info.collection = collection_init(fd_info.watchers.max_fd);
+    fd_info.collection = collection_init(fd_info.watchers->max_fd);
 
     while (1)
     {
         memset(&tv, 0, sizeof(tv));
         tv.tv_sec = cfg.timeout;
 
-        memcpy(&readfds, &fd_info.watchers.fds_r, sizeof(readfds));
-        memcpy(&writefds, &fd_info.watchers.fds_w, sizeof(writefds));
+        memcpy(&readfds, &fd_info.watchers->fds_r, sizeof(readfds));
+        memcpy(&writefds, &fd_info.watchers->fds_w, sizeof(writefds));
 
         print_message(msg_fd, "selecting... max_fd=%d num_probing=%d\n", 
-                                          fd_info.watchers.max_fd, fd_info.num_probing);
-        res = select(fd_info.watchers.max_fd, &readfds, &writefds, 
+                                          fd_info.watchers->max_fd, fd_info.num_probing);
+        res = select(fd_info.watchers->max_fd, &readfds, &writefds, 
                      NULL, fd_info.num_probing ? &tv : NULL);
         if (res < 0)
             perror("select");
@@ -246,17 +203,13 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
                 cnx_accept_process(&fd_info, &listen_sockets[i]);
 
-                if (!fd_is_in_range(0 /*TODO: retrieve fd */ )) {
-                    /* TODO: drop the connection */
-                }
-
                 /* don't also process it as a read socket */
                 FD_CLR(listen_sockets[i].socketfd, &readfds);
             }
         }
 
         /* Check all sockets for write activity */
-        for (i = 0; i < fd_info.watchers.max_fd; i++) {
+        for (i = 0; i < fd_info.watchers->max_fd; i++) {
             if (FD_ISSET(i, &writefds)) {
                 cnx_write_process(&fd_info, i);
             }
@@ -278,11 +231,11 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         }
 
         /* Check all sockets for read activity */
-        for (i = 0; i < fd_info.watchers.max_fd; i++) {
+        for (i = 0; i < fd_info.watchers->max_fd; i++) {
             /* Check if it's active AND currently monitored (if a connection
              * died, it gets tidied, which closes both sockets, but readfs does
              * not know about that */
-            if (FD_ISSET(i, &readfds) && FD_ISSET(i, &fd_info.watchers.fds_r)) {
+            if (FD_ISSET(i, &readfds) && FD_ISSET(i, &fd_info.watchers->fds_r)) {
                 cnx_read_process(&fd_info, i);
             }
         }

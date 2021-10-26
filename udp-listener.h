@@ -2,6 +2,7 @@
 #define UDPLISTENER_H
 
 #include "collection.h"
+#include "common.h"
 
 /* UDP listener: upon incoming packet, find where it should go
  * This is run in its own process and never returns.
