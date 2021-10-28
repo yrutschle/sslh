@@ -1,6 +1,8 @@
 #ifndef LOG_H
 #define LOG_H
 
+#include "common.h"
+
 void setup_syslog(const char* bin_name);
 
 void log_connection(struct connection_desc* desc, const struct connection *cnx);
