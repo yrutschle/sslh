@@ -34,7 +34,6 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
 
 
 /* These must be declared in the loop handler, sslh-ev or sslh-select */
-void watchers_init(watchers** w);
 void watchers_add_read(watchers* w, int fd);
 void watchers_del_read(watchers* w, int fd);
 void watchers_add_write(watchers* w, int fd);

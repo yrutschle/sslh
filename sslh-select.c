@@ -50,11 +50,17 @@ struct watchers {
 
 #include "processes.h"
 
-void watchers_init(watchers** w)
+static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets, 
+                          int num_addr_listen)
 {
     *w = malloc(sizeof(**w));
     FD_ZERO(&(*w)->fds_r);
     FD_ZERO(&(*w)->fds_w);
+
+    for (int i = 0; i < num_addr_listen; i++) {
+        watchers_add_read(*w, listen_sockets[i].socketfd);
+        set_nonblock(listen_sockets[i].socketfd);
+    }
 }
 
 void watchers_add_read(watchers* w, int fd)
@@ -170,12 +176,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     fd_info.num_probing = 0; 
     fd_info.probing_list = gap_init(0);
 
-    watchers_init(&fd_info.watchers);
-
-    for (i = 0; i < num_addr_listen; i++) {
-        watchers_add_read(fd_info.watchers, listen_sockets[i].socketfd);
-        set_nonblock(listen_sockets[i].socketfd);
-    }
+    watchers_init(&fd_info.watchers, listen_sockets, num_addr_listen);
 
     fd_info.collection = collection_init(fd_info.watchers->max_fd);
 
