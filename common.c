@@ -424,6 +424,7 @@ void init_cnx(struct connection *cnx)
 
 void dump_connection(struct connection *cnx)
 {
+    print_message(msg_int_error, "type: %s\n", cnx->type == SOCK_DGRAM ? "UDP" : "TCP");
     print_message(msg_int_error, "state: %d\n", cnx->state);
     print_message(msg_int_error, "0: fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
     hexdump(msg_int_error, cnx->q[0].deferred_data, cnx->q[0].deferred_data_size);
