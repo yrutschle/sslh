@@ -36,6 +36,7 @@
 #include "probe.h"
 #include "udp-listener.h"
 #include "collection.h"
+#include "processes.h"
 #include "gap.h"
 #include "log.h"
 
@@ -46,11 +47,9 @@ struct watchers {
     fd_set fds_r, fds_w;  /* reference fd sets (used to init working copies) */
     int max_fd;   /* Highest fd number to pass to select() */
 };
-#define WATCHERS_TYPE_DEFINED /* To notify processes.h */
 
-#include "processes.h"
 
-static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets, 
+static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
                           int num_addr_listen)
 {
     *w = malloc(sizeof(**w));
