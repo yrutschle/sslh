@@ -112,6 +112,7 @@ void tcp_echo(struct listen_endpoint* listen_socket)
             exit(0);
         }
         close(in_socket);
+        waitpid(-1, NULL, WNOHANG);
     }
 }
 
