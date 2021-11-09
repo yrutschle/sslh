@@ -126,23 +126,21 @@ static void udp_timeouts(struct loop_info* fd_info)
 
     time_t next_timeout = INT_MAX;
 
-    for (int i = 0; i < fd_info->watchers->max_fd; i++) {
+    for (int i = 0; i < watchers_maxfd(fd_info->watchers); i++) {
         /* if it's either in read or write set, there is a connection
          * behind that file descriptor */
-        if (FD_ISSET(i, &fd_info->watchers->fds_r) || FD_ISSET(i, &fd_info->watchers->fds_w)) {
-            struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
-            if (cnx) {
-                time_t timeout = udp_timeout(cnx);
-                if (!timeout) continue; /* Not a UDP connection */
-                if (cnx && (timeout <= now)) {
-                    print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
-                    close(cnx->target_sock);
-                    watchers_del_read(fd_info->watchers, i);
-                    watchers_del_write(fd_info->watchers, i);
-                    collection_remove_cnx(fd_info->collection, cnx);
-                } else {
-                    if (timeout < next_timeout) next_timeout = timeout;
-                }
+        struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
+        if (cnx) {
+            time_t timeout = udp_timeout(cnx);
+            if (!timeout) continue; /* Not a UDP connection */
+            if (cnx && (timeout <= now)) {
+                print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
+                close(cnx->target_sock);
+                watchers_del_read(fd_info->watchers, i);
+                watchers_del_write(fd_info->watchers, i);
+                collection_remove_cnx(fd_info->collection, cnx);
+            } else {
+                if (timeout < next_timeout) next_timeout = timeout;
             }
         }
     }
