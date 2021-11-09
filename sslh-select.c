@@ -30,8 +30,6 @@
 
 #define __LINUX__
 
-#include <limits.h>
-
 #include "common.h"
 #include "probe.h"
 #include "udp-listener.h"
@@ -113,41 +111,6 @@ static int fd_is_in_range(int fd) {
 
 
 
-/* Check all connections to see if a UDP connections has timed out, then free
- * it. At the same time, keep track of the closest, next timeout. Only do the
- * search through connections if that timeout actually happened. If the
- * connection that would have timed out has had activity, it doesn't matter: we
- * go through connections to find the next timeout, which was needed anyway. */
-static void udp_timeouts(struct loop_info* fd_info)
-{
-    time_t now = time(NULL);
-
-    if (now < fd_info->next_timeout) return;
-
-    time_t next_timeout = INT_MAX;
-
-    for (int i = 0; i < watchers_maxfd(fd_info->watchers); i++) {
-        /* if it's either in read or write set, there is a connection
-         * behind that file descriptor */
-        struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
-        if (cnx) {
-            time_t timeout = udp_timeout(cnx);
-            if (!timeout) continue; /* Not a UDP connection */
-            if (cnx && (timeout <= now)) {
-                print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
-                close(cnx->target_sock);
-                watchers_del_read(fd_info->watchers, i);
-                watchers_del_write(fd_info->watchers, i);
-                collection_remove_cnx(fd_info->collection, cnx);
-            } else {
-                if (timeout < next_timeout) next_timeout = timeout;
-            }
-        }
-    }
-
-    if (next_timeout != INT_MAX)
-        fd_info->next_timeout = next_timeout;
-}
 
 /* Main loop: the idea is as follow:
  * - fds_r and fds_w contain the file descriptors to monitor in read and write
@@ -191,10 +154,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                      NULL, fd_info.num_probing ? &tv : NULL);
         if (res < 0)
             perror("select");
-
-
-        /* UDP timeouts: clear out connections after some idle time */
-        udp_timeouts(&fd_info);
 
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {

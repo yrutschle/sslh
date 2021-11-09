@@ -20,11 +20,57 @@
 
 */
 
+#include <limits.h>
+
 #include "common.h"
 #include "probe.h"
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
+
+/* returns date at which this socket times out. */
+static int udp_timeout(struct connection* cnx)
+{
+    if (cnx->type != SOCK_DGRAM) return 0; /* Not a UDP connection */
+
+    return cnx->proto->udp_timeout + cnx->last_active;
+}
+
+/* Check all connections to see if a UDP connections has timed out, then free
+ * it. At the same time, keep track of the closest, next timeout. Only do the
+ * search through connections if that timeout actually happened. If the
+ * connection that would have timed out has had activity, it doesn't matter: we
+ * go through connections to find the next timeout, which was needed anyway. */
+void udp_timeouts(struct loop_info* fd_info)
+{
+    time_t now = time(NULL);
+
+    if (now < fd_info->next_timeout) return;
+
+    time_t next_timeout = INT_MAX;
+
+    for (int i = 0; i < watchers_maxfd(fd_info->watchers); i++) {
+        /* if it's either in read or write set, there is a connection
+         * behind that file descriptor */
+        struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
+        if (cnx) {
+            time_t timeout = udp_timeout(cnx);
+            if (!timeout) continue; /* Not a UDP connection */
+            if (cnx && (timeout <= now)) {
+                print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
+                close(cnx->target_sock);
+                watchers_del_read(fd_info->watchers, i);
+                watchers_del_write(fd_info->watchers, i);
+                collection_remove_cnx(fd_info->collection, cnx);
+            } else {
+                if (timeout < next_timeout) next_timeout = timeout;
+            }
+        }
+    }
+
+    if (next_timeout != INT_MAX)
+        fd_info->next_timeout = next_timeout;
+}
 
 /* Find if the specified source has been seen before. -1 if not found
  *
@@ -53,12 +99,14 @@ static int known_source(cnx_collection* collection, int max_fd, struct sockaddr*
  * Returns: >= 0 sockfd of newly allocated socket, for new connections
  * -1 otherwise
  * */
-int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd)
+int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
 {
     char addr_str[NI_MAXHOST+1+NI_MAXSERV+1];
     struct sockaddr src_addr;
     struct addrinfo addrinfo;
     struct sslhcfg_protocols_item* proto;
+    cnx_collection* collection = fd_info->collection;
+    int max_fd = watchers_maxfd(fd_info->watchers);
     struct connection* cnx;
     ssize_t len;
     socklen_t addrlen;
@@ -66,6 +114,8 @@ int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd)
     char data[65536]; /* Theoritical max is 65507 (https://en.wikipedia.org/wiki/User_Datagram_Protocol).
                          This will do.  Dynamic allocation is possible with the MSG_PEEK flag in recvfrom(2), but that'd imply
                          malloc/free overhead for each packet, when really 64K is not that much */
+
+    udp_timeouts(fd_info);
 
     addrlen = sizeof(src_addr);
     len = recvfrom(sockfd, data, sizeof(data), 0, &src_addr, &addrlen);
@@ -123,14 +173,5 @@ void udp_s2c_forward(struct connection* cnx)
     res = sendto(cnx->local_endpoint, data, res, 0,
                  &cnx->client_addr, cnx->addrlen);
     cnx->last_active = time(NULL);
-}
-
-
-/* returns date at which this socket times out. */
-int udp_timeout(struct connection* cnx)
-{
-    if (cnx->type != SOCK_DGRAM) return 0; /* Not a UDP connection */
-
-    return cnx->proto->udp_timeout + cnx->last_active;
 }
 

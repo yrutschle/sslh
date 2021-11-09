@@ -2,6 +2,7 @@
 #define UDPLISTENER_H
 
 #include "collection.h"
+#include "processes.h"
 #include "common.h"
 
 /* UDP listener: upon incoming packet, find where it should go
@@ -15,15 +16,9 @@ void udp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
  * Returns: >= 0 sockfd of newly allocated socket, for new connections
  * -1 otherwise
  * */
-int udp_c2s_forward(int sockfd, cnx_collection* collection, int max_fd);
+int udp_c2s_forward(int sockfd, struct loop_info* fd_info);
 
 /* Process UDP coming from inside (server towards client) */
 void udp_s2c_forward(struct connection* cnx);
-
-
-/* returns how many seconds before socket times out. Negative if timed out
- * already.
- */
-int udp_timeout(struct connection* cnx);
 
 #endif /* UDPLISTENER_H */

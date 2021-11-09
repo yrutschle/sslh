@@ -224,7 +224,7 @@ int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen
         break;
 
     case SOCK_DGRAM:
-        new_fd = udp_c2s_forward(fd, fd_info->collection, watchers_maxfd(fd_info->watchers));
+        new_fd = udp_c2s_forward(fd, fd_info);
         print_message(msg_fd, "new_fd %d\n", new_fd);
         if (new_fd == -1)
             return -1;
