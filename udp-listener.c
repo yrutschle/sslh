@@ -40,7 +40,16 @@ static int udp_timeout(struct connection* cnx)
  * it. At the same time, keep track of the closest, next timeout. Only do the
  * search through connections if that timeout actually happened. If the
  * connection that would have timed out has had activity, it doesn't matter: we
- * go through connections to find the next timeout, which was needed anyway. */
+ * go through connections to find the next timeout, which was needed anyway. 
+ *
+ * This gets called every time a UDP packet is received from the outside, i.e.
+ * every time we might need to free up resources. If no packets come in, we
+ * don't time out anything, as we don't need the resources.
+ *
+ * TODO: use a better algorithm to avoid going through all connections each
+ * time.
+ *
+ * */
 void udp_timeouts(struct loop_info* fd_info)
 {
     time_t now = time(NULL);
@@ -140,6 +149,8 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         }
 
         out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
+        res = set_nonblock(out);
+        CHECK_RES_RETURN(res, "udp:socket:nonblock", -1);
         struct connection* cnx = collection_alloc_cnx_from_fd(collection, out);
         if (!cnx) return -1;
         target = out;
@@ -169,6 +180,7 @@ void udp_s2c_forward(struct connection* cnx)
     int res;
 
     res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
+    if ((res == -1) && ((errno == EAGAIN) || (errno == EWOULDBLOCK))) return;
     CHECK_RES_DIE(res, "udp_listener/recvfrom");
     res = sendto(cnx->local_endpoint, data, res, 0,
                  &cnx->client_addr, cnx->addrlen);

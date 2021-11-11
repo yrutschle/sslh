@@ -150,9 +150,6 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     watchers_init(&ev_info.watchers, listen_sockets, num_addr_listen);
     ev_set_userdata(EV_A_ &ev_info);
 
-
-    /* TODO: udp timeouts */
-
     ev_run(EV_A_ 0);
 }
 
