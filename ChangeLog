@@ -1,4 +1,9 @@
 vNEXT:
+	New sslh-ev: this is functionaly equivalent to
+	sslh-select (mono-process, only forks for specified
+	protocols), but based on libev, which should make it
+	scalable to large numbers of connections.
+
 	New log system: instead of --verbose with arbitrary
 	levels, there are now several message classes. Each
 	message class can be set to go to stderr, syslog, or
