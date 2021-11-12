@@ -27,7 +27,10 @@ CC ?= gcc
 CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV)
 
 LIBS=-lm -lpcre2-8
-OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o gap.o
+OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o
+FORK_OBJS=sslh-fork.o $(OBJS)
+SELECT_OBJS=sslh-select.o $(OBJS) processes.o udp-listener.o 
+EV_OBJS=sslh-ev.o $(OBJS) processes.o udp-listener.o 
 
 CONDITIONAL_TARGETS=
 
@@ -70,20 +73,24 @@ all: sslh $(MAN) echosrv $(CONDITIONAL_TARGETS)
 version.h:
 	./genver.sh >version.h
 
-sslh: sslh-fork sslh-select
+sslh: sslh-fork sslh-select sslh-ev
 
 $(OBJS): version.h common.h collection.h sslh-conf.h gap.h
 
 sslh-conf.c sslh-conf.h: sslhconf.cfg
 	conf2struct sslhconf.cfg
 
-sslh-fork: version.h $(OBJS) sslh-fork.o Makefile
-	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
+sslh-fork: version.h Makefile $(FORK_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork $(FORK_OBJS) $(LIBS)
 	#strip sslh-fork
 
-sslh-select: version.h $(OBJS) sslh-select.o Makefile
-	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
+sslh-select: version.h $(SELECT_OBJS) Makefile
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select $(SELECT_OBJS) $(LIBS)
 	#strip sslh-select
+
+sslh-ev: version.h $(EV_OBJS) Makefile
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-ev $(EV_OBJS) $(LIBS) -lev
+	#strip sslh-ev
 
 systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
