@@ -23,6 +23,8 @@ Makefile.
 
 * [libcap](http://packages.debian.org/source/unstable/libcap-dev), in package `libcap-dev`. You can compile with or without it using USELIBCAP in the Makefile
 
+* [libev](http://software.schmorp.de/pkg/libev.html), in package `libev-dev`. It is only required to build `sslh-ev`, so you don't need if you only build `sslh-fork` and/or `sslh-select`.
+
 * libbsd, to enable to change the process name (as shown in
   `ps`, so each forked process shows what protocol and what
   connection it is serving),
