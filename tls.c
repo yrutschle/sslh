@@ -277,7 +277,7 @@ has_match(const char** list, size_t list_len, const char* name, size_t name_len)
 
     for (i = 0; i < list_len; i++) {
         item = &list[i];
-        print_message(msg_probe_error, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
+        print_message(msg_probe_info, "matching [%.*s] with [%s]\n", (int)name_len, name, *item);
         if(!fnmatch(*item, name_nullterminated, 0)) {
             free(name_nullterminated);
             return 1;
