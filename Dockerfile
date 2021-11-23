@@ -8,7 +8,7 @@ RUN \
     libconfig-dev \
     make \
     musl-dev \
-    pcre-dev \
+    pcre2-dev \
     perl && \
   cd /sslh && \
   make sslh-select && \
