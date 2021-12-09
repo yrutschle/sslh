@@ -73,8 +73,8 @@ of the Makefile:
 Binaries
 --------
 
-The Makefile produces two different executables: `sslh-fork`
-and `sslh-select`:
+The Makefile produces three different executables: `sslh-fork`,
+`sslh-select` and `sslh-ev`:
 
 * `sslh-fork` forks a new process for each incoming connection.
 It is well-tested and very reliable, but incurs the overhead
@@ -91,10 +91,10 @@ If you are going to use `sslh` on a "medium" setup (a few thousand ssh
 connections, and another few thousand ssl connections),
 `sslh-select` will be better.
 
-If you have a very large site (tens of thousands of connections),
-you'll need a vapourware version that would use libevent or
-something like that.
-
+* `sslh-ev` works very much like `sslh-select`, but uses
+  `libev` as a backend. `libev` provides more portability
+and alternative ways to support very large numbers of
+connections.
 
 Installation
 ------------
