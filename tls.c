@@ -255,7 +255,7 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
         if (len > 0 && has_match(tls_data->alpn_protocol_list, tls_data->alpn_list_len, data + pos + 1, len)) {
             return len;
         } else if (len > 0) {
-            print_message(msg_probe_error, "Unknown ALPN name: %.*s\n", (int)len, data + pos + 1);
+            print_message(msg_probe_info, "Not in ALPN list: %.*s\n", (int)len, data + pos + 1);
         }
         pos += 1 + len;
     }
