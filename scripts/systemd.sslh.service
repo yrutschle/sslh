@@ -22,6 +22,7 @@ PrivateDevices=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 MemoryDenyWriteExecute=true
 DynamicUser=true
+Type=forking
 
 [Install]
 WantedBy=multi-user.target
