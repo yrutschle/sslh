@@ -45,6 +45,7 @@ static int gap_len_alloc(int elem_size)
 /* Creates a new gap at least `len` big, all pointers are initialised at NULL */
 gap_array* gap_init(int len)
 {
+    int i;
     gap_array* gap = malloc(sizeof(*gap));
     if (!gap) return NULL;
     memset(gap, 0, sizeof(*gap));
@@ -55,7 +56,7 @@ gap_array* gap_init(int len)
     gap->array = malloc(gap->len * elem_size);
     if (!gap->array) return NULL;
 
-    for (int i = 0; i < gap->len; i++)
+    for (i = 0; i < gap->len; i++)
         gap->array[i] = NULL;
 
     return gap;
@@ -68,6 +69,7 @@ void* gap_get(gap_array* gap, int index)
 
 static int gap_extend(gap_array* gap)
 {
+    int i;
     int elem_size = sizeof(gap->array[0]);
     int new_length = gap->len + gap_len_alloc(elem_size);
     void** new = realloc(gap->array, new_length * elem_size);
@@ -75,7 +77,7 @@ static int gap_extend(gap_array* gap)
 
     gap->array = new;
 
-    for (int i = gap->len; i < new_length; i++) {
+    for (i = gap->len; i < new_length; i++) {
         gap->array[i] = NULL;
     }
 

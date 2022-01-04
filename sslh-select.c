@@ -50,11 +50,12 @@ struct watchers {
 static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
                           int num_addr_listen)
 {
+    int i;
     *w = malloc(sizeof(**w));
     FD_ZERO(&(*w)->fds_r);
     FD_ZERO(&(*w)->fds_w);
 
-    for (int i = 0; i < num_addr_listen; i++) {
+    for (i = 0; i < num_addr_listen; i++) {
         watchers_add_read(*w, listen_sockets[i].socketfd);
         set_nonblock(listen_sockets[i].socketfd);
     }

@@ -50,6 +50,7 @@ static void cnx_accept_cb(EV_P_ ev_io *w, int revents);
 static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets, 
                           int num_addr_listen)
 {
+    int i;
     *w = malloc(sizeof(**w));
     (*w)->ev_ior = gap_init(num_addr_listen);
     (*w)->ev_iow = gap_init(num_addr_listen);
@@ -57,7 +58,7 @@ static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
     (*w)->fd2ls = gap_init(0);
 
     /* Create watchers for listen sockets */
-    for (int i = 0; i < num_addr_listen; i++) {
+    for (i = 0; i < num_addr_listen; i++) {
         ev_io* io = malloc(sizeof(*io));
 
         ev_io_init(io, &cnx_accept_cb, listen_sockets[i].socketfd, EV_READ);

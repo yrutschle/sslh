@@ -725,10 +725,11 @@ void set_keepcaps(int val) {
 static int use_transparent(void)
 {
 #ifdef LIBCAP
+    int i;
     if (cfg.transparent)
         return 1;
 
-    for (int i = 0; i < cfg.protocols_len; i++)
+    for (i = 0; i < cfg.protocols_len; i++)
         if (cfg.protocols[i].transparent)
             return 1;
 
