@@ -27,9 +27,13 @@ CC ?= gcc
 CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV)
 
 LIBS=-lm -lpcre2-8
+
+# making sslh-conf.o also makes sslh-conf.h with
+# conf2struct, which may be required by other headers: it
+# should be kept first
 OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o
-FORK_OBJS=sslh-fork.o $(OBJS)
-SELECT_OBJS=sslh-select.o $(OBJS) processes.o udp-listener.o 
+FORK_OBJS=$(OBJS) sslh-fork.o 
+SELECT_OBJS=$(OBJS) sslh-select.o processes.o udp-listener.o 
 EV_OBJS=sslh-ev.o $(OBJS) processes.o udp-listener.o 
 
 CONDITIONAL_TARGETS=
