@@ -217,10 +217,10 @@ int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen
     case SOCK_STREAM:
         cnx = accept_new_connection(fd, fd_info->collection);
 
-        if (cnx) {
-            add_probing_cnx(fd_info, cnx);
-            new_fd = cnx->q[0].fd;
-        }
+        if (!cnx) return -1;
+
+        add_probing_cnx(fd_info, cnx);
+        new_fd = cnx->q[0].fd;
         break;
 
     case SOCK_DGRAM:
