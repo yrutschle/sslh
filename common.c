@@ -554,6 +554,36 @@ int resolve_split_name(struct addrinfo **out, char* host, char* serv)
    return res;
 }
 
+/* turns a "hostname:port" string into a list of struct addrinfo;
+out: list of newly allocated addrinfo (see getaddrinfo(3)); freeaddrinfo(3) when done
+fullname: input string -- it gets clobbered
+*/
+void resolve_name(struct addrinfo **out, char* fullname)
+{
+   char *serv, *host;
+   int res;
+
+   /* Find port */
+   char *sep = strrchr(fullname, ':');
+   if (!sep) { /* No separator: parameter is just a port */
+      print_message(msg_config_error, "%s: names must be fully specified as hostname:port\n", fullname);
+      exit(1);
+   }
+   serv = sep+1;
+   *sep = 0;
+
+   host = fullname;
+
+   res = resolve_split_name(out, host, serv);
+   if (res) {
+      print_message(msg_config_error, "%s `%s'\n", gai_strerror(res), fullname);
+      if (res == EAI_SERVICE)
+         print_message(msg_config_error, "(Check you have specified all ports)\n");
+      exit(4);
+   }
+}
+
+
 /* Fills a connection description; returns 0 on failure */
 int get_connection_desc(struct connection_desc* desc, const struct connection *cnx)
 {
