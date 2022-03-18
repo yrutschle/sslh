@@ -319,6 +319,11 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername", res);
 
+    if (cfg.protocols.resolve_on_forward) {
+        resolve_split_name(&(cnx->proto->saddr), cnx->proto->host,
+                           cnx->proto->port);
+    }
+
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
         if (transparent && a->ai_family != from.ai_addr->sa_family)
