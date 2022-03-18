@@ -50,19 +50,18 @@ Build docker image
 
 
 ```bash
-docker container run \
+docker run \
   --rm \
   -it \
+  sslh:latest \
   --listen=0.0.0.0:443 \
   --ssh=hostname:22 \
-  --tlshostname:443 \
-  sslh:latest
+  --tls=hostname:443
 ```
 
 docker-compose example
 
 ```
----
 version: "3"
 
 services:
@@ -70,19 +69,17 @@ services:
     image: sslh:latest
     hostname: sslh
     ports:
-      - 443:443/tcp
-    command: --listen=0.0.0.0:443 --tlshostname:443 --openvpn=openvpn:1194
+      - 443:443
+    command: --listen=0.0.0.0:443 --tls=nginx:443 --openvpn=openvpn:1194
     depends_on:
       - nginx
       - openvpn
 
   nginx:
     image: nginx
-    hostname: nginx
 
   openvpn:
-    image: openvpn:latest
-    hostname: openvpn
+    image: openvpn
 ```
 
 Comments? Questions?
