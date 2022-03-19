@@ -126,7 +126,7 @@ static void config_protocols()
         struct sslhcfg_protocols_item* p = &(cfg.protocols[i]);
 
         if (
-            !cfg.protocols.resolve_on_forward &&
+            !p->resolve_on_forward &&
             resolve_split_name(&(p->saddr), p->host, p->port)
         ) {
             print_message(msg_config_error, "cannot resolve %s:%s\n",
