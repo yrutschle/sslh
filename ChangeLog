@@ -14,6 +14,11 @@ vNEXT:
 	information to an attacker. When inetd is activated,
 	stderr is forcibly closed.
 
+	New protocol-level option `resolve_on_forward`,
+	requests that target names are resolved at each
+	connection instead of at startup. Useful for dynamic
+	DNS situations. (Paul Schroeder/milkpirate)
+
 v1.22: 17AUG2021
 	sslh-select now supports UDP protocols.
 	Probes specified in the `protocols`
