@@ -104,7 +104,7 @@ original client IP address, i.e. `sslh` becomes invisible.
 This makes it easier to use the server's logs, and potential
 IP-based banning ability.
 
-Set up can get complicated, so it has it's own [document](tproxy.md).
+Set up can get complicated, so it has its own [document](tproxy.md).
 
 Systemd Socket Activation
 -------------------------
