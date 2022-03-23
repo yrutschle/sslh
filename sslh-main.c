@@ -124,8 +124,13 @@ static void config_protocols()
     int i;
     for (i = 0; i < cfg.protocols_len; i++) {
         struct sslhcfg_protocols_item* p = &(cfg.protocols[i]);
-        if (resolve_split_name(&(p->saddr), p->host, p->port)) {
-            print_message(msg_config_error, "cannot resolve %s:%s\n", p->host, p->port);
+
+        if (
+            !p->resolve_on_forward &&
+            resolve_split_name(&(p->saddr), p->host, p->port)
+        ) {
+            print_message(msg_config_error, "cannot resolve %s:%s\n",
+                          p->host, p->port);
             exit(4);
         }
 
