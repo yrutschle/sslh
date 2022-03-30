@@ -1,0 +1,30 @@
+#! /usr/bin/perl -w
+
+# This runs all the tests.
+
+# Tests scripts are in *.tst files.
+# Corresponding output is put in *.out.
+# Reference output is put in *.ref.
+# Any discrepency will be reported!
+
+use strict;
+
+my @res;
+foreach my $fn (`ls *.tst`) {
+    chomp $fn;
+    my $cmd = "./htest $fn $fn.out";
+    print "$cmd\n";
+    `$cmd`;
+    my $res = system("diff -u $fn.ref $fn.out");
+    push @res, [$fn, ($res == 0 ? "OK" : "*KO*")];
+}
+
+format =
+@<<<<<<<<<<<<<<<<<<<<<<<<<< @>>>
+$_->[0], $_->[1]
+.
+
+
+#format_name STDOUT test_result;
+map { write; } @res;
+
