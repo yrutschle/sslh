@@ -41,10 +41,13 @@
 #include <stddef.h>
 
 #include "gap.h"
+
+typedef void* hash_item;
 #include "hash.h"
 
 static const int h_keylen = 5; /* How many bits in the hash key? (hash is 2^h_keylen big) */
 static const int hash_size = (1 << h_keylen); /* 8 => 256 */
+static const int keymask = hash_size - 1;  /* 8 => 11111111 */
 static void* const FREE = NULL;
 
 struct hash {
@@ -57,6 +60,12 @@ struct hash {
 };
 
 typedef struct hash hash;
+
+
+static int hash_make_key(hash* h, hash_item item)
+{
+    return h->hash_make_key(item) & keymask;
+}
 
 
 hash* hash_init(hash_make_key_fn make_key, hash_cmp_item_fn cmp_item)
@@ -83,10 +92,10 @@ static int hash_next_index(hash* h, int i)
  * item is an item object that must return the target wanted index and for
  * which comparison with the searched object will succeed.
  * */
-int hash_find_index(hash* h, hash_item item)
+static int hash_find_index(hash* h, hash_item item)
 {
     hash_item cnx;
-    int index = h->hash_make_key(item);
+    int index = hash_make_key(h, item);
     int cnt = 0;
 
     if (index < h->floor) index = h->floor;
@@ -109,6 +118,14 @@ int hash_find_index(hash* h, hash_item item)
     } 
     if (cnx == FREE) return -1;
     return index;
+}
+
+hash_item hash_find(hash* h, hash_item item)
+{
+    int index = hash_find_index(h, item);
+    if (index == -1) return NULL;
+    hash_item out = gap_get(h->data, index);
+    return out;
 }
 
 /* says if we should swap the bubble (element that's going up) and the current
@@ -141,7 +158,7 @@ static int i_should_swap(int index, int wanted_index, int bubble_index, int floo
 
 int hash_insert(hash* h, hash_item new)
 {
-    int bubble_wanted_index = h->hash_make_key(new);
+    int bubble_wanted_index = hash_make_key(h, new);
     int index = bubble_wanted_index;
     gap_array* hash = h->data;
 
@@ -163,7 +180,7 @@ int hash_insert(hash* h, hash_item new)
             return 0;
         }
 
-        int curr_wanted_index = h->hash_make_key(curr_item);
+        int curr_wanted_index = hash_make_key(h, curr_item);
 
         if (i_should_swap(index, curr_wanted_index, bubble_wanted_index, orig_floor, wrapped)) {
             gap_set(h->data, index, new);
@@ -184,13 +201,10 @@ int hash_insert(hash* h, hash_item new)
     return 0;
 }
 
-
-
-
 static int next_in_right_place(hash* h, hash_item item, int index)
 {
     if (!item) return 0;
-    int wanted_index = h->hash_make_key(item);
+    int wanted_index = hash_make_key(h, item);
     return (wanted_index == index);
 }
 
@@ -224,7 +238,7 @@ int hash_remove(hash* h, hash_item item)
     return 0;
 }
 
-
+#if HASH_TESTING
 #include <stdio.h>
 #include <string.h>
 #define STR_LENGTH 16
@@ -249,11 +263,12 @@ void hash_dump(hash* h, char* filename)
 
         memset(str, 0, STR_LENGTH);
         if (item) {
-            idx = h->hash_make_key(item);
-            memcpy(str, item->str, STR_LENGTH);
+            idx = hash_make_key(h, item);
+            memcpy(str, ((struct hash_item*)item)->str, STR_LENGTH);
         }
         fprintf(out, "\t%d:%d:%s\n", i, idx, str);
     }
     fprintf(out, "</hash>\n");
     fclose(out);
 }
+#endif

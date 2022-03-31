@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../hash.h"
 
 
 #define STR_LENGTH 16
@@ -27,6 +26,9 @@ struct hash_item {
     char str[STR_LENGTH];
 };
 
+typedef struct hash_item* hash_item;
+
+#include "../hash.h"
 
 
 
@@ -92,8 +94,8 @@ int main(int argc, char* argv[])
 
         case 's': /* search */
             fprintf(stderr, "searching\n");
-            int i = hash_find_index(h, item);
-            fprintf(stderr, "searching %d[%s]: %d\n", item->wanted_index, item->str, i);
+            struct hash_item* found = hash_find(h, item);
+            fprintf(stderr, "searching %d[%s]: %p\n", item->wanted_index, item->str, found);
             break;
 
         case 'q': /* quit */
