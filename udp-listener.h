@@ -21,4 +21,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info);
 /* Process UDP coming from inside (server towards client) */
 void udp_s2c_forward(struct connection* cnx);
 
+
+void udp_init(struct loop_info* fd_info);
+
 #endif /* UDPLISTENER_H */

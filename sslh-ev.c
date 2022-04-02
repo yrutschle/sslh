@@ -25,6 +25,7 @@
 #include "processes.h"
 #include "gap.h"
 #include "log.h"
+#include "udp-listener.h"
 
 
 const char* server_type = "sslh-ev";
@@ -147,6 +148,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
     ev_info.collection = collection_init(0);
     ev_info.probing_list = gap_init(0);
+    udp_init(&ev_info);
+
     watchers_init(&ev_info.watchers, listen_sockets, num_addr_listen);
     ev_set_userdata(EV_A_ &ev_info);
 

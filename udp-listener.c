@@ -27,6 +27,9 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
+typedef struct connection* hash_item;
+#include "hash.h"
+
 
 /* returns date at which this socket times out. */
 static int udp_timeout(struct connection* cnx)
@@ -35,6 +38,89 @@ static int udp_timeout(struct connection* cnx)
 
     return cnx->proto->udp_timeout + cnx->last_active;
 }
+
+/* Incoming connections are of course all received on a single socket. Create a
+ * hash that associates (incoming sockaddr) => struct connection*, so finding
+ * the connection related to an incoming packet is fast.
+ */
+
+
+
+static int cnx_cmp(struct connection* cnx1, struct connection* cnx2)
+{
+    struct sockaddr* addr1 = &cnx1->client_addr;
+    socklen_t addrlen1 = cnx1->addrlen;
+
+    struct sockaddr* addr2 = &cnx2->client_addr;
+    socklen_t addrlen2 = cnx2->addrlen;
+
+    if (addrlen1 != addrlen2) return -1;
+
+    return memcmp(addr1, addr2, addrlen1);
+}
+
+/* From an IP address, create something that's useable as a hash key.
+ * Currently:
+ * lowest bytes of remote port */
+static int hash_make_key(hash_item new)
+{
+    struct sockaddr* addr = &new->client_addr;
+    //socklen_t addrlen = new->addrlen;
+    struct sockaddr_in* addr4;
+    struct sockaddr_in6* addr6;
+    int out;
+
+    switch (addr->sa_family) {
+    case AF_INET:
+        addr4 = (struct sockaddr_in*)addr;
+        out = addr4->sin_port;
+        break;
+
+    case AF_INET6:
+        addr6 = (struct sockaddr_in6*)addr;
+        out = addr6->sin6_port;
+        break;
+
+    default: /* Just use the first bytes, skipping the address family */
+        out = ((char*)addr)[2];
+        break;
+    }
+    return out;
+}
+
+/* Init the UDP subsystem.
+ * - Initialise the hash
+ * - that's all, folks
+ * */
+void udp_init(struct loop_info* fd_info)
+{
+    fd_info->hash_sources = hash_init(&hash_make_key, &cnx_cmp);
+}
+
+
+/* Find if the specified source has been seen before.
+ * If yes, returns file descriptor of connection
+ * If not, returns -1
+ * */
+static int known_source(hash* h, struct sockaddr* addr, socklen_t addrlen)
+{
+    struct connection search;
+    search.client_addr = *addr;
+    search.addrlen = addrlen;
+
+    struct connection* cnx = hash_find(h, &search);
+    if (!cnx) return -1;
+    return cnx->q[0].fd;
+}
+
+
+
+static int new_source(hash* h, struct connection* new)
+{
+    return hash_insert(h, new);
+}
+
+
 
 /* Check all connections to see if a UDP connections has timed out, then free
  * it. At the same time, keep track of the closest, next timeout. Only do the
@@ -71,6 +157,7 @@ void udp_timeouts(struct loop_info* fd_info)
                 watchers_del_read(fd_info->watchers, i);
                 watchers_del_write(fd_info->watchers, i);
                 collection_remove_cnx(fd_info->collection, cnx);
+                hash_remove(fd_info->hash_sources, cnx);
             } else {
                 if (timeout < next_timeout) next_timeout = timeout;
             }
@@ -81,27 +168,6 @@ void udp_timeouts(struct loop_info* fd_info)
         fd_info->next_timeout = next_timeout;
 }
 
-/* Find if the specified source has been seen before. -1 if not found
- *
- * TODO This is linear search and needs to be changed to something better for
- * production if we have more than a dozen sources
- * Also, this assumes src_addr from recvfrom() are repeatable for a specific
- * source...
- * */
-static int known_source(cnx_collection* collection, int max_fd, struct sockaddr* addr, socklen_t addrlen)
-{
-    int i;
-
-    for (i = 0; i < max_fd; i++) {
-        struct connection* cnx = collection_get_cnx_from_fd(collection, i);
-        if (cnx && (cnx->type == SOCK_DGRAM) && cnx->target_sock) {
-            if (!memcmp(&cnx->client_addr, addr, addrlen)) {
-                return i;
-            }
-        }
-    }
-    return -1;
-}
 
 /* Process UDP coming from outside (client towards server)
  * If it's a new source, probe; otherwise, forward to previous target 
@@ -124,6 +190,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
                          This will do.  Dynamic allocation is possible with the MSG_PEEK flag in recvfrom(2), but that'd imply
                          malloc/free overhead for each packet, when really 64K is not that much */
 
+
     udp_timeouts(fd_info);
 
     addrlen = sizeof(src_addr);
@@ -132,7 +199,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         perror("recvfrom");
         return -1;
     }
-    target = known_source(collection, max_fd, &src_addr, addrlen);
+    target = known_source(fd_info->hash_sources, &src_addr, addrlen);
     addrinfo.ai_addr = &src_addr;
     addrinfo.ai_addrlen = addrlen;
     print_message(msg_probe_info, "received %ld UDP from %d:%s\n", 
@@ -160,6 +227,13 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         cnx->client_addr = src_addr;
         cnx->addrlen = addrlen;
         cnx->local_endpoint = sockfd;
+
+        res = new_source(fd_info->hash_sources, cnx);
+        if (res == -1) {
+            print_message(msg_connections_error, "Out of hash space for new incoming UDP connection");
+            collection_remove_cnx(collection, cnx);
+            return -1;
+        }
     }
     cnx = collection_get_cnx_from_fd(collection, target);
 
@@ -169,6 +243,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     cnx->last_active = time(NULL);
     print_message(msg_fd, "sending %d to %s\n", 
             res, sprintaddr(data, sizeof(data), cnx->proto->saddr));
+
     return out;
 }
 

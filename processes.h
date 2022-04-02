@@ -16,6 +16,8 @@ struct loop_info {
                           * select() */
     gap_array* probing_list;  /* Pointers to cnx that are in probing mode */
 
+    hash* hash_sources; /* UDP remote sources previously encountered */
+
     watchers* watchers;
 
     cnx_collection* collection; /* Collection of connections linked to this loop */
