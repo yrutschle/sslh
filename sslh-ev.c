@@ -22,7 +22,6 @@
 
 #include <stdlib.h>
 #include <ev.h>
-#include "processes.h"
 #include "gap.h"
 #include "log.h"
 #include "udp-listener.h"

@@ -27,9 +27,6 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
-typedef struct connection* hash_item;
-#include "hash.h"
-
 
 /* returns date at which this socket times out. */
 static int udp_timeout(struct connection* cnx)
