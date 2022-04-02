@@ -28,9 +28,9 @@ CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV)
 
 LIBS=-lm -lpcre2-8
 OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o
-FORK_OBJS=sslh-fork.o $(OBJS)
-SELECT_OBJS=sslh-select.o $(OBJS) processes.o udp-listener.o 
-EV_OBJS=sslh-ev.o $(OBJS) processes.o udp-listener.o 
+FORK_OBJS=$(OBJS) sslh-fork.o 
+SELECT_OBJS=$(OBJS) processes.o udp-listener.o sslh-select.o 
+EV_OBJS=$(OBJS) processes.o udp-listener.o sslh-ev.o 
 
 CONDITIONAL_TARGETS=
 
