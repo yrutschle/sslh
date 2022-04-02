@@ -178,7 +178,6 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     struct addrinfo addrinfo;
     struct sslhcfg_protocols_item* proto;
     cnx_collection* collection = fd_info->collection;
-    int max_fd = watchers_maxfd(fd_info->watchers);
     struct connection* cnx;
     ssize_t len;
     socklen_t addrlen;
