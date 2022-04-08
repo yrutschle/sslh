@@ -176,13 +176,6 @@ int hash_insert(hash* h, hash_item new)
     return 0;
 }
 
-static int next_in_right_place(hash* h, hash_item item, int index)
-{
-    if (!item) return 0;
-    int wanted_index = hash_make_key(h, item);
-    return (wanted_index == index);
-}
-
 /* Remove cnx from the hash */
 int hash_remove(hash* h, hash_item item)
 {
@@ -196,7 +189,7 @@ int hash_remove(hash* h, hash_item item)
         if (index < h->floor) lower_floor = 1;
         int next_index = hash_next_index(h, index);
         hash_item next = gap_get(h->data, next_index);
-        if ((next == FREE) || next_in_right_place(h, next, next_index)) {
+        if ((next == FREE) || (distance(next_index, h, next) == 0)) {
             h->item_cnt--;
             if (lower_floor) h->floor--;
             gap_set(hash, index, FREE);
