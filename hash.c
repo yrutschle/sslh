@@ -128,33 +128,17 @@ hash_item hash_find(hash* h, hash_item item)
     return out;
 }
 
-/* says if we should swap the bubble (element that's going up) and the current
- * indexed element.
- * index: current insertion index
- * wanted_index: index wanted by the element at the current index
- * bubble: bubble wanted index
- * floor: index of lowest wanted index (or index of the highest wrapped wanted
- * index)
- * wrapped: whether we wrapped or not (if we reach the floor from below after
- * wrapping, we should swap as it's a 'highest' element pushing the floor up.
- * it we're inserting a higher-than bottom element at the floor, it should
- * bubble up).
- */
-static int i_should_swap(int index, int wanted_index, int bubble_index, int floor, int wrapped)
+
+/* Returns DIB: distance to initial bucket */
+static int distance(int actual_index, hash* h, hash_item item)
 {
-    int res;
-
-    if ((index == floor))
-        res = wrapped;
+    int wanted_index = hash_make_key(h, item);
+    if (wanted_index <= actual_index)
+        return wanted_index - actual_index;
     else
-        res = bubble_index < wanted_index;
-
-#if DEBUG 
-    fprintf(stderr, "i_should_swap(%d, %d, %d, %d) = %d\n", index, wanted_index, bubble_index, floor, res);
-#endif
-
-    return res;
+        return wanted_index + hash_size - actual_index;
 }
+
 
 int hash_insert(hash* h, hash_item new)
 {
@@ -169,34 +153,26 @@ int hash_insert(hash* h, hash_item new)
 
     hash_item curr_item = gap_get(hash, index);
     int orig_floor = h->floor;
-    int wrapped = 0;
-    while (1) {
-        if (curr_item == NULL) {
-#if DEBUG
-            fprintf(stderr, "final insert at %d\n", index);
-#endif
-            gap_set(hash, index, new);
-            h->item_cnt++;
-            return 0;
-        }
-
-        int curr_wanted_index = hash_make_key(h, curr_item);
-
-        if (i_should_swap(index, curr_wanted_index, bubble_wanted_index, orig_floor, wrapped)) {
+    while (curr_item) {
+        if (distance(index, h, curr_item) > distance(index, h, new)) {
             gap_set(h->data, index, new);
 #if DEBUG
             fprintf(stderr, "intermediate insert [%s] at %d\n", &new->client_addr, index);
 #endif
             new = curr_item;
-            bubble_wanted_index = curr_wanted_index;
         }
 
         index = hash_next_index(h, index);
         curr_item = gap_get(hash, index);
 
         if (index == 0) h->floor++;
-        if (index == 0) wrapped = 1;
     }
+
+#if DEBUG
+    fprintf(stderr, "final insert at %d\n", index);
+#endif
+    gap_set(hash, index, new);
+    h->item_cnt++;
 
     return 0;
 }
