@@ -130,13 +130,13 @@ hash_item hash_find(hash* h, hash_item item)
 
 
 /* Returns DIB: distance to initial bucket */
-static int distance(int actual_index, hash* h, hash_item item)
+static int distance(int current_index, hash* h, hash_item item)
 {
     int wanted_index = hash_make_key(h, item);
-    if (wanted_index <= actual_index)
-        return wanted_index - actual_index;
+    if (wanted_index <= current_index)
+        return current_index - wanted_index;
     else
-        return wanted_index + hash_size - actual_index;
+        return current_index - wanted_index + hash_size;
 }
 
 
@@ -153,7 +153,7 @@ int hash_insert(hash* h, hash_item new)
 
     hash_item curr_item = gap_get(hash, index);
     while (curr_item) {
-        if (distance(index, h, curr_item) > distance(index, h, new)) {
+        if (distance(index, h, curr_item) < distance(index, h, new)) {
             gap_set(h->data, index, new);
 #if DEBUG
             fprintf(stderr, "intermediate insert [%s] at %d\n", &new->client_addr, index);
