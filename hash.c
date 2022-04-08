@@ -152,7 +152,6 @@ int hash_insert(hash* h, hash_item new)
     if (index < h->floor) index = h->floor;
 
     hash_item curr_item = gap_get(hash, index);
-    int orig_floor = h->floor;
     while (curr_item) {
         if (distance(index, h, curr_item) > distance(index, h, new)) {
             gap_set(h->data, index, new);
