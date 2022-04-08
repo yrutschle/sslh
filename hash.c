@@ -149,8 +149,6 @@ int hash_insert(hash* h, hash_item new)
     if (h->item_cnt == hash_size)
         return -1;
 
-    if (index < h->floor) index = h->floor;
-
     hash_item curr_item = gap_get(hash, index);
     while (curr_item) {
         if (distance(index, h, curr_item) < distance(index, h, new)) {
