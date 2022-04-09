@@ -52,7 +52,6 @@ static void* const FREE = NULL;
 
 struct hash {
     int item_cnt;       /* Number of items in the hash */
-    int floor;          /* Where is the highest key. Or the lowest insert point */
     gap_array* data;
 
     hash_make_key_fn hash_make_key;
@@ -74,7 +73,6 @@ hash* hash_init(hash_make_key_fn make_key, hash_cmp_item_fn cmp_item)
     if (!h) return NULL;
 
     h->item_cnt = 0;
-    h->floor = 0;
     h->data = gap_init(hash_size);
     h->hash_make_key = make_key;
     h->cmp_item = cmp_item;
@@ -97,8 +95,6 @@ static int hash_find_index(hash* h, hash_item item)
     hash_item cnx;
     int index = hash_make_key(h, item);
     int cnt = 0;
-
-    if (index < h->floor) index = h->floor;
 
     cnx = gap_get(h->data, index);
 #ifdef DEBUG
@@ -161,8 +157,6 @@ int hash_insert(hash* h, hash_item new)
 
         index = hash_next_index(h, index);
         curr_item = gap_get(hash, index);
-
-        if (index == 0) h->floor++;
     }
 
 #if DEBUG
@@ -182,14 +176,11 @@ int hash_remove(hash* h, hash_item item)
     int index = hash_find_index(h, item);
     if (index == -1) return -1; /* Tried to remove something that isn't there */
 
-    int lower_floor = 0; /* If we remove something below the floor, we'll need to lower it */
     while (1) {
-        if (index < h->floor) lower_floor = 1;
         int next_index = hash_next_index(h, index);
         hash_item next = gap_get(h->data, next_index);
         if ((next == FREE) || (distance(next_index, h, next) == 0)) {
             h->item_cnt--;
-            if (lower_floor) h->floor--;
             gap_set(hash, index, FREE);
             return 0;
         }
@@ -197,9 +188,6 @@ int hash_remove(hash* h, hash_item item)
         gap_set(hash, index, next);
 
         index = hash_next_index(h, index);;
-#if DEBUG
-        fprintf(stderr, "index %d floor %d\n", index, h->floor);
-#endif
     }
     return 0;
 }
@@ -222,7 +210,7 @@ void hash_dump(hash* h, char* filename)
         exit(1);
     }
     
-    fprintf(out, "<hash floor=%d elem=%d>\n", h->floor, h->item_cnt);
+    fprintf(out, "<hash elem=%d>\n", h->item_cnt);
     for (int i = 0; i < hash_size; i++) {
         hash_item item = gap_get(h->data, i);
         int idx = 0;
