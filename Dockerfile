@@ -8,7 +8,7 @@ RUN \
     libconfig-dev \
     make \
     musl-dev \
-    pcre-dev \
+    pcre2-dev \
     perl && \
   cd /sslh && \
   make sslh-select && \
@@ -18,6 +18,6 @@ FROM alpine:latest
 
 COPY --from=build /sslh/sslh-select /sslh
 
-RUN apk --no-cache add libconfig pcre
+RUN apk --no-cache add libconfig pcre2
 
 ENTRYPOINT [ "/sslh", "--foreground"]
