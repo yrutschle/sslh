@@ -22,14 +22,11 @@
 
 
 /*  * The hash is open-addressing, linear search, robin-hood insertion, with 
- * backward shift deletion and moving floor.
+ * backward shift deletion. References:
  * https://codecapsule.com/2013/11/11/robin-hood-hashing/
  * https://codecapsule.com/2013/11/17/robin-hood-hashing-backward-shift-deletion/
  * This means items are reordered upon insertion and deletion, and the hash
  * is well-ordered at all times with no tombstones.
- *
- * Items that 'wrap' around push the 'floor' up. Searching for low items will
- * therefore start from the floor up.
  *
  * Each pointer is either:
  * - to a connection struct
