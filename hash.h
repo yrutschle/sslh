@@ -13,7 +13,7 @@ typedef int (*hash_make_key_fn)(hash_item item);
 /* Function that compares two items: returns 0 if they are the same */
 typedef int (*hash_cmp_item_fn)(hash_item item1, hash_item item2);
 
-hash* hash_init(hash_make_key_fn make_key, hash_cmp_item_fn cmp_item);
+hash* hash_init(int hash_size, hash_make_key_fn make_key, hash_cmp_item_fn cmp_item);
 
 int hash_insert(hash* h, hash_item new);
 int hash_remove(hash* h, hash_item item);

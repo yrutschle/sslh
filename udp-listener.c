@@ -27,6 +27,8 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
+/* How many concurrent connections we manage */
+#define HASH_SIZE 1024
 
 /* returns date at which this socket times out. */
 static int udp_timeout(struct connection* cnx)
@@ -91,7 +93,7 @@ static int hash_make_key(hash_item new)
  * */
 void udp_init(struct loop_info* fd_info)
 {
-    fd_info->hash_sources = hash_init(&hash_make_key, &cnx_cmp);
+    fd_info->hash_sources = hash_init(HASH_SIZE, &hash_make_key, &cnx_cmp);
 }
 
 

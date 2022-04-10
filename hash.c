@@ -42,12 +42,10 @@
 typedef void* hash_item;
 #include "hash.h"
 
-static const int h_keylen = 5; /* How many bits in the hash key? (hash is 2^h_keylen big) */
-static const int hash_size = (1 << h_keylen); /* 8 => 256 */
-static const int keymask = hash_size - 1;  /* 8 => 11111111 */
 static void* const FREE = NULL;
 
 struct hash {
+    int hash_size;      /* Max number of items in the hash */
     int item_cnt;       /* Number of items in the hash */
     gap_array* data;
 
@@ -60,15 +58,16 @@ typedef struct hash hash;
 
 static int hash_make_key(hash* h, hash_item item)
 {
-    return h->hash_make_key(item) & keymask;
+    return h->hash_make_key(item) % h->hash_size;
 }
 
 
-hash* hash_init(hash_make_key_fn make_key, hash_cmp_item_fn cmp_item)
+hash* hash_init(int hash_size, hash_make_key_fn make_key, hash_cmp_item_fn cmp_item)
 {
     hash* h = malloc(sizeof(*h));
     if (!h) return NULL;
 
+    h->hash_size = hash_size;
     h->item_cnt = 0;
     h->data = gap_init(hash_size);
     h->hash_make_key = make_key;
@@ -80,7 +79,7 @@ hash* hash_init(hash_make_key_fn make_key, hash_cmp_item_fn cmp_item)
 /* Return the index following i in h */
 static int hash_next_index(hash* h, int i)
 {
-    return (i + 1) % hash_size;
+    return (i + 1) % h->hash_size;
 }
 
 /* Returns the index in h of specified address, -1 if not found 
@@ -98,7 +97,7 @@ static int hash_find_index(hash* h, hash_item item)
     fprintf(stderr, "searching %d\n", index);
 #endif
     while (cnx != FREE) {
-        if (cnt++ > hash_size) return -1;
+        if (cnt++ > h->hash_size) return -1;
 
         if (!h->cmp_item(cnx, item))
             break;
@@ -129,7 +128,7 @@ static int distance(int current_index, hash* h, hash_item item)
     if (wanted_index <= current_index)
         return current_index - wanted_index;
     else
-        return current_index - wanted_index + hash_size;
+        return current_index - wanted_index + h->hash_size;
 }
 
 
@@ -139,7 +138,7 @@ int hash_insert(hash* h, hash_item new)
     int index = bubble_wanted_index;
     gap_array* hash = h->data;
 
-    if (h->item_cnt == hash_size)
+    if (h->item_cnt == h->hash_size)
         return -1;
 
     hash_item curr_item = gap_get(hash, index);
@@ -208,7 +207,7 @@ void hash_dump(hash* h, char* filename)
     }
     
     fprintf(out, "<hash elem=%d>\n", h->item_cnt);
-    for (int i = 0; i < hash_size; i++) {
+    for (int i = 0; i < h->hash_size; i++) {
         hash_item item = gap_get(h->data, i);
         int idx = 0;
 

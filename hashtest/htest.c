@@ -19,6 +19,8 @@
 #include <string.h>
 
 
+/* tests have been written for a hash that holds 32 items */
+#define HASH_SIZE 32
 
 #define STR_LENGTH 16
 struct hash_item {
@@ -55,7 +57,7 @@ static void htest_next_key(FILE* f, char* action, int* key, char str[STR_LENGTH]
 
 int main(int argc, char* argv[])
 {
-    hash* h = hash_init(&hash_make_key, &cmp_item);
+    hash* h = hash_init(HASH_SIZE, &hash_make_key, &cmp_item);
     char action;
     hash_item item;
     int line = 0;
