@@ -27,9 +27,6 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
-/* How many concurrent connections we manage */
-#define HASH_SIZE 1024
-
 /* returns date at which this socket times out. */
 static int udp_timeout(struct connection* cnx)
 {
@@ -93,7 +90,7 @@ static int hash_make_key(hash_item new)
  * */
 void udp_init(struct loop_info* fd_info)
 {
-    fd_info->hash_sources = hash_init(HASH_SIZE, &hash_make_key, &cnx_cmp);
+    fd_info->hash_sources = hash_init(cfg.udp_max_connections, &hash_make_key, &cnx_cmp);
 }
 
 
@@ -228,7 +225,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
 
         res = new_source(fd_info->hash_sources, cnx);
         if (res == -1) {
-            print_message(msg_connections_error, "Out of hash space for new incoming UDP connection");
+            print_message(msg_connections_error, "Out of hash space for new incoming UDP connection -- increaѕe udp_max_connections");
             collection_remove_cnx(collection, cnx);
             return -1;
         }

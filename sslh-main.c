@@ -67,20 +67,25 @@ static void printsettings(void)
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
         print_message(msg_config, 
-                "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
-                p->name, 
-                sprintaddr(buf, sizeof(buf), p->saddr), 
-                p->service,
-                p->log_level,
-                p->saddr->ai_family,
-                p->saddr->ai_addr->sa_family,
-                p->keepalive ? "keepalive" : "",
-                p->fork ? "fork" : "",
-                p->transparent ? "transparent" : ""
-                );
+                      "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
+                      p->name, 
+                      sprintaddr(buf, sizeof(buf), p->saddr), 
+                      p->service,
+                      p->log_level,
+                      p->saddr->ai_family,
+                      p->saddr->ai_addr->sa_family,
+                      p->keepalive ? "keepalive" : "",
+                      p->fork ? "fork" : "",
+                      p->transparent ? "transparent" : ""
+                     );
     }
-    print_message(msg_config, "timeout: %d\non-timeout: %s\n", cfg.timeout,
-            timeout_protocol()->name);
+    print_message(msg_config, 
+                  "timeout: %d\n"
+                  "on-timeout: %s\n"
+                  "UDP hash size: %d\n", 
+                  cfg.timeout,
+                  timeout_protocol()->name,
+                  cfg.udp_max_connections);
 }
 
 

@@ -9,6 +9,11 @@ vNEXT:
 	message class can be set to go to stderr, syslog, or
 	both. Classes are documented in example.cfg.
 
+	UDP connections are now managed in a hash to avoid
+	linear searches. The downside is that the number of
+	UDP connections is a hard limit, configurable with
+	the 'udp_max_connections', which defaults to 1024.
+
 	inetd merges stderr output to what is sent to the
 	client, which is a security issue as it might give
 	information to an attacker. When inetd is activated,
