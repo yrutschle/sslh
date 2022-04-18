@@ -164,6 +164,12 @@ void udp_timeouts(struct loop_info* fd_info)
         fd_info->next_timeout = next_timeout;
 }
 
+/* Mark the connection was active */
+static void mark_active(struct connection* cnx)
+{
+    cnx->last_active = time(NULL);
+}
+
 
 /* Process UDP coming from outside (client towards server)
  * If it's a new source, probe; otherwise, forward to previous target 
@@ -235,13 +241,12 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     /* at this point src is the UDP connection */
     res = sendto(cnx->target_sock, data, len, 0,
                  cnx->proto->saddr->ai_addr, cnx->proto->saddr->ai_addrlen);
-    cnx->last_active = time(NULL);
+    mark_active(cnx);
     print_message(msg_fd, "sending %d to %s\n", 
             res, sprintaddr(data, sizeof(data), cnx->proto->saddr));
 
     return out;
 }
-
 
 void udp_s2c_forward(struct connection* cnx)
 {
@@ -254,6 +259,6 @@ void udp_s2c_forward(struct connection* cnx)
     CHECK_RES_DIE(res, "udp_listener/recvfrom");
     res = sendto(cnx->local_endpoint, data, res, 0,
                  &cnx->client_addr, cnx->addrlen);
-    cnx->last_active = time(NULL);
+    mark_active(cnx);
 }
 
