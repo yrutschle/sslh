@@ -83,9 +83,6 @@ enum connection_state {
     ST_SHOVELING   /* Connexion is established */
 };
 
-/* this is used to pass protocols through the command-line parameter parsing */
-#define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
-
 /* A 'queue' is composed of a file descriptor (which can be read from or
  * written to), and a queue for deferred write data */
 struct queue {
