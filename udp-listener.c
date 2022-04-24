@@ -140,7 +140,7 @@ void udp_timeouts(struct loop_info* fd_info)
 
     time_t next_timeout = INT_MAX;
 
-    for (int i = 0; i < watchers_maxfd(fd_info->watchers); i++) {
+    for (int i = 0; i <= watchers_maxfd(fd_info->watchers); i++) {
         /* if it's either in read or write set, there is a connection
          * behind that file descriptor */
         struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
