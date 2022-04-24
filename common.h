@@ -92,6 +92,12 @@ struct queue {
     int deferred_data_size;
 };
 
+/* Double linked list for timeout management */
+typedef struct {
+    struct connection* head;
+    struct connection* tail;
+} dl_list;
+
 struct connection {
     int type;           /* SOCK_DGRAM | SOCK_STREAM */
     struct sslhcfg_protocols_item* proto; /* Where to connect to */
@@ -112,6 +118,9 @@ struct connection {
     int local_endpoint; /* Contains the local address */
 
     time_t last_active;
+
+    /* double linked list of timeouts */
+    struct connection *timeout_prev, *timeout_next;
 
     /* We need one local socket for each target server, so we know where to
      * forward server responses */

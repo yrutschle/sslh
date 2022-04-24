@@ -160,6 +160,9 @@ static void config_protocols()
                                   (const char**) cfg.protocols[i].alpn_protocols,
                                   cfg.protocols[i].alpn_protocols_len);
         }
+
+        p->timeouts.head = NULL;
+        p->timeouts.tail = NULL;
     }
 }
 
