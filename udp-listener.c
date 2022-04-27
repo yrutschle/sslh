@@ -27,14 +27,6 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
-/* returns date at which this socket times out. */
-static int udp_timeout(struct connection* cnx)
-{
-    if (cnx->type != SOCK_DGRAM) return 0; /* Not a UDP connection */
-
-    return cnx->proto->udp_timeout + cnx->last_active;
-}
-
 /* Incoming connections are of course all received on a single socket. Create a
  * hash that associates (incoming sockaddr) => struct connection*, so finding
  * the connection related to an incoming packet is fast.
@@ -148,76 +140,30 @@ static void list_remove(dl_list* list, struct connection* cnx)
         cnx->timeout_next->timeout_prev = cnx->timeout_prev;
 }
 
-static void list_dump(void) {
-    int now = time(NULL);
-    static int cnt = 0;
-
-    if (cnt++ < 1000) {
-        return;
-    }
-    cnt = 0;
-
-    FILE * f = fopen("/tmp/list.tmp", "w");
-    fprintf(f, "time: %d\n", time(NULL));
-    for (int i = 0; i < cfg.protocols_len; i++) {
-        struct connection* c = cfg.protocols[i].timeouts.head;
-        fprintf(f, "p %d %s list %p %p\n", i, cfg.protocols[i].name, cfg.protocols[i].timeouts.head, cfg.protocols[i].timeouts.tail);
-        while (c) {
-            fprintf(f, "%p %d(%d) %p %p\n", c, c->last_active, now - c->last_active, c->timeout_prev, c->timeout_next);
-            c = c->timeout_next;
-        }
-        fprintf(f, "/list\n");
-    }
-   fclose(f);
-   rename("/tmp/list.tmp", "/tmp/list");
-}
-
-
-/* Check all connections to see if a UDP connections has timed out, then free
- * it. At the same time, keep track of the closest, next timeout. Only do the
- * search through connections if that timeout actually happened. If the
- * connection that would have timed out has had activity, it doesn't matter: we
- * go through connections to find the next timeout, which was needed anyway. 
+/* Timeouts are managed with one list for each protocol. Whenever a connection
+ * is active, it gets moved to the end of the list. Each call will pop the
+ * first elements that have timed out and free their resources.
  *
  * This gets called every time a UDP packet is received from the outside, i.e.
  * every time we might need to free up resources. If no packets come in, we
  * don't time out anything, as we don't need the resources.
- *
- * TODO: use a better algorithm to avoid going through all connections each
- * time.
- *
  * */
 void udp_timeouts(struct loop_info* fd_info)
 {
     time_t now = time(NULL);
 
-    if (now < fd_info->next_timeout) return;
+    for (int i = 0; i < cfg.protocols_len; i++) {
+        struct connection *cnx = cfg.protocols[i].timeouts.head;
+        while (cnx && (now - cnx->last_active > cfg.protocols[i].udp_timeout)) {
+            print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
+            close(cnx->target_sock);
+            hash_remove(fd_info->hash_sources, cnx);
+            list_remove(&cnx->proto->timeouts, cnx);
+            tidy_connection(cnx, fd_info);
 
-    time_t next_timeout = INT_MAX;
-
-    for (int i = 0; i <= watchers_maxfd(fd_info->watchers); i++) {
-        /* if it's either in read or write set, there is a connection
-         * behind that file descriptor */
-        struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, i);
-        if (cnx) {
-            time_t timeout = udp_timeout(cnx);
-            if (!timeout) continue; /* Not a UDP connection */
-            if (cnx && (timeout <= now)) {
-                print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
-                close(cnx->target_sock);
-                watchers_del_read(fd_info->watchers, i);
-                watchers_del_write(fd_info->watchers, i);
-                hash_remove(fd_info->hash_sources, cnx);
-                list_remove(&cnx->proto->timeouts, cnx);
-                collection_remove_cnx(fd_info->collection, cnx);
-            } else {
-                if (timeout < next_timeout) next_timeout = timeout;
-            }
+            cnx = cfg.protocols[i].timeouts.head;
         }
     }
-
-    if (next_timeout != INT_MAX)
-        fd_info->next_timeout = next_timeout;
 }
 
 
@@ -230,8 +176,6 @@ static void mark_active(struct connection* cnx)
 
     list_remove(list, cnx);
     list_push(list, cnx);
-
-    list_dump();
 }
 
 
