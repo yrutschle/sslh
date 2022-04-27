@@ -21,8 +21,6 @@ struct loop_info {
     watchers* watchers;
 
     cnx_collection* collection; /* Collection of connections linked to this loop */
-
-    time_t next_timeout; /* time at which next UDP connection times out */
 };
 
 void cnx_read_process(struct loop_info* fd_info, int fd);
@@ -40,6 +38,5 @@ void watchers_add_read(watchers* w, int fd);
 void watchers_del_read(watchers* w, int fd);
 void watchers_add_write(watchers* w, int fd);
 void watchers_del_write(watchers* w, int fd);
-int watchers_maxfd(watchers* w);
 
 #endif

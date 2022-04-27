@@ -110,12 +110,6 @@ void watchers_del_write(watchers* w, int fd)
     if (io) ev_io_stop(EV_A_ io);
 }
 
-/* To remove after moving UDP lookups to hash table */
-int watchers_maxfd(watchers* w)
-{
-    return w->max_fd;
-}
-
 /* /watchers */
 
 #include "processes.h"

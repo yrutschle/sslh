@@ -84,12 +84,6 @@ void watchers_del_write(watchers* w, int fd)
     FD_CLR(fd, &w->fds_w);
 }
 
-/* To remove after moving UDP lookups to hash table */
-int watchers_maxfd(watchers* w)
-{
-    return w->max_fd;
-}
-
 /* /end watchers */
 
 
