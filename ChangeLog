@@ -13,6 +13,7 @@ vNEXT:
 	linear searches. The downside is that the number of
 	UDP connections is a hard limit, configurable with
 	the 'udp_max_connections', which defaults to 1024.
+	Timeouts are managed with lists.
 
 	inetd merges stderr output to what is sent to the
 	client, which is a security issue as it might give
