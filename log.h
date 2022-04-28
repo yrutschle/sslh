@@ -5,6 +5,10 @@
 
 void setup_syslog(const char* bin_name);
 
+void setup_logfile();
+
+void close_logfile();
+
 void log_connection(struct connection_desc* desc, const struct connection *cnx);
 
 typedef struct s_msg_info{
