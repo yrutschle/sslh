@@ -1,7 +1,7 @@
 /*
-   udp-listener.c: handles demultplexing UDP protocols
+   udp-listener.c: handles demultiplexing UDP protocols
 
-# Copyright (C) 2020-2021  Yves Rutschle
+# Copyright (C) 2020-2022  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
