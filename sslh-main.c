@@ -243,6 +243,9 @@ int main(int argc, char *argv[], char* envp[])
    /* Open syslog connection before we drop privs/chroot */
    setup_syslog(argv[0]);
 
+   /* Open log file for writing */
+   setup_logfile();
+
    if (cfg.user || cfg.chroot)
        drop_privileges(cfg.user, cfg.chroot);
 
@@ -251,6 +254,10 @@ int main(int argc, char *argv[], char* envp[])
    print_message(msg_config, "%s %s started\n", server_type, VERSION);
 
    main_loop(listen_sockets, num_addr_listen);
+
+   close_logfile();
+
+   free(listen_sockets);
 
    return 0;
 }

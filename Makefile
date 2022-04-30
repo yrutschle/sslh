@@ -3,6 +3,7 @@ VERSION=$(shell ./genver.sh -r)
 
 # Configuration -- you probably need to `make clean` if you
 # change any of these
+ENABLE_SANITIZER= # Enable ASAN/LSAN/UBSAN
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP?=	# Use libwrap?
@@ -19,12 +20,16 @@ MAN=sslh.8.gz	# man page name
 # End of configuration -- the rest should take care of
 # itself
 
+ifneq ($(strip $(ENABLE_SANITIZER)),)
+    CFLAGS_SAN=-fsanitize=address -fsanitize=leak -fsanitize=undefined
+endif
+
 ifneq ($(strip $(COV_TEST)),)
     CFLAGS_COV=-fprofile-arcs -ftest-coverage
 endif
 
 CC ?= gcc
-CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV)
+CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
 
 LIBS=-lm -lpcre2-8
 OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o
