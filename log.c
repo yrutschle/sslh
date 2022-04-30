@@ -23,6 +23,7 @@
 
 #define SYSLOG_NAMES
 #define _GNU_SOURCE
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include "sslh-conf.h"
@@ -97,6 +98,9 @@ msg_info msg_probe_error = {
 /* Bitmasks in verbose-* values */
 #define MSG_STDOUT 1
 #define MSG_SYSLOG 2
+#define MSG_FILE   4
+
+static FILE* logfile_fp = NULL;
 
 /* Prints a message to stderr and/or syslog if appropriate */
 void print_message(msg_info info, const char* str, ...)
@@ -111,6 +115,13 @@ void print_message(msg_info info, const char* str, ...)
     if (*info.verbose & MSG_SYSLOG) {
         va_start(ap, str);
         vsyslog(info.log_level, str, ap);
+        va_end(ap);
+    }
+
+    if (*info.verbose & MSG_FILE && logfile_fp != NULL) {
+        va_start(ap, str);
+        vfprintf(logfile_fp, str, ap);
+        fflush(logfile_fp);
         va_end(ap);
     }
 }
@@ -145,6 +156,29 @@ void setup_syslog(const char* bin_name) {
     /* Don't free name2, as openlog(3) uses it (at least in glibc) */
 }
 
+void setup_logfile()
+{
+    if (cfg.logfile == NULL)
+    {
+        return;
+    }
+
+    logfile_fp = fopen(cfg.logfile, "a");
+    if (logfile_fp == NULL)
+    {
+        fprintf(stderr, "Could not open logfile %s for writing: %s\n", cfg.logfile, strerror(errno));
+        exit(1);
+    }
+}
+
+void close_logfile()
+{
+    if (logfile_fp != NULL)
+    {
+        fclose(logfile_fp);
+        logfile_fp = NULL;
+    }
+}
 
 /* syslogs who connected to where 
  * desc: string description of the connection. if NULL, log_connection will
