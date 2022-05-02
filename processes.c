@@ -26,13 +26,13 @@
 #include "log.h"
 
 /* Removes cnx from probing list */
-void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
+static void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
 {
     gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing);
     fd_info->num_probing--;
 }
 
-void add_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
+static void add_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
 {
     gap_set(fd_info->probing_list, fd_info->num_probing, cnx);
     fd_info->num_probing++;

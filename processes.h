@@ -28,8 +28,6 @@ void cnx_write_process(struct loop_info* fd_info, int fd);
 int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
 void probing_read_process(struct connection* cnx, struct loop_info* fd_info);
 
-void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx);
-void add_probing_cnx(struct loop_info* fd_info, struct connection* cnx);
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
 
 
