@@ -5,6 +5,9 @@
 #include "collection.h"
 #include "gap.h"
 
+typedef struct connection* hash_item;
+#include "hash.h"
+
 /* Provided by event loop, sslh-ev or sslh-select, for implementation-dependant
  * data */
 typedef struct watchers watchers; 
@@ -24,9 +27,7 @@ struct loop_info {
 };
 
 void cnx_read_process(struct loop_info* fd_info, int fd);
-void cnx_write_process(struct loop_info* fd_info, int fd);
 int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
-void probing_read_process(struct connection* cnx, struct loop_info* fd_info);
 
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
 

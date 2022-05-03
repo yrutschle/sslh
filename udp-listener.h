@@ -1,8 +1,6 @@
 #ifndef UDPLISTENER_H
 #define UDPLISTENER_H
 
-typedef struct connection* hash_item;
-#include "hash.h"
 
 #include "collection.h"
 #include "processes.h"

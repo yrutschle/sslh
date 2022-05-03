@@ -25,6 +25,7 @@
 #include "gap.h"
 #include "log.h"
 #include "udp-listener.h"
+#include "tcp-listener.h"
 
 
 const char* server_type = "sslh-ev";

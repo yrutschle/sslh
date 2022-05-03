@@ -32,6 +32,7 @@
 
 #include "common.h"
 #include "probe.h"
+#include "tcp-listener.h"
 #include "udp-listener.h"
 #include "collection.h"
 #include "processes.h"
