@@ -5,6 +5,8 @@
 #include "common.h"
 
 
+#define print_message(sink, format, file, line) fprintf(stderr, format, file, line)
+
 static char* resolve_listen(const char *hostname, const char *port) {
     /* Need room in the strcat for \0 and :
      * the format in the socket unit file is hostname:port */
