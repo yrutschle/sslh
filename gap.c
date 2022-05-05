@@ -31,11 +31,6 @@
 #include "gap.h"
 
 
-typedef struct gap_array {
-    int len; /* Number of elements in array */
-    void** array;
-} gap_array;
-
 /* Allocate one page-worth of elements */
 static int gap_len_alloc(int elem_size)
 {
@@ -61,12 +56,7 @@ gap_array* gap_init(int len)
     return gap;
 }
 
-void* gap_get(gap_array* gap, int index)
-{
-    return gap->array[index];
-}
-
-static int gap_extend(gap_array* gap)
+int gap_extend(gap_array* gap)
 {
     int elem_size = sizeof(gap->array[0]);
     int new_length = gap->len + gap_len_alloc(elem_size);
@@ -81,17 +71,6 @@ static int gap_extend(gap_array* gap)
 
     gap->len = new_length;
 
-    return 0;
-}
-
-int gap_set(gap_array* gap, int index, void* ptr)
-{
-    while (index >= gap->len) {
-        int res = gap_extend(gap);
-        if (res == -1) return -1;
-    }
-
-    gap->array[index] = ptr;
     return 0;
 }
 
