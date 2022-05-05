@@ -23,7 +23,7 @@
 #include "common.h"
 #include "probe.h"
 #include "sslh-conf.h"
-#include "udp-listener.h"
+#include "tcp-probe.h"
 #include "log.h"
 
 #ifdef LIBBSD
@@ -206,6 +206,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     listener_pid_number = num_addr_listen;
     listener_pid = malloc(listener_pid_number * sizeof(listener_pid[0]));
     CHECK_ALLOC(listener_pid, "malloc");
+
+    tcp_init();
 
     /* Start one process for each listening address */
     for (i = 0; i < num_addr_listen; i++) {

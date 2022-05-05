@@ -32,8 +32,8 @@ CC ?= gcc
 CFLAGS ?=-Wall -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
 
 LIBS=-lm -lpcre2-8
-OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o 
-FORK_OBJS=$(OBJS) sslh-fork.o 
+OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o
+FORK_OBJS=$(OBJS) sslh-fork.o
 SELECT_OBJS=$(OBJS) processes.o udp-listener.o sslh-select.o hash.o tcp-listener.o
 EV_OBJS=$(OBJS) processes.o udp-listener.o sslh-ev.o hash.o tcp-listener.o
 

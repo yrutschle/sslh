@@ -131,6 +131,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     fd_info.num_probing = 0; 
     fd_info.probing_list = gap_init(0);
     udp_init(&fd_info);
+    tcp_init();
 
     watchers_init(&fd_info.watchers, listen_sockets, num_addr_listen);
 

@@ -76,6 +76,21 @@ static int hash_make_key(hash_item new)
     return out;
 }
 
+static struct sslhcfg_protocols_item** udp_protocols;
+static int udp_protocols_len = 0;
+
+static void udp_protocol_list_init(void)
+{
+    for (int i = 0; i < cfg.protocols_len; i++) {
+        struct sslhcfg_protocols_item* p = &cfg.protocols[i];
+        if (p->is_udp) {
+            udp_protocols_len++;
+            udp_protocols = realloc(udp_protocols, udp_protocols_len * sizeof(*udp_protocols));
+            udp_protocols[udp_protocols_len-1] = p;
+        }
+    }
+}
+
 /* Init the UDP subsystem.
  * - Initialise the hash
  * - that's all, folks
@@ -83,6 +98,8 @@ static int hash_make_key(hash_item new)
 void udp_init(struct loop_info* fd_info)
 {
     fd_info->hash_sources = hash_init(cfg.udp_max_connections, &hash_make_key, &cnx_cmp);
+
+    udp_protocol_list_init();
 }
 
 
@@ -215,7 +232,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
                   len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
 
     if (target == -1) {
-        res = probe_buffer(data, len, &proto);
+        res = probe_buffer(data, len, udp_protocols, udp_protocols_len, &proto);
         /* First version: if we can't work out the protocol from the first
          * packet, drop it. Conceivably, we could store several packets to
          * run probes on packet sets */

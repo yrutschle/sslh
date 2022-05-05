@@ -340,12 +340,20 @@ static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item
 }
 
 /* Run all the probes on a buffer
+ * buf, len: buffer to test on
+ * proto_in, proto_len: array of protocols to try
+ * proto_out: protocol that matched
+ *
  * Returns
  *      PROBE_AGAIN if not enough data, and set *proto to NULL
  *      PROBE_MATCH if protocol is identified, in which case *proto is set to
  *      point to the appropriate protocol
  * */
-int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
+int probe_buffer(char* buf, int len,
+                 struct sslhcfg_protocols_item** proto_in,
+                 int proto_len,
+                 struct sslhcfg_protocols_item** proto_out
+                 )
 {
     struct sslhcfg_protocols_item* p;
     int i, res, again = 0;
@@ -353,17 +361,17 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
     print_message(msg_packets, "hexdump of incoming packet:\n");
     hexdump(msg_packets, buf, len);
 
-    *proto = NULL;
-    for (i = 0; i < cfg.protocols_len; i++) {
+    *proto_out = NULL;
+    for (i = 0; i < proto_len; i++) {
         char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};
-        p = &cfg.protocols[i];
+        p = proto_in[i];
 
         if (! p->probe) continue;
 
         print_message(msg_probe_info, "probing for %s\n", p->name);
 
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
-        if ((i == cfg.protocols_len - 1) && (!strcmp(p->name, "anyprot")))
+        if ((i == proto_len - 1) && (!strcmp(p->name, "anyprot")))
             break;
 
         if (p->minlength_is_present && (len < p->minlength )) {
@@ -377,7 +385,7 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
         print_message(msg_probe_info, "probed for %s: %s\n", p->name, probe_str[res]);
 
         if (res == PROBE_MATCH) {
-            *proto = p;
+            *proto_out = p;
             return PROBE_MATCH;
         }
         if (res == PROBE_AGAIN)
@@ -387,37 +395,7 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
-    *proto = &cfg.protocols[cfg.protocols_len-1];
-    return PROBE_MATCH;
-}
-
-/*
- * Read the beginning of data coming from the client connection and check if
- * it's a known protocol.
- * Return PROBE_AGAIN if not enough data, or PROBE_MATCH if it succeeded in
- * which case cnx->proto is set to the appropriate protocol.
- */
-int probe_client_protocol(struct connection *cnx)
-{
-    char buffer[BUFSIZ];
-    ssize_t n;
-
-    n = read(cnx->q[0].fd, buffer, sizeof(buffer));
-    /* It's possible that read() returns an error, e.g. if the client
-     * disconnected between the previous call to select() and now. If that
-     * happens, we just connect to the default protocol so the caller of this
-     * function does not have to deal with a specific  failure condition (the
-     * connection will just fail later normally). */
-
-    if (n > 0) {
-        defer_write(&cnx->q[1], buffer, n);
-        return probe_buffer(cnx->q[1].begin_deferred_data,
-                            cnx->q[1].deferred_data_size,
-                            &cnx->proto);
-    }
-
-    /* read() returned an error, so just connect to the last protocol to die */
-    cnx->proto = &cfg.protocols[cfg.protocols_len-1];
+    *proto_out = proto_in[proto_len-1];
     return PROBE_MATCH;
 }
 
