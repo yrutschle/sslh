@@ -42,6 +42,13 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
                 free(cnx->q[i].deferred_data);
         }
     }
+
+    if (cnx->type == SOCK_DGRAM)
+        udp_tidy(cnx, fd_info);
+
+    if (gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing) != -1)
+        fd_info->num_probing--;
+
     collection_remove_cnx(fd_info->collection, cnx);
     return 0;
 }
@@ -73,28 +80,24 @@ void cnx_read_process(struct loop_info* fd_info, int fd)
 
 /* Process a connection that accepts a socket
  * (For UDP, this means all traffic coming from remote clients)
- * Returns new file descriptor, or -1
+ * Returns new connection object, or NULL
  * */
-int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket)
+struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket)
 {
     int fd = listen_socket->socketfd;
     int type = listen_socket->type;
     struct connection* cnx;
-    int new_fd = -1;
 
     switch (type) {
     case SOCK_STREAM:
         cnx = accept_new_connection(fd, fd_info);
-        if (!cnx) return -1;
+        if (!cnx) return NULL;
 
-        new_fd = cnx->q[0].fd;
         break;
 
     case SOCK_DGRAM:
-        new_fd = udp_c2s_forward(fd, fd_info);
-        print_message(msg_fd, "new_fd %d\n", new_fd);
-        if (new_fd == -1)
-            return -1;
+        cnx = udp_c2s_forward(fd, fd_info);
+        if (!cnx) return NULL;
         break;
 
     default:
@@ -102,8 +105,9 @@ int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen
         exit(1);
     }
 
+    int new_fd = cnx->q[0].fd;
     watchers_add_read(fd_info->watchers, new_fd);
-    return new_fd;
+    return cnx;
 }
 
 

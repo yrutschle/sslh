@@ -92,14 +92,12 @@ void watchers_del_write(watchers* w, int fd)
 
 /* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
  * and FD_CLR. Need to drop connections if we go above that limit */
-#warning strange things will happen if more than FD_SETSIZE descriptors are used
-/* This test is currently not done */
-static int fd_is_in_range(int fd) {
+static int fd_out_of_range(int fd) {
     if (fd >= FD_SETSIZE) {
         print_message(msg_system_error, "too many open file descriptor to monitor them all -- dropping connection\n");
-        return 0;
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 
@@ -155,7 +153,10 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
-                cnx_accept_process(&fd_info, &listen_sockets[i]);
+                struct connection* new_cnx = cnx_accept_process(&fd_info, &listen_sockets[i]);
+
+                if (fd_out_of_range(new_cnx->q[0].fd))
+                    tidy_connection(new_cnx, &fd_info);
 
                 /* don't also process it as a read socket */
                 FD_CLR(listen_sockets[i].socketfd, &readfds);

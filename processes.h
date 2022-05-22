@@ -27,7 +27,7 @@ struct loop_info {
 };
 
 void cnx_read_process(struct loop_info* fd_info, int fd);
-int cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
+struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
 
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
 

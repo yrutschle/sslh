@@ -173,9 +173,6 @@ void udp_timeouts(struct loop_info* fd_info)
         struct connection *cnx = cfg.protocols[i].timeouts.head;
         while (cnx && (now - cnx->last_active > cfg.protocols[i].udp_timeout)) {
             print_message(msg_fd, "timed out UDP %d\n", cnx->target_sock);
-            close(cnx->target_sock);
-            hash_remove(fd_info->hash_sources, cnx);
-            list_remove(&cnx->proto->timeouts, cnx);
             tidy_connection(cnx, fd_info);
 
             cnx = cfg.protocols[i].timeouts.head;
@@ -183,6 +180,12 @@ void udp_timeouts(struct loop_info* fd_info)
     }
 }
 
+void udp_tidy(struct connection* cnx, struct loop_info* fd_info)
+{
+    close(cnx->target_sock);
+    hash_remove(fd_info->hash_sources, cnx);
+    list_remove(&cnx->proto->timeouts, cnx);
+}
 
 /* Mark the connection was active */
 static void mark_active(struct connection* cnx)
@@ -198,10 +201,10 @@ static void mark_active(struct connection* cnx)
 
 /* Process UDP coming from outside (client towards server)
  * If it's a new source, probe; otherwise, forward to previous target 
- * Returns: >= 0 sockfd of newly allocated socket, for new connections
- * -1 otherwise
+ * Returns: newly allocate connections, for new connections
+ * NULL otherwise
  * */
-int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
+struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
 {
     char addr_str[NI_MAXHOST+1+NI_MAXSERV+1];
     struct sockaddr src_addr;
@@ -223,7 +226,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     len = recvfrom(sockfd, data, sizeof(data), 0, &src_addr, &addrlen);
     if (len < 0) {
         perror("recvfrom");
-        return -1;
+        return NULL;
     }
     target = known_source(fd_info->hash_sources, &src_addr, addrlen);
     addrinfo.ai_addr = &src_addr;
@@ -238,14 +241,14 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
          * run probes on packet sets */
         print_message(msg_probe_info, "UDP probed: %d\n", res);
         if (res != PROBE_MATCH) {
-            return -1;
+            return NULL;
         }
 
         out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
         res = set_nonblock(out);
-        CHECK_RES_RETURN(res, "udp:socket:nonblock", -1);
+        CHECK_RES_RETURN(res, "udp:socket:nonblock", NULL);
         struct connection* cnx = collection_alloc_cnx_from_fd(collection, out);
-        if (!cnx) return -1;
+        if (!cnx) return NULL;
         target = out;
         cnx->target_sock = out;
         cnx->proto = proto;
@@ -258,7 +261,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         if (res == -1) {
             print_message(msg_connections_error, "Out of hash space for new incoming UDP connection -- increaѕe udp_max_connections");
             collection_remove_cnx(collection, cnx);
-            return -1;
+            return NULL;
         }
     }
     cnx = collection_get_cnx_from_fd(collection, target);
@@ -270,7 +273,7 @@ int udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     print_message(msg_fd, "sending %d to %s\n", 
             res, sprintaddr(data, sizeof(data), cnx->proto->saddr));
 
-    return out;
+    return cnx;
 }
 
 void udp_s2c_forward(struct connection* cnx)
