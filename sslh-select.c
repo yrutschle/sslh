@@ -25,8 +25,8 @@
  * https://daniel.haxx.se/docs/poll-vs-select.html suggests that over a few
  * hundred file descriptors, both become very slow, so there is little
  * incentive to move to poll() to support more than FD_SETSIZE (which is 1024
- * on many Linux. To support large numbers of descriptors, either use the fork
- * version, or we'll have to write a new version based on libev. */
+ * on many Linux. To support large numbers of descriptors efficiently, either use sslh-fork
+ * or sslh-ev. */
 
 #define __LINUX__
 
