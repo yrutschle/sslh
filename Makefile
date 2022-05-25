@@ -80,7 +80,7 @@ version.h:
 
 sslh: sslh-fork sslh-select sslh-ev
 
-$(OBJS): version.h common.h collection.h sslh-conf.h gap.h
+$(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h tls.h udp-listener.h version.h
 
 sslh-conf.c sslh-conf.h: sslhconf.cfg
 	conf2struct sslhconf.cfg
