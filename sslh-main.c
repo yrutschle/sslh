@@ -168,11 +168,6 @@ static void config_protocols()
 
 
 void config_sanity_check(struct sslhcfg_item* cfg) {
-    if (!cfg->protocols_len) {
-        print_message(msg_config_error, "At least one target protocol must be specified.\n");
-        exit(2);
-    }
-
 /* If compiling with systemd socket support no need to require listen address */
 #ifndef SYSTEMD
     if (!cfg->listen_len && !cfg->inetd) {

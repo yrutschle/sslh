@@ -91,6 +91,27 @@ static void udp_protocol_list_init(void)
     }
 }
 
+/* Configuration sanity check for UDP:
+ * - If there is a listening addres, there must be at least one target
+ */
+static void udp_sanity_check(void)
+{
+    int udp_present = 0;
+
+    for (int i = 0; i < cfg.listen_len; i++) {
+        struct sslhcfg_listen_item* p = &cfg.listen[i];
+        if (p->is_udp) {
+            udp_present = 1;
+            break;
+        }
+    }
+
+    if (udp_present && !udp_protocols_len) {
+        print_message(msg_config_error, "At least one UDP target protocol must be specified.\n");
+        exit(2);
+    }
+}
+
 /* Init the UDP subsystem.
  * - Initialise the hash
  * - that's all, folks
@@ -100,6 +121,7 @@ void udp_init(struct loop_info* fd_info)
     fd_info->hash_sources = hash_init(cfg.udp_max_connections, &hash_make_key, &cnx_cmp);
 
     udp_protocol_list_init();
+    udp_sanity_check();
 }
 
 

@@ -70,7 +70,29 @@ static void tcp_protocol_list_init(void)
     }
 }
 
+/* Configuration sanity check for TCP:
+ * - If there is a listening socket, there must be at least one target
+ */
+static void tcp_sanity_check(void)
+{
+    int tcp_present = 0;
+
+    for (int i = 0; i < cfg.listen_len; i++) {
+        struct sslhcfg_listen_item* p = &cfg.listen[i];
+        if (!p->is_udp) {
+            tcp_present = 1;
+            break;
+        }
+    }
+
+    if (tcp_present && !tcp_protocols_len) {
+        print_message(msg_config_error, "At least one TCP target protocol must be specified.\n");
+        exit(2);
+    }
+}
+
 void tcp_init(void)
 {
     tcp_protocol_list_init();
+    tcp_sanity_check();
 }
