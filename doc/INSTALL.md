@@ -7,7 +7,7 @@ Dependencies
 `sslh` uses:
 
 * [libconfig](http://www.hyperrealm.com/libconfig/). For
-  Debian this is contained in package `libconfig8-dev`. You
+  Debian this is contained in package `libconfig-dev`. You
 can compile with or without it using USELIBCONFIG in the
 Makefile.
 
@@ -28,6 +28,13 @@ Makefile.
   connection it is serving),
 which requires `libbsd` at runtime, and `libbsd-dev` at
 compile-time.
+
+* libpcre2, in package `libpcre-dev`. You can compile
+  with or without it using ENABLE_REGEX in the Makefile.
+
+* libev-dev, in package `libev-dev`. If you build a binary
+  specifically and do not build `sslh-ev`, you don't need
+  this.
 
 
 For OpenSUSE, these are contained in packages libconfig9 and
