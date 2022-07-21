@@ -78,8 +78,8 @@ of the Makefile:
 Binaries
 --------
 
-The Makefile produces two different executables: `sslh-fork`
-and `sslh-select`:
+The Makefile produces three different executables: `sslh-fork`,
+`sslh-select` and `sslh-ev`:
 
 * `sslh-fork` forks a new process for each incoming connection.
 It is well-tested and very reliable, but incurs the overhead
@@ -88,18 +88,17 @@ If you are going to use `sslh` for a "small" setup (less than
 a dozen ssh connections and a low-traffic https server) then
 `sslh-fork` is probably more suited for you. 
 
-* `sslh-select` uses only one thread, which monitors all connections
-at once. It is more recent and less tested, but only incurs a 16
-byte overhead per connection. Also, if it stops, you'll lose all
-connections, which means you can't upgrade it remotely.  
-If you are going to use `sslh` on a "medium" setup (a few thousand ssh
-connections, and another few thousand ssl connections),
-`sslh-select` will be better.
+* `sslh-select` uses only one thread, which monitors all
+  connections at once. It only incurs a 16 byte overhead per
+connection.  Also, if it stops, you'll lose all connections,
+which means you can't upgrade it remotely.  If you are going
+to use `sslh` on a "medium" setup (a few hundreds of
+connections), or if you are on a system where forking is
+expensive (e.g. Windows), `sslh-select` will be better.
 
-If you have a very large site (tens of thousands of connections),
-you'll need a vapourware version that would use libevent or
-something like that.
-
+* `sslh-ev` is similar to `sslh-select`, but uses `libev` as
+  a backend. This allows using specific kernel APIs that
+allow to manage thousands of connections concurrently.
 
 Installation
 ------------
