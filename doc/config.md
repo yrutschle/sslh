@@ -189,7 +189,7 @@ UDP
 ---
 
 `sslh` can perform demultiplexing on UDP packets as well.
-This only works with `sslh-select` (it is not possible to
+This does not work with `sslh-fork` (it is not possible to
 support UDP with a forking model). Specify a listening
 address and target protocols with `is_udp: true`. `sslh`
 will wait for incoming UDP packets, run the probes in the
