@@ -395,6 +395,13 @@ int probe_buffer(char* buf, int len,
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
+
+    if (proto_len == 0) {
+        /* This should be caught by configuration sanity checks, but just in
+         * case, die gracefully rather than segfaulting */
+        print_message(msg_int_error, "Received traffic on transport that has no target\n");
+        exit(0);
+    }
     *proto_out = proto_in[proto_len-1];
     return PROBE_MATCH;
 }
