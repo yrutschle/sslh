@@ -137,15 +137,50 @@ static int is_ssh_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
  * http://www.fengnet.com/book/vpns%20illustrated%20tunnels%20%20vpnsand%20ipsec/ch08lev1sec5.html
  * and OpenVPN ssl.c, ssl.h and options.c
  */
+#define OVPN_OPCODE_MASK 0xF8
+#define OVPN_CONTROL_HARD_RESET_CLIENT_V1  (0x01 << 3)
+#define OVPN_CONTROL_HARD_RESET_CLIENT_V2  (0x07 << 3)
+#define OVPN_HMAC_128 16
+#define OVPN_HMAC_160 20
+#define OVPN_HARD_RESET_PACKET_ID_OFFSET(hmac_size) (9 + hmac_size)
 static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protocols_item* proto)
 {
     int packet_len;
 
-    if (len < 2)
-        return PROBE_AGAIN;
+    if (proto->is_udp == 0)
+    {
+        if (len < 2)
+            return PROBE_AGAIN;
 
-    packet_len = ntohs(*(uint16_t*)p);
-    return packet_len == len - 2;
+        packet_len = ntohs(*(uint16_t*)p);
+        return packet_len == len - 2;
+    } else {
+        if (len < 1)
+            return PROBE_NEXT;
+
+        if ((p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V1 &&
+            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2)
+            return PROBE_NEXT;
+
+        /* The detection pattern above may not be reliable enough.
+         * Check the packet id: OpenVPN sents five initial packets
+         * whereas the packet id is increased with every transmitted datagram.
+         */
+
+        if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128))
+            return PROBE_NEXT;
+
+        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128))) <= 5u)
+            return PROBE_MATCH;
+
+        if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))
+            return PROBE_NEXT;
+
+        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))) <= 5u)
+            return PROBE_MATCH;
+
+        return PROBE_NEXT;
+    }
 }
 
 /* Is the buffer the beginning of a tinc connections?
