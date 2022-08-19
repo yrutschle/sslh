@@ -167,7 +167,10 @@ static void config_protocols()
 }
 
 
-void config_sanity_check(struct sslhcfg_item* cfg) {
+void config_sanity_check(struct sslhcfg_item* cfg)
+{
+    size_t i;
+
 /* If compiling with systemd socket support no need to require listen address */
 #ifndef SYSTEMD
     if (!cfg->listen_len && !cfg->inetd) {
@@ -175,6 +178,32 @@ void config_sanity_check(struct sslhcfg_item* cfg) {
         exit(1);
     }
 #endif
+
+    for (i = 0; i < cfg->protocols_len; ++i) {
+        if (strcmp(cfg->protocols[i].name, "tls")) {
+            if (cfg->protocols[i].sni_hostnames_len) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option sni_hostnames is only applicable for tls\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+            if (cfg->protocols[i].alpn_protocols_len) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option alpn_protocols is only applicable for tls\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+        }
+
+        if (cfg->protocols[i].is_udp) {
+            if (cfg->protocols[i].tfo_ok) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option tfo_ok is not applicable for udp connections\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+        }
+    }
 }
 
 
