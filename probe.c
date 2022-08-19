@@ -40,6 +40,7 @@ static int is_tls_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
 static int is_adb_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_socks5_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
+static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_true(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -55,6 +56,7 @@ static struct protocol_probe_desc builtins[] = {
     { "adb",        is_adb_protocol },
     { "socks5",     is_socks5_protocol },
     { "syslog",     is_syslog_protocol },
+    { "teamspeak",  is_teamspeak_protocol },
     { "anyprot",    is_true }
 };
 
@@ -351,6 +353,14 @@ static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protoco
     if (res == 2) return 1;
 
     return 0;
+}
+
+static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
+{
+    if (len < 8)
+        return PROBE_NEXT;
+
+    return !strncmp(p, "TS3INIT1", len);
 }
 
 static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
