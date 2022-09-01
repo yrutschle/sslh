@@ -1,0 +1,3 @@
+[submodule "conf2struct"]
+	path = conf2struct
+	url = https://github.com/yrutschle/conf2struct.git
