@@ -33,6 +33,7 @@
 
 static int is_ssh_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_openvpn_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
+static int is_wireguard_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_tinc_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_xmpp_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_http_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
@@ -49,6 +50,7 @@ static struct protocol_probe_desc builtins[] = {
     /* description  probe  */
     { "ssh",        is_ssh_protocol},
     { "openvpn",    is_openvpn_protocol },
+    { "wireguard",  is_wireguard_protocol },
     { "tinc",       is_tinc_protocol },
     { "xmpp",       is_xmpp_protocol },
     { "http",       is_http_protocol },
@@ -183,6 +185,22 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
 
         return PROBE_NEXT;
     }
+}
+
+static int is_wireguard_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
+{
+    if (proto->is_udp == 0)
+        return PROBE_NEXT;
+
+    // Handshake Init: 148 bytes
+    if (len != 148)
+        return PROBE_NEXT;
+
+    // Handshake Init: p[0] = 0x01, p[1..3] = 0x000000 (reserved)
+    if (ntohl(*(uint32_t*)p) != 0x01000000)
+        return PROBE_NEXT;
+
+    return PROBE_MATCH;
 }
 
 /* Is the buffer the beginning of a tinc connections?

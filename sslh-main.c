@@ -202,6 +202,11 @@ void config_sanity_check(struct sslhcfg_item* cfg)
                               cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
                 exit(1);
             }
+        } else {
+            if (!strcmp(cfg->protocols[i].name, "wireguard")) {
+                print_message(msg_config_error, "Wireguard works only with UDP\n");
+                exit(1);
+            }
         }
     }
 }
