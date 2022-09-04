@@ -143,9 +143,9 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         memcpy(&readfds, &fd_info.watchers->fds_r, sizeof(readfds));
         memcpy(&writefds, &fd_info.watchers->fds_w, sizeof(writefds));
 
-        print_message(msg_fd, "selecting... max_fd=%d num_probing=%d\n", 
+        print_message(msg_fd, "selecting... max_fd=%d num_probing=%d\n",
                                           fd_info.watchers->max_fd, fd_info.num_probing);
-        res = select(fd_info.watchers->max_fd, &readfds, &writefds, 
+        res = select(fd_info.watchers->max_fd + 1, &readfds, &writefds,
                      NULL, fd_info.num_probing ? &tv : NULL);
         if (res < 0)
             perror("select");
