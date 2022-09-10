@@ -86,6 +86,7 @@ static void udp_protocol_list_init(void)
         if (p->is_udp) {
             udp_protocols_len++;
             udp_protocols = realloc(udp_protocols, udp_protocols_len * sizeof(*udp_protocols));
+            CHECK_ALLOC(udp_protocols, "realloc");
             udp_protocols[udp_protocols_len-1] = p;
         }
     }

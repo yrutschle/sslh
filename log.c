@@ -107,10 +107,11 @@ void print_message(msg_info info, const char* str, ...)
 {
     va_list ap;
 
-    va_start(ap, str);
-
-    if ((*info.verbose & MSG_STDOUT) && ! cfg.inetd)
+    if ((*info.verbose & MSG_STDOUT) && ! cfg.inetd) {
+        va_start(ap, str);
         vfprintf(stderr, str, ap);
+        va_end(ap);
+    }
 
     if (*info.verbose & MSG_SYSLOG) {
         va_start(ap, str);
