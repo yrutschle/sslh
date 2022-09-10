@@ -116,7 +116,7 @@ void hexdump(msg_info msg_info, const char *mem, unsigned int len)
             }
             str[c++] = '\n';
             str[c++] = 0;
-            print_message(msg_info, str);
+            print_message(msg_info, "%s", str);
             c = 0;
         }
     }
