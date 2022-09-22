@@ -52,6 +52,9 @@ static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
                           int num_addr_listen)
 {
     *w = malloc(sizeof(**w));
+    CHECK_ALLOC(*w, "malloc");
+
+    memset(*w, 0, sizeof(**w));
     FD_ZERO(&(*w)->fds_r);
     FD_ZERO(&(*w)->fds_w);
 
