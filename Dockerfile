@@ -1,7 +1,5 @@
 FROM alpine:latest as build
 
-ADD . /sslh
-
 RUN \
   apk add \
     gcc \
@@ -9,9 +7,19 @@ RUN \
     make \
     musl-dev \
     pcre2-dev \
-    perl && \
-  cd /sslh && \
-  make sslh-select && \
+    perl \
+    perl-dev \
+    perl-app-cpanminus \
+    git
+
+WORKDIR /sslh
+RUN git clone https://github.com/yrutschle/conf2struct && \
+	cpanm --force Conf::Libconfig && \
+	make -C conf2struct checker && \
+	make -C conf2struct install
+
+COPY . ./
+RUN make sslh-select && \
   strip sslh-select
 
 FROM alpine:latest
