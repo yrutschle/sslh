@@ -40,14 +40,20 @@ Please refer to the [configuration guide](doc/config.md).
 Docker image
 ------------
 
-How to use
+## Using a pre-build image
 
----
+```bash
+docker run --rm -it ghcr.io/yrutschle/sslh:latest \
+  --listen=0.0.0.0:443 \
+  --ssh=hostname:22 \
+  --tls=hostname:443
+```
+
+## Building the image locally
 
 Build docker image
 
     make docker
-
 
 ```bash
 docker run \
