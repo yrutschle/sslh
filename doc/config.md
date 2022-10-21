@@ -65,13 +65,13 @@ Configuration goes like this on the server side, using `stunnel3`:
   * `-f` for foreground/debugging
   * `-p` for specifying the key and certificate
   * `-d` for specifying which interface and port
-	we're listening to for incoming connexions
+	we're listening to for incoming connections
   * `-l` summons `sslh` in inetd mode.
 
 * sslh options:
   * `-i` for inetd mode
-  * `--http` to forward HTTP connexions to port 80,
-	and SSH connexions to port 22.
+  * `--http` to forward HTTP connections to port 80,
+	and SSH connections to port 22.
 
 Capabilities support
 --------------------
