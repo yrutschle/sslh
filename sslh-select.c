@@ -168,7 +168,10 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
         /* Check all sockets for write activity */
         for (i = 0; i < fd_info.watchers->max_fd; i++) {
-            if (FD_ISSET(i, &writefds)) {
+            /* Check if it's active AND currently monitored (if a connection
+             * died, it gets tidied, which closes both sockets, but writefs does
+             * not know about that */
+            if (FD_ISSET(i, &writefds) && FD_ISSET(i, &fd_info.watchers->fds_w)) {
                 cnx_write_process(&fd_info, i);
             }
         }
