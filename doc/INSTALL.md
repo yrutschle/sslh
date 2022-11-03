@@ -51,6 +51,10 @@ distclean` for example), you will also need to add
 [conf2struct](https://www.rutschle.net/tech/conf2struct/README.html)
 (v1.5) to your path.
 
+
+The test scripts are written in Perl, and will require
+IO::Socket::INET6 (libio-socket-inet6-perl in Debian).
+
 Compilation
 -----------
 
