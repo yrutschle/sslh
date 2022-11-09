@@ -83,6 +83,11 @@ void tcp_read_process(struct loop_info* fd_info,
 {
     cnx_collection* collection = fd_info->collection;
     struct connection* cnx = collection_get_cnx_from_fd(collection, fd);
+
+    /* connection can get tidied if there is an error on the other file
+     * descriptor -- then cnx is NULL */
+    if (!cnx) return;
+
     /* Determine active queue (0 or 1): if fd is that of q[1], active_q = 1,
      * otherwise it's 0 */
     int active_q = active_queue(cnx, fd);
@@ -306,6 +311,11 @@ void probing_read_process(struct connection* cnx,
 void cnx_write_process(struct loop_info* fd_info, int fd)
 {
     struct connection* cnx = collection_get_cnx_from_fd(fd_info->collection, fd);
+
+    /* connection can get tidied if there is an error on the other file
+     * descriptor -- then cnx is NULL */
+    if (!cnx) return;
+
     int res;
     int queue = active_queue(cnx, fd);
 
