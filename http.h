@@ -37,8 +37,7 @@ struct HTTPProtocol *http_data_set_list(struct HTTPProtocol *, const char **, si
 
 #define HTTP_MATCH       1
 #define HTTP_NOMATCH     0
-#define HTTP_EINVAL     -1 /* invalid */
-#define HTTP_ELENGTH    -2 /* Incomplete request */
-#define HTTP_ENOHOST    -3 /* No host information found */
+#define HTTP_ELENGTH    -1 /* Incomplete request */
+#define HTTP_ENOHOST    -2 /* No host information found */
 
 #endif

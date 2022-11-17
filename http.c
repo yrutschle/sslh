@@ -34,14 +34,14 @@
 #include "sslh-conf.h"
 #include "log.h"
 
-#define HTTP_HEADER_LEN 5
+#define HTTP_HEADER_LEN 3 /* GET */
 
 typedef struct {
     int http_match_hostname : 1;
-} TLS_MATCHMODE;
+} HTTP_MATCHMODE;
 
 struct HTTPProtocol {
-    TLS_MATCHMODE match_mode;
+    HTTP_MATCHMODE match_mode;
     int hostname_list_len;
     const char** hostname_list;
 };
@@ -59,6 +59,9 @@ static int probe_http_method(const char *p, int len, const char *opt);
  */
 int
 parse_http_header(const struct HTTPProtocol *http_data, const char *data, size_t data_len) {
+    /* Check that our TCP payload is at least large enough for the simplest request */
+    if (data_len < HTTP_HEADER_LEN)
+        return HTTP_ELENGTH;
 
     /* If it does not have HTTP in the request (HTTP/1.1) then lets check for the method */
     if (memmem(data, data_len, "HTTP", 4) == NULL) {
@@ -84,8 +87,7 @@ parse_http_header(const struct HTTPProtocol *http_data, const char *data, size_t
 
     /* By now we know it's HTTP. if hostname is set, parse request to see if
      * they match. Otherwise, it's a match already */
-    if (http_data && 
-        (http_data->match_mode.http_match_hostname || http_data->match_mode.http_match_hostname)) {
+    if (http_data && http_data->match_mode.http_match_hostname) {
         return parse_hostname(http_data, data, data_len);
     } else {
         return HTTP_MATCH;
@@ -95,20 +97,26 @@ parse_http_header(const struct HTTPProtocol *http_data, const char *data, size_t
 static int
 parse_hostname(const struct HTTPProtocol *http_data, const char *data, size_t data_len)
 {
-    if (http_data == NULL)
-        return HTTP_EINVAL;
-    
     // see if already have the hostname
     const char *start = memmem(data, data_len, "Host: ", 6);
     if (start != NULL)
     {
+        // move the pointer to the end of the string
         start += 6;
 
-        const char *end = memchr(start, '\r', data_len - (start - data));
+        // calculate the number of charecters up to this point
+        size_t len = start - data;
+
+        // searching for the end of this line
+        const char *end = memchr(start, '\r', data_len - len);
+
         // if we have the end, we are ready to parse it
         if (end != NULL)
         {
-            return has_match(http_data->hostname_list, http_data->hostname_list_len, start, end - start);
+            // calculate host name length
+            len = end - start;
+
+            return has_match(http_data->hostname_list, http_data->hostname_list_len, start, len);
         }
     }
     else if (
