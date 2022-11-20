@@ -83,7 +83,7 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
 
     tls_content_type = data[0];
     if (tls_content_type != TLS_HANDSHAKE_CONTENT_TYPE) {
-        print_message(msg_probe_error, "Request did not begin with TLS handshake.\n");
+        print_message(msg_probe_info, "Request did not begin with TLS handshake.\n");
         return TLS_EPROTOCOL;
     }
 
