@@ -99,7 +99,7 @@ int gap_remove_ptr(gap_array* gap, void* ptr, int len)
     else
         return -1;
 
-    for (i = start; i < len; i++) {
+    for (i = start; i < len - 1; i++) {
         gap->array[i] = gap->array[i+1];
     }
 
