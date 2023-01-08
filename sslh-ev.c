@@ -39,8 +39,6 @@ struct watchers {
 
     struct listen_endpoint* listen_sockets;
     gap_array* fd2ls;  /* Array indexed by file descriptor, pointing to listen_sockets */
-
-    int max_fd; /* legacy to be removed, still required for UDP */
 };
 
 static void cnx_read_cb(EV_P_ ev_io *w, int revents);
@@ -80,8 +78,6 @@ void watchers_add_read(watchers* w, int fd)
         gap_set(w->ev_ior, fd, io);
     }
     ev_io_start(loop, io);
-
-    if (fd > w->max_fd) w->max_fd = fd + 1;
 }
 
 void watchers_del_read(watchers* w, int fd)
@@ -101,8 +97,6 @@ void watchers_add_write(watchers* w, int fd)
         gap_set(w->ev_iow, fd, io);
     }
     ev_io_start(loop, io);
-
-    if (fd > w->max_fd) w->max_fd = fd + 1;
 }
 
 void watchers_del_write(watchers* w, int fd)
