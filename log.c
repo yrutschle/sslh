@@ -195,7 +195,8 @@ void log_connection(struct connection_desc* desc, const struct connection *cnx)
     if (!desc) {
         desc = &d;
         if (!get_connection_desc(desc, cnx)) {
-            print_message(msg_connections, "%s: lost incoming connection\n");
+            print_message(msg_connections, "%s: lost incoming connection\n",
+                          cnx->proto->name);
             return;
         }
     }
