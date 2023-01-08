@@ -32,6 +32,11 @@ static inline int __attribute__((unused)) gap_set(gap_array* gap, int index, voi
 
 static inline void* __attribute__((unused)) gap_get(gap_array* gap, int index)
 {
+    /* sslh-ev routinely reads before it writes. It's not clear if it should be
+     * its job to check the length (and add a gap_getlen()), or if it should be
+     * gap_get()'s job. This will do for now */
+    if (index >= gap->len) return NULL;
+
     return gap->array[index];
 }
 
