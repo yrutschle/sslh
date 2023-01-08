@@ -156,13 +156,9 @@ static int connect_queue(struct connection* cnx,
         log_connection(NULL, cnx);
         flush_deferred(q);
         if (q->deferred_data) {
-            /*
-            FD_SET(q->fd, &fd_info->watchers->fds_w);
-            FD_CLR(cnx->q[0].fd, &fd_info->watchers->fds_r); */
             watchers_add_write(fd_info->watchers, q->fd);
             watchers_del_read(fd_info->watchers, cnx->q[0].fd);
         }
-        /* FD_SET(q->fd, &fd_info->watchers->fds_r); */
         watchers_add_read(fd_info->watchers, q->fd);
         collection_add_fd(fd_info->collection, cnx, q->fd);
         return q->fd;
