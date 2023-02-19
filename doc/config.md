@@ -199,3 +199,5 @@ remote host to target server for 60 seconds by default,
 which can be overriden with `udp_timeout`. This allows to
 process both single-datagram protocols such as DNS, and
 connection-based protocols such as QUIC.
+
+An example for supporting QUIC is shown in `example.cfg`.
