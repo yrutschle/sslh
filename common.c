@@ -348,6 +348,7 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 
             if (transparent) {
                 res = bind_peer(fd, fd_from);
+                if (res == -1) close(fd);
                 CHECK_RES_RETURN(res, "bind_peer", res);
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
