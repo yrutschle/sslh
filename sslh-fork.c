@@ -177,6 +177,7 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
     while (1) {
         in_socket = accept(endpoint[active_endpoint].socketfd, 0, 0);
+        CHECK_RES_RETURN(in_socket, "accept", /*void*/ );
         print_message(msg_fd, "accepted fd %d\n", in_socket);
 
         switch(fork()) {
