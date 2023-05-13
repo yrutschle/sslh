@@ -48,7 +48,10 @@ gap_array* gap_init(int len)
     gap->len = gap_len_alloc(elem_size);
     if (gap->len < len) gap->len = len;
     gap->array = malloc(gap->len * elem_size);
-    if (!gap->array) return NULL;
+    if (!gap->array) {
+        free(gap);
+        return NULL;
+    }
 
     for (int i = 0; i < gap->len; i++)
         gap->array[i] = NULL;
