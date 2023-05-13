@@ -221,6 +221,20 @@ static void mark_active(struct connection* cnx)
 }
 
 
+/* Creates a new non-blocking socket */
+static int nonblocking_socket(struct sslhcfg_protocols_item* proto)
+{
+    int out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
+    int res = set_nonblock(out);
+    if (res == -1) {
+        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, "udp:socket:nonblock", errno, strerror(errno));
+        close(out);
+        return -1;
+    }
+    return out;
+}
+
+
 /* Process UDP coming from outside (client towards server)
  * If it's a new source, probe; otherwise, forward to previous target 
  * Returns: newly allocate connections, for new connections
@@ -266,9 +280,8 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
             return NULL;
         }
 
-        out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
-        res = set_nonblock(out);
-        CHECK_RES_RETURN(res, "udp:socket:nonblock", NULL);
+        out = nonblocking_socket(proto);
+        if (out == -1) return NULL;
         struct connection* cnx = collection_alloc_cnx_from_fd(collection, out);
         if (!cnx) return NULL;
         target = out;
