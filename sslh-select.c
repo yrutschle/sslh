@@ -180,9 +180,9 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         for (i = 0; i < fd_info.num_probing; i++) {
             struct connection* cnx = gap_get(fd_info.probing_list, i);
             if (!cnx || cnx->state != ST_PROBING) {
-                print_message(msg_int_error, "Inconsistent probing: cnx=%0xp\n", cnx);
+                print_message(msg_int_error, "Inconsistent probing: cnx=0x%p\n", cnx);
                 if (cnx)
-                    print_message(msg_int_error, "Inconsistent probing: state=%d\n", cnx);
+                    print_message(msg_int_error, "Inconsistent probing: state=%d\n", cnx->state);
                 exit(1);
             }
             if (cnx->probe_timeout < time(NULL)) {
