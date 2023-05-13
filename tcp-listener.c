@@ -67,14 +67,16 @@ static void shovel(struct connection *cnx, int active_fd, struct loop_info* fd_i
 }
 
 
-/* Returns the queue index that contains the specified file descriptor */
+/* Returns the queue index that contains the specified file descriptor.
+ * This is called by the *_process functions, which got cnx from the fd, so it
+ * is impossible for fd to not be cnx, hence we die if it happens */
 static int active_queue(struct connection* cnx, int fd)
 {
     if (cnx->q[0].fd == fd) return 0;
     if (cnx->q[1].fd == fd) return 1;
 
     print_message(msg_int_error, "file descriptor %d not found in connection object\n", fd);
-    return -1;
+    exit(1);
 }
 
 /* Process a TCP read event on the specified file descriptor */
