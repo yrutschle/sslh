@@ -55,7 +55,9 @@ struct sslhcfg_protocols_item {
 	int	fork;
 	int	tfo_ok;
 	int	log_level;
-	int	keepalive;
+	int keepalive;
+	size_t hostnames_len;
+	char **hostnames;
 	size_t	sni_hostnames_len;
 	char** sni_hostnames;
 	size_t	alpn_protocols_len;

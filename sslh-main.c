@@ -149,6 +149,14 @@ static void config_protocols()
             setup_regex_probe(&cfg.protocols[i]);
         }
 
+        if (!strcmp(cfg.protocols[i].name, "http")) {
+            cfg.protocols[i].data = (void*)new_http_data();
+            if (cfg.protocols[i].hostnames_len)
+                http_data_set_list(cfg.protocols[i].data,
+                                  (const char**) cfg.protocols[i].hostnames,
+                                  cfg.protocols[i].hostnames_len);
+        }
+
         if (!strcmp(cfg.protocols[i].name, "tls")) {
             cfg.protocols[i].data = (void*)new_tls_data();
             if (cfg.protocols[i].sni_hostnames_len)
@@ -180,6 +188,15 @@ void config_sanity_check(struct sslhcfg_item* cfg)
 #endif
 
     for (i = 0; i < cfg->protocols_len; ++i) {
+        if (strcmp(cfg->protocols[i].name, "http")) {
+            if (cfg->protocols[i].hostnames_len) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option hostnames is only applicable for http\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+        }
+
         if (strcmp(cfg->protocols[i].name, "tls")) {
             if (cfg->protocols[i].sni_hostnames_len) {
                 print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "

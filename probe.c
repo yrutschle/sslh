@@ -235,38 +235,15 @@ static int is_xmpp_protocol( const char *p, ssize_t len, struct sslhcfg_protocol
     return PROBE_NEXT;
 }
 
-static int probe_http_method(const char *p, int len, const char *opt)
-{
-    if (len < strlen(opt))
-        return PROBE_AGAIN;
-
-    return !strncmp(p, opt, strlen(opt));
-}
-
-/* Is the buffer the beginning of an HTTP connection?  */
+/* Says if it's HTTP, optionally with hostname list in proto->data */
 static int is_http_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
-{
-    int res;
-    /* If it's got HTTP in the request (HTTP/1.1) then it's HTTP */
-    if (memmem(p, len, "HTTP", 4))
-        return PROBE_MATCH;
-
-#define PROBE_HTTP_METHOD(opt) if ((res = probe_http_method(p, len, opt)) != PROBE_NEXT) return res
-
-    /* Otherwise it could be HTTP/1.0 without version: check if it's got an
-     * HTTP method (RFC2616 5.1.1) */
-    PROBE_HTTP_METHOD("OPTIONS");
-    PROBE_HTTP_METHOD("GET");
-    PROBE_HTTP_METHOD("HEAD");
-    PROBE_HTTP_METHOD("POST");
-    PROBE_HTTP_METHOD("PUT");
-    PROBE_HTTP_METHOD("DELETE");
-    PROBE_HTTP_METHOD("TRACE");
-    PROBE_HTTP_METHOD("CONNECT");
-
-#undef PROBE_HTTP_METHOD
-
-    return PROBE_NEXT;
+{    
+    switch (parse_http_header(proto->data, p, len)) {
+    case HTTP_MATCH: return PROBE_MATCH;
+    case HTTP_NOMATCH: return PROBE_NEXT;
+    case HTTP_ELENGTH: return PROBE_AGAIN;
+    default: return PROBE_NEXT;
+    }
 }
 
 /* Says if it's TLS, optionally with SNI and ALPN lists in proto->data */

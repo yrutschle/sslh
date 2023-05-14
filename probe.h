@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "tls.h"
+#include "http.h"
 #include "log.h"
 
 typedef enum {

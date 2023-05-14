@@ -33,7 +33,7 @@ AR ?= ar
 CFLAGS ?=-Wall -O2 -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
 
 LIBS=-lm -lpcre2-8
-OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o
+OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o http.o tls.o argtable3.o collection.o gap.o tcp-probe.o
 OBJS_A=libsslh.a
 FORK_OBJS=sslh-fork.o $(OBJS_A)
 SELECT_OBJS=processes.o udp-listener.o sslh-select.o hash.o tcp-listener.o $(OBJS_A)
@@ -85,7 +85,7 @@ version.h:
 
 sslh: sslh-fork sslh-select sslh-ev
 
-$(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h tls.h udp-listener.h version.h
+$(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h http.h tls.h udp-listener.h version.h
 
 
 sslh-conf.c sslh-conf.h: sslhconf.cfg

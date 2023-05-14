@@ -680,6 +680,22 @@ static struct config_desc table_sslhcfg_protocols[] = {
         },
 
         { 
+            /* name */          "hostnames", 
+            /* type */          CFG_ARRAY, 
+            /* sub_group*/      NULL,
+            /* arg_cl */        NULL,
+            /* base_addr */     NULL,
+            /* offset */        offsetof(struct sslhcfg_protocols_item, hostnames),
+            /* offset_len */    offsetof(struct sslhcfg_protocols_item, hostnames_len),
+            /* offset_present */ 0,
+            /* size */          sizeof(char*), 
+            /* array_type */    CFG_STRING,
+            /* mandatory */     1, 
+            /* optional */      0, 
+            /* default_val*/    .default_val.def_int = 0 
+        },
+
+        { 
             /* name */          "sni_hostnames", 
             /* type */          CFG_ARRAY, 
             /* sub_group*/      NULL,
@@ -2305,6 +2321,12 @@ static void sslhcfg_protocols_fprint(
         indent(out, depth);
         fprintf(out, "keepalive: %d", sslhcfg_protocols->keepalive);
         fprintf(out, "\n");
+        indent(out, depth);
+        fprintf(out, "hostnames [%zu]:\n", sslhcfg_protocols->hostnames_len);
+        for (i = 0; i < sslhcfg_protocols->hostnames_len; i++) {
+            indent(out, depth+1);
+            fprintf(out, "%d:\t%s\n", i, sslhcfg_protocols->hostnames[i]);
+        }
         indent(out, depth);
         fprintf(out, "sni_hostnames [%zu]:\n", sslhcfg_protocols->sni_hostnames_len);
         for (i = 0; i < sslhcfg_protocols->sni_hostnames_len; i++) {
