@@ -20,4 +20,5 @@ COPY --from=build "/sslh/sslh-select" "/usr/local/bin/sslh"
 
 RUN apk --no-cache add libconfig pcre2
 
-ENTRYPOINT [ "/usr/local/bin/sslh" ]
+COPY "./container-entrypoint.sh" "/init"
+ENTRYPOINT [ "/init" ]
