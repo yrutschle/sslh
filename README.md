@@ -44,16 +44,12 @@ How to use
 
 ---
 
-Build docker image
-
-    make docker
-
 
 ```bash
 docker run \
   --rm \
   -it \
-  sslh:latest \
+  ghcr.io/yrutschle/sslh:latest \
   --listen=0.0.0.0:443 \
   --ssh=hostname:22 \
   --tls=hostname:443
