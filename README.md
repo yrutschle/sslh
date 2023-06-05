@@ -47,6 +47,8 @@ How to use
 
 ```bash
 docker run \
+  --cap-add CAP_NET_RAW \
+  --cap-add CAP_NET_BIND_SERVICES \
   --rm \
   -it \
   ghcr.io/yrutschle/sslh:latest \

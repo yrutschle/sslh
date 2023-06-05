@@ -22,3 +22,5 @@ RUN apk --no-cache add libconfig pcre2
 
 COPY "./container-entrypoint.sh" "/init"
 ENTRYPOINT [ "/init" ]
+
+USER nobody:nogroup
