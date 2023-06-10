@@ -20,15 +20,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: true
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/386
-          - linux/arm64
-          - linux/arm/v6
-          - linux/arm/v7
 
     steps:
       - name: Checkout repository
@@ -64,7 +55,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          platforms: ${{ matrix.platform }}
+          platforms: linux/amd64,linux/386,linux/arm64,linux/arm/v6,linux/arm/v7
           context: .
           file: Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
