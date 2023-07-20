@@ -48,7 +48,7 @@ How to use
 ```bash
 docker run \
   --cap-add CAP_NET_RAW \
-  --cap-add CAP_NET_BIND_SERVICES \
+  --cap-add CAP_NET_BIND_SERVICE \
   --rm \
   -it \
   ghcr.io/yrutschle/sslh:latest \
@@ -60,7 +60,7 @@ docker run \
 
 docker-compose example
 
-```
+```yaml
 version: "3"
 
 services:
@@ -80,6 +80,72 @@ services:
   openvpn:
     image: openvpn
 ```
+
+Transparent mode 1: shared containers
+
+```yaml
+version: "3"
+
+services:
+  sslh:
+    build: https://github.com/klementng/sslh.git
+    container_name: sslh
+    environment:
+      - TZ=${TZ}
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+    sysctls:
+      - net.ipv4.conf.default.route_localnet=1
+      - net.ipv4.conf.all.route_localnet=1
+    command: --transparent --foreground --listen=0.0.0.0:443 --tls=localhost:8443 --openvpn=localhost:1194 --wireguard=localbox:51820
+    ports:
+      - 443:443 #sslh
+
+      - 80:80 #nginx
+      - 8443:8443 #nginx
+
+      - 1194:1994 #openvpn
+    extra_hosts:
+      - localbox:host-gateway
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    .....
+    network_mode: service:sslh #set nginx container to use sslh networking
+  
+  openvpn:
+    image: openvpn:latest
+    .....
+    network_mode: service:sslh #set openvpn container to use sslh networking
+```
+
+Transparent mode 2: host networking
+
+```yaml
+version: "3"
+
+services:
+  sslh:
+    build: https://github.com/klementng/sslh.git
+    container_name: sslh
+    environment:
+      - TZ=${TZ}
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+    # must be set manually
+    #sysctls:
+    #  - net.ipv4.conf.default.route_localnet=1
+    #  - net.ipv4.conf.all.route_localnet=1
+    command: --transparent --foreground --listen=0.0.0.0:443 --tls=localhost:8443 --openvpn=localhost:1194 --wireguard=localhost:51820
+    network_mode: host
+    restart: unless-stopped
+```
+
 
 Comments? Questions?
 ====================
