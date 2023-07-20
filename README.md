@@ -88,7 +88,7 @@ version: "3"
 
 services:
   sslh:
-    build: https://github.com/klementng/sslh.git
+    build: https://github.com/yrutschle/sslh.git
     container_name: sslh
     environment:
       - TZ=${TZ}
@@ -129,7 +129,7 @@ version: "3"
 
 services:
   sslh:
-    build: https://github.com/klementng/sslh.git
+    build: https://github.com/yrutschle/sslh.git
     container_name: sslh
     environment:
       - TZ=${TZ}
