@@ -83,7 +83,7 @@ v1.21: 11JUL2020
 
 	Added TCP_FASTOPEN support for client sockets (if
 	tfo_ok is specified in their configuration) and for
-	listenint socket, if all client protocols support it.
+	listening socket, if all client protocols support it.
 	(Craig Andrews)
 
 	Added 'minlength' option to skip a probe if less
