@@ -3813,8 +3813,8 @@ static const TRexChar* g_nnames[] = {_SC("NONE"),    _SC("OP_GREEDY"), _SC("OP_O
 #endif
 #define OP_GREEDY (MAX_CHAR + 1)  /*  * + ? {n} */
 #define OP_OR (MAX_CHAR + 2)
-#define OP_EXPR (MAX_CHAR + 3)       /* parentesis () */
-#define OP_NOCAPEXPR (MAX_CHAR + 4)  /* parentesis (?:) */
+#define OP_EXPR (MAX_CHAR + 3)       /* parenthesis () */
+#define OP_NOCAPEXPR (MAX_CHAR + 4)  /* parenthesis (?:) */
 #define OP_DOT (MAX_CHAR + 5)
 #define OP_CLASS (MAX_CHAR + 6)
 #define OP_CCLASS (MAX_CHAR + 7)
