@@ -110,7 +110,7 @@ v1.20: 20NOV2018
 	same probe as long it returned PROBE_AGAIN before
 	moving to the next one. This means a probe which
 	requires a lot of data (i.e. return PROBE_AGAIN for
-	a long time) could prevent sucessful matches from 
+	a long time) could prevent successful matches from 
 	subsequent probes. The configuration file needed to
 	take that into account.
 
