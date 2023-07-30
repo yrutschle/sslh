@@ -209,7 +209,7 @@ v1.16:	11FEB2014
 	actual errors if connections are dropped before
 	getting to getpeername).
 
-	Set IP_FREEDBIND if available to bind to addresses
+	Set IP_FREEBIND if available to bind to addresses
 	that don't yet exist.
 
 v1.15:	27JUL2013
