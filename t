@@ -396,7 +396,7 @@ if ($RB_RESOLVE_ADDRESS) {
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        exec "./sslh-select -v 3 -f -u $user --listen blahblah.dontexist:9000 --ssh $ssh_address --tls $ssl_address -P $pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen blahblah.nonexistent:9000 --ssh $ssh_address --tls $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
     waitpid $sslh_pid, 0;
