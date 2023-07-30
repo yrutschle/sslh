@@ -5313,7 +5313,7 @@ static void arg_parse_untagged(int argc, char** argv, struct arg_hdr** table, st
         }
     }
 
-    /* if a tenative error still remains at this point then register it as a proper error */
+    /* if a tentative error still remains at this point then register it as a proper error */
     if (errorlast) {
         arg_register_error(endtable, parentlast, errorlast, optarglast);
         optind++;
