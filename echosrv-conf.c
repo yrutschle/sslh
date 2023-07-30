@@ -365,7 +365,7 @@ static int clcpy(config_type type, void* target, const void* cl_arg)
     return 0;
 }
 
-/* Copy the value of a string argument to arbitary memory
+/* Copy the value of a string argument to arbitrary memory
 * location that must be large enough, converting on the way
 * (i.e. CFG_INT gets atoi() and so on) */
 /* 0: success
