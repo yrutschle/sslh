@@ -2111,7 +2111,7 @@ static void scalar_to_string(char** strp, config_setting_t* s)
 
 /* Typesets all the settings in a configuration as a
 * newly-allocated string. The string management is caller's
-* responsability. 
+* responsibility. 
 * Returns the number of scalars in the configuration */
 static int cfg_as_string(config_setting_t* parent, const char* path, char** strp)
 {
