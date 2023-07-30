@@ -365,7 +365,7 @@ static int clcpy(config_type type, void* target, const void* cl_arg)
     return 0;
 }
 
-/* Copy the value of a string argument to arbitary memory
+/* Copy the value of a string argument to arbitrary memory
 * location that must be large enough, converting on the way
 * (i.e. CFG_INT gets atoi() and so on) */
 /* 0: success
@@ -862,7 +862,7 @@ static int set_target_fields(void* target_addr, struct compound_cl_arg* arg, con
             if (pmatch[pmatch_cnt].rm_so == -1) {
                 /* This should not happen as regexec() did
                 * match before, unless there is a
-                * discrepency between the regex and the
+                * discrepancy between the regex and the
                 * number of backreferences */
                 return 0;
             }
@@ -1155,7 +1155,7 @@ static void scalar_to_string(char** strp, config_setting_t* s)
 
 /* Typesets all the settings in a configuration as a
 * newly-allocated string. The string management is caller's
-* responsability. 
+* responsibility. 
 * Returns the number of scalars in the configuration */
 static int cfg_as_string(config_setting_t* parent, const char* path, char** strp)
 {

@@ -1,6 +1,6 @@
 /* echosrv: a simple line echo server with optional prefix adding.
  *
- * echsrv --listen localhost6:1234 --prefix "ssl: "
+ * echosrv --listen localhost6:1234 --prefix "ssl: "
  *
  * This will bind to 1234, and echo every line pre-pending "ssl: ". This is
  * used for testing: we create several such servers with different prefixes,

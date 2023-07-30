@@ -1,5 +1,5 @@
 v2.0:
-	New sslh-ev: this is functionaly equivalent to
+	New sslh-ev: this is functionally equivalent to
 	sslh-select (mono-process, only forks for specified
 	protocols), but based on libev, which should make it
 	scalable to large numbers of connections.
@@ -41,7 +41,7 @@ v1.22: 17AUG2021
 	combined with incoming TLS with SNI.  UDP clients
 	and servers need to agree on the IPv4/IPv6 they use:
 	use the same protocol on all sides! Often, this
-	means explicitely using 'ip4-localhost'.
+	means explicitly using 'ip4-localhost'.
 	UDP sender-receiver pairs (connections, so to speak)
 	are kept for 60s, which can be changed with
 	`udp_timeout` in the configuration.
@@ -83,7 +83,7 @@ v1.21: 11JUL2020
 
 	Added TCP_FASTOPEN support for client sockets (if
 	tfo_ok is specified in their configuration) and for
-	listenint socket, if all client protocols support it.
+	listening socket, if all client protocols support it.
 	(Craig Andrews)
 
 	Added 'minlength' option to skip a probe if less
@@ -109,8 +109,8 @@ v1.20: 20NOV2018
 	Before, probes were tried in order, repeating on the
 	same probe as long it returned PROBE_AGAIN before
 	moving to the next one. This means a probe which
-	requires a lot of data (i.e. returne PROBE_AGAIN for
-	a long time) could prevent sucessful matches from 
+	requires a lot of data (i.e. return PROBE_AGAIN for
+	a long time) could prevent successful matches from 
 	subsequent probes. The configuration file needed to
 	take that into account.
 
@@ -171,7 +171,7 @@ v1.18:	29MAR2016
 v1.17: 	09MAR2015
 	Support RFC5952-style IPv6 addresses, e.g. [::]:443.
 
-	Transparant proxy support for FreeBSD.
+	Transparent proxy support for FreeBSD.
 	(Ruben van Staveren)
 
 	Using -F with no argument will try
@@ -200,7 +200,7 @@ v1.16:	11FEB2014
 
 	Libcap support: Keep only CAP_NET_ADMIN if started
 	as root with transparent proxying and dropping
-	priviledges (enable USELIBCAP in Makefile). This
+	privileges (enable USELIBCAP in Makefile). This
 	avoids having to mess with filesystem capabilities.
 	(Sebastian Schmidt/yath)
 
@@ -209,7 +209,7 @@ v1.16:	11FEB2014
 	actual errors if connections are dropped before
 	getting to getpeername).
 
-	Set IP_FREEDBIND if available to bind to addresses
+	Set IP_FREEBIND if available to bind to addresses
 	that don't yet exist.
 
 v1.15:	27JUL2013
@@ -294,7 +294,7 @@ v1.11: 21APR2012
 	--user isn't specified, just run as current user.
 
 	No longer create PID file by default, it should be
-	explicitely set with --pidfile.
+	explicitly set with --pidfile.
 
 	No longer log to syslog if in foreground. Logs are
 	instead output to stderr.
@@ -385,7 +385,7 @@ v1.8: 15JUL2011
 v1.7: 01FEB2010
 	Added CentOS init.d script (Andre Krajnik).
 
-	Fixed default ssl address inconsistancy, now
+	Fixed default ssl address inconsistency, now
 	defaults to "localhost:443" and fixed documentation
 	accordingly (pointed by Markus Schalke).
 

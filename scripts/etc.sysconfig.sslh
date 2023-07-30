@@ -18,7 +18,7 @@
 #CONFIG=/etc/sslh.cfg
 
 #
-# Extra option to pass on comand line
+# Extra option to pass on command line
 # Those can supersede configuration file settings
 # 
 #OPTIONS=

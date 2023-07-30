@@ -5,7 +5,7 @@
 # Tests scripts are in *.tst files.
 # Corresponding output is put in *.out.
 # Reference output is put in *.ref.
-# Any discrepency will be reported!
+# Any discrepancy will be reported!
 
 use strict;
 
