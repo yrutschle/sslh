@@ -294,7 +294,7 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
 
         res = new_source(fd_info->hash_sources, cnx);
         if (res == -1) {
-            print_message(msg_connections_error, "Out of hash space for new incoming UDP connection -- increaѕe udp_max_connections");
+            print_message(msg_connections_error, "Out of hash space for new incoming UDP connection -- increase udp_max_connections");
             collection_remove_cnx(collection, cnx);
             return NULL;
         }
