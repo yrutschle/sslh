@@ -1,5 +1,5 @@
 v2.0:
-	New sslh-ev: this is functionaly equivalent to
+	New sslh-ev: this is functionally equivalent to
 	sslh-select (mono-process, only forks for specified
 	protocols), but based on libev, which should make it
 	scalable to large numbers of connections.
