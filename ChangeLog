@@ -385,7 +385,7 @@ v1.8: 15JUL2011
 v1.7: 01FEB2010
 	Added CentOS init.d script (Andre Krajnik).
 
-	Fixed default ssl address inconsistancy, now
+	Fixed default ssl address inconsistency, now
 	defaults to "localhost:443" and fixed documentation
 	accordingly (pointed by Markus Schalke).
 
