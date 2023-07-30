@@ -7,7 +7,7 @@ doesn't work, report how what was suggested here went.
 It's also worth reading [how to ask
 questions](http://www.catb.org/~esr/faqs/smart-questions.html)
 before posting on the mailing list or opening an issue in
-Github.
+GitHub.
 
 Getting more info
 =================

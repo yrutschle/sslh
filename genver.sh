@@ -17,7 +17,7 @@ if [ ! -d .git ] || ! `(git status | grep -q "On branch") 2> /dev/null`; then
         release=`pwd | sed s/.*sslh-// | grep "[[:digit:]]"`
         
         if [ "x$release" = "x" ]; then
-            # If downloaded from the head, Github creates the
+            # If downloaded from the head, GitHub creates the
             # zip file with all files dated from the last
             # change: use the Makefile's modification time as a
             # release number
