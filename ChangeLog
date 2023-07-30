@@ -200,7 +200,7 @@ v1.16:	11FEB2014
 
 	Libcap support: Keep only CAP_NET_ADMIN if started
 	as root with transparent proxying and dropping
-	priviledges (enable USELIBCAP in Makefile). This
+	privileges (enable USELIBCAP in Makefile). This
 	avoids having to mess with filesystem capabilities.
 	(Sebastian Schmidt/yath)
 
