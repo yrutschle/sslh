@@ -2927,7 +2927,7 @@ static int arg_file_scanfn(struct arg_file* parent, const char* argval) {
     } else if (!argval) {
         /* a valid argument with no argument value was given. */
         /* This happens when an optional argument value was invoked. */
-        /* leave parent arguiment value unaltered but still count the argument. */
+        /* leave parent argument value unaltered but still count the argument. */
         parent->count++;
     } else {
         parent->filename[parent->count] = argval;
@@ -3173,7 +3173,7 @@ static int arg_int_scanfn(struct arg_int* parent, const char* argval) {
     } else if (!argval) {
         /* a valid argument with no argument value was given. */
         /* This happens when an optional argument value was invoked. */
-        /* leave parent arguiment value unaltered but still count the argument. */
+        /* leave parent argument value unaltered but still count the argument. */
         parent->count++;
     } else {
         long int val;
