@@ -5956,7 +5956,7 @@ int arg_nullcheck(void** argtable) {
  * that entry were still allocated ok. Those subsequent allocations will not be
  * deallocated by arg_free().
  * Despite the unlikeliness of the problem occurring, and the even unlikelier event
- * that it has any deliterious effect, it is fixed regardless by replacing arg_free()
+ * that it has any deleterious effect, it is fixed regardless by replacing arg_free()
  * with the newer arg_freetable() function.
  * We still keep arg_free() for backwards compatibility.
  */
