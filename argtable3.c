@@ -5384,7 +5384,7 @@ int arg_parse(int argc, char** argv, void** argtable) {
     /*
         Fill in the local copy of argv[]. We need a local copy
         because getopt rearranges argv[] which adversely affects
-        susbsequent parsing attempts.
+        subsequent parsing attempts.
         */
     for (i = 0; i < argc; i++)
         argvcopy[i] = argv[i];
