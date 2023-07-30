@@ -41,7 +41,7 @@ v1.22: 17AUG2021
 	combined with incoming TLS with SNI.  UDP clients
 	and servers need to agree on the IPv4/IPv6 they use:
 	use the same protocol on all sides! Often, this
-	means explicitely using 'ip4-localhost'.
+	means explicitly using 'ip4-localhost'.
 	UDP sender-receiver pairs (connections, so to speak)
 	are kept for 60s, which can be changed with
 	`udp_timeout` in the configuration.
@@ -294,7 +294,7 @@ v1.11: 21APR2012
 	--user isn't specified, just run as current user.
 
 	No longer create PID file by default, it should be
-	explicitely set with --pidfile.
+	explicitly set with --pidfile.
 
 	No longer log to syslog if in foreground. Logs are
 	instead output to stderr.
