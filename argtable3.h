@@ -95,7 +95,7 @@ typedef int(arg_comparefn)(const void* k1, const void* k2);
 typedef struct arg_hdr {
     char flag;             /* Modifier flags: ARG_TERMINATOR, ARG_HASVALUE. */
     const char* shortopts; /* String defining the short options */
-    const char* longopts;  /* String defiing the long options */
+    const char* longopts;  /* String defining the long options */
     const char* datatype;  /* Description of the argument data type */
     const char* glossary;  /* Description of the option as shown by arg_print_glossary function */
     int mincount;          /* Minimum number of occurences of this option accepted */
