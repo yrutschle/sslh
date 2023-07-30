@@ -167,7 +167,7 @@ This parses the /etc/sslh.cfg (or /etc/sslh/sslh.cfg file if that exists
 instead) configuration file and dynamically generates a socket file to use.
 
 This will also merge with any sslh.socket.d drop in configuration but will be 
-overriden by a /etc/systemd/system/sslh.socket file.
+overridden by a /etc/systemd/system/sslh.socket file.
 
 To use the generator place it in /usr/lib/systemd/system-generators and then
 call systemctl daemon-reload after any changes to /etc/sslh.cfg to generate 
@@ -196,7 +196,7 @@ will wait for incoming UDP packets, run the probes in the
 usual fashion, and forward packets to the appropriate
 target. `sslh` will then remember the association between
 remote host to target server for 60 seconds by default,
-which can be overriden with `udp_timeout`. This allows to
+which can be overridden with `udp_timeout`. This allows to
 process both single-datagram protocols such as DNS, and
 connection-based protocols such as QUIC.
 
