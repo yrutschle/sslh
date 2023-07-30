@@ -92,7 +92,7 @@ static void udp_protocol_list_init(void)
 }
 
 /* Configuration sanity check for UDP:
- * - If there is a listening addres, there must be at least one target
+ * - If there is a listening address, there must be at least one target
  */
 static void udp_sanity_check(void)
 {
