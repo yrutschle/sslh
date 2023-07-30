@@ -862,7 +862,7 @@ static int set_target_fields(void* target_addr, struct compound_cl_arg* arg, con
             if (pmatch[pmatch_cnt].rm_so == -1) {
                 /* This should not happen as regexec() did
                 * match before, unless there is a
-                * discrepency between the regex and the
+                * discrepancy between the regex and the
                 * number of backreferences */
                 return 0;
             }
