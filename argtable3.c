@@ -5881,7 +5881,7 @@ static void arg_print_formatted_ds(arg_dstr_t ds, const unsigned lmargin, const 
  * Prints the glossary in strict GNU format.
  * Differences to arg_print_glossary() are:
  *   - wraps lines after 80 chars
- *   - indents lines without shortops
+ *   - indents lines without shortopts
  *   - does not accept formatstrings
  *
  * Contributed by Uli Fouquet
