@@ -2876,9 +2876,9 @@ static void arg_file_resetfn(struct arg_file* parent) {
 static const char* arg_basename(const char* filename) {
     const char *result = NULL, *result1, *result2;
 
-    /* Find the last occurrence of eother file separator character. */
-    /* Two alternative file separator chars are supported as legal  */
-    /* file separators but not both together in the same filename.  */
+    /* Find the last occurrence of other file separator character. */
+    /* Two alternative file separator chars are supported as legal */
+    /* file separators but not both together in the same filename. */
     result1 = (filename ? strrchr(filename, FILESEPARATOR1) : NULL);
     result2 = (filename ? strrchr(filename, FILESEPARATOR2) : NULL);
 
