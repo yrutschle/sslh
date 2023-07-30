@@ -92,7 +92,7 @@ to the executable:
 
 	sudo setcap cap_net_bind_service,cap_net_raw+pe sslh-select
 
-Then you can run sslh-select as an unpriviledged user, e.g.:
+Then you can run sslh-select as an unprivileged user, e.g.:
 
 	sslh-select -p myname:443 --ssh localhost:22 --tls localhost:443
 
