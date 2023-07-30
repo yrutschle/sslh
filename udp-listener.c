@@ -251,7 +251,7 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     ssize_t len;
     socklen_t addrlen;
     int res, target, out = -1;
-    char data[65536]; /* Theoritical max is 65507 (https://en.wikipedia.org/wiki/User_Datagram_Protocol).
+    char data[65536]; /* Theoretical max is 65507 (https://en.wikipedia.org/wiki/User_Datagram_Protocol).
                          This will do.  Dynamic allocation is possible with the MSG_PEEK flag in recvfrom(2), but that'd imply
                          malloc/free overhead for each packet, when really 64K is not that much */
 
