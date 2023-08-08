@@ -99,14 +99,14 @@ services:
     sysctls:
       - net.ipv4.conf.default.route_localnet=1
       - net.ipv4.conf.all.route_localnet=1
-    command: --transparent --foreground --listen=0.0.0.0:443 --tls=localhost:8443 --openvpn=localhost:1194 --wireguard=localbox:51820
+    command: --transparent --foreground --listen=0.0.0.0:443 --tls=localhost:8443 --openvpn=localhost:1194
     ports:
       - 443:443 #sslh
 
       - 80:80 #nginx
       - 8443:8443 #nginx
 
-      - 1194:1994 #openvpn
+      - 1194:1194 #openvpn
     extra_hosts:
       - localbox:host-gateway
     restart: unless-stopped
@@ -141,11 +141,22 @@ services:
     #sysctls:
     #  - net.ipv4.conf.default.route_localnet=1
     #  - net.ipv4.conf.all.route_localnet=1
-    command: --transparent --foreground --listen=0.0.0.0:443 --tls=localhost:8443 --openvpn=localhost:1194 --wireguard=localhost:51820
+    command: --transparent --foreground --listen=0.0.0.0:443 --tls=localhost:8443 --openvpn=localhost:1194
     network_mode: host
     restart: unless-stopped
-```
+  
+  nginx:
+    image: nginx:latest
+    .....
+    ports:
+      - 8443:8443 # bind to docker host on port 8443
 
+  openvpn:
+    image: openvpn:latest
+    .....
+    ports:
+      - 1194:1194 # bind to docker host on port 1194
+```
 
 Comments? Questions?
 ====================
