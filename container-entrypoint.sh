@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # SPDX-License-Identifier: GPL2-or-later
 #
 # Copyright (C) 2023 Olliver Schinagl <oliver@schinagl.nl>
@@ -20,73 +19,71 @@ if [ "${#}" -le 0 ] || \
 	entrypoint='true'
 fi
 
-############################################################################
+unconfigure_iptables() {
+	set +e # Don't exit
 
-unconfigure_iptables() { 
-   set +e # Don't exit  
+	echo "Received SIG TERM/INT/KILL. Removing iptables / routing changes"
 
-   echo "Received SIG TERM/INT/KILL. Removing iptables / routing changes"
+	iptables -t raw -D PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
+	iptables -t mangle -D POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
 
-   iptables -t raw -D PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
-   iptables -t mangle -D POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
+	iptables -t nat -D OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
+	iptables -t mangle -D OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f
 
-   iptables -t nat -D OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
-   iptables -t mangle -D OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f
-
-   ip rule del fwmark 0x1 lookup 100
-   ip route del local 0.0.0.0/0 dev lo table 100
+	ip rule del fwmark 0x1 lookup 100
+	ip route del local 0.0.0.0/0 dev lo table 100
 
 
-   ip6tables -t raw -D PREROUTING ! -i lo -d ::1/128 -j DROP & > /dev/null #silence ipv6 errors
-   ip6tables -t mangle -D POSTROUTING ! -o lo -s ::1/128 -j DROP & > /dev/null
-   ip6tables -t nat -D OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f & > /dev/null
-   ip6tables -t mangle -D OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f & > /dev/null
+	ip6tables -t raw -D PREROUTING ! -i lo -d ::1/128 -j DROP & > '/dev/null' # silence ipv6 errors
+	ip6tables -t mangle -D POSTROUTING ! -o lo -s ::1/128 -j DROP & > '/dev/null'
+	ip6tables -t nat -D OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f & > '/dev/null'
+	ip6tables -t mangle -D OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f & > /dev/null
 
-   ip -6 rule del fwmark 0x1 lookup 100 & > /dev/null
-   ip -6 route del local ::/0 dev lo table 100 & > /dev/null
-   
-   set -e
+	ip -6 rule del fwmark 0x1 lookup 100 & > '/dev/null'
+	ip -6 route del local ::/0 dev lo table 100 & > '/dev/null'
+
+	set -e
 }
 
 configure_iptables() {
-   set +e # Don't exit if rule exist or ipv6 not enabled
+	set +e # Don't exit if rule exist or ipv6 not enabled
 
-   echo "Configuring iptables and routing..."
+	echo 'Configuring iptables and routing...'
 
-   iptables -t raw -A PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
-   iptables -t mangle -A POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
+	iptables -t raw -A PREROUTING ! -i lo -d 127.0.0.0/8 -j DROP
+	iptables -t mangle -A POSTROUTING ! -o lo -s 127.0.0.0/8 -j DROP
 
-   iptables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
-   iptables -t mangle -A OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f
+	iptables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f
+	iptables -t mangle -A OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f
 
-   ip rule add fwmark 0x1 lookup 100
-   ip route add local 0.0.0.0/0 dev lo table 100
+	ip rule add fwmark 0x1 lookup 100
+	ip route add local 0.0.0.0/0 dev lo table 100
 
-   ip6tables -t raw -A PREROUTING ! -i lo -d ::1/128 -j DROP & > /dev/null #silence ipv6 errors
-   ip6tables -t mangle -A POSTROUTING ! -o lo -s ::1/128 -j DROP & > /dev/null
-   ip6tables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f & > /dev/null
-   ip6tables -t mangle -A OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f & > /dev/null
+	ip6tables -t raw -A PREROUTING ! -i lo -d ::1/128 -j DROP & > '/dev/null' # silence ipv6 errors
+	ip6tables -t mangle -A POSTROUTING ! -o lo -s ::1/128 -j DROP & > '/dev/null'
+	ip6tables -t nat -A OUTPUT -m owner --uid-owner sslh -p tcp --tcp-flags FIN,SYN,RST,ACK SYN -j CONNMARK --set-xmark 0x01/0x0f & > '/dev/null'
+	ip6tables -t mangle -A OUTPUT ! -o lo -p tcp -m connmark --mark 0x01/0x0f -j CONNMARK --restore-mark --mask 0x0f & > '/dev/null'
 
-   ip -6 rule add fwmark 0x1 lookup 100 & > /dev/null
-   ip -6 route add local ::/0 dev lo table 100 & > /dev/null
-   
-   set -e
+	ip -6 rule add fwmark 0x1 lookup 100 & > '/dev/null'
+	ip -6 route add local ::/0 dev lo table 100 & > '/dev/null'
+
+	set -e
 }
 
-for i in "$@" ; do
-    if [ "${i}" = "--transparent" ] ; then
-        echo "--transparent is set"
-        configure_iptables
-        trap unconfigure_iptables TERM INT KILL
-        break
-    fi
+for _args in "${@}" ; do
+	if [ "${_args:-}" = '--transparent' ] ; then
+		echo '--transparent flag is set'
+		configure_iptables
+		trap unconfigure_iptables TERM INT KILL
+		break
+	fi
 done
 
-#run command as sslh user
-command="${entrypoint:+${bin}} ${@}"
-echo "executing with user 'sslh': $command"
+# Drop privileges and run as sslh user
+sslh_cmd="${entrypoint:+${bin}} ${@}"
+echo "Executing with user 'sslh': ${sslh_cmd}"
 
-exec su - sslh -c "$command" &
-wait $!
+exec su - sslh -c "${sslh_cmd}" &
+wait "${!}"
 
 exit 0
