@@ -1,20 +1,35 @@
-FROM alpine:latest as build
+ARG ALPINE_VERSION="latest"
+ARG TARGET_ARCH="library"
+
+FROM docker.io/${TARGET_ARCH}/alpine:${ALPINE_VERSION} AS build
 
 WORKDIR /sslh
 
-RUN apk add gcc libconfig-dev make musl-dev pcre2-dev perl
+RUN apk add --no-cache \
+        'gcc' \
+        'libconfig-dev' \
+        'make' \
+        'musl-dev' \
+        'pcre2-dev' \
+        'perl' \
+        ;
 
 COPY . /sslh
+
 RUN make sslh-select && strip sslh-select
 
-FROM alpine:latest
-
-RUN apk --no-cache add libconfig pcre2 iptables ip6tables libcap
-
-RUN adduser sslh --shell /bin/sh --disabled-password
+FROM docker.io/${TARGET_ARCH}/alpine:${ALPINE_VERSION}
 
 COPY --from=build "/sslh/sslh-select" "/usr/local/bin/sslh"
-RUN setcap cap_net_bind_service,cap_net_raw+ep /usr/local/bin/sslh
+RUN apk add --no-cache \
+        'libconfig' \
+        'pcre2' \
+        'iptables' \
+        'ip6tables' \
+        'libcap' \
+    && \
+    adduser -s '/bin/sh' -S -D sslh && \
+    setcap cap_net_bind_service,cap_net_raw+ep /usr/local/bin/sslh
 
 COPY "./container-entrypoint.sh" "/init"
 ENTRYPOINT [ "/init" ]
