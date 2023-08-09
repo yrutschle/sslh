@@ -81,8 +81,9 @@ services:
     image: openvpn
 ```
 
-Transparent mode 1: shared containers
+Transparent mode 1: using sslh container for networking
 
+_Note: For transparent mode to work, the sslh container must be able to reach your services via **localhost**_
 ```yaml
 version: "3"
 
@@ -114,7 +115,8 @@ services:
   nginx:
     image: nginx:latest
     .....
-    network_mode: service:sslh #set nginx container to use sslh networking
+    network_mode: service:sslh #set nginx container to use sslh networking.
+    # ^^^ This is required. This makes nginx reachable by sslh via localhost
   
   openvpn:
     image: openvpn:latest
@@ -122,7 +124,7 @@ services:
     network_mode: service:sslh #set openvpn container to use sslh networking
 ```
 
-Transparent mode 2: host networking
+Transparent mode 2: using host networking
 
 ```yaml
 version: "3"
