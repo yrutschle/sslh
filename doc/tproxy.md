@@ -60,7 +60,7 @@ this scheme -- let me know if you manage that:
 	ip rule add fwmark 0x1 lookup 100
 	ip route add local 0.0.0.0/0 dev lo table 100
 
-Tranparent proxying with IPv6 is similarly set up as follows:
+Transparent proxying with IPv6 is similarly set up as follows:
 
 	# Set route_localnet = 1 on all interfaces so that ssl can use "localhost" as destination
 	# Not sure if this is needed for ipv6 though

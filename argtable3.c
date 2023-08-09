@@ -2876,9 +2876,9 @@ static void arg_file_resetfn(struct arg_file* parent) {
 static const char* arg_basename(const char* filename) {
     const char *result = NULL, *result1, *result2;
 
-    /* Find the last occurrence of eother file separator character. */
-    /* Two alternative file separator chars are supported as legal  */
-    /* file separators but not both together in the same filename.  */
+    /* Find the last occurrence of other file separator character. */
+    /* Two alternative file separator chars are supported as legal */
+    /* file separators but not both together in the same filename. */
     result1 = (filename ? strrchr(filename, FILESEPARATOR1) : NULL);
     result2 = (filename ? strrchr(filename, FILESEPARATOR2) : NULL);
 
@@ -2927,7 +2927,7 @@ static int arg_file_scanfn(struct arg_file* parent, const char* argval) {
     } else if (!argval) {
         /* a valid argument with no argument value was given. */
         /* This happens when an optional argument value was invoked. */
-        /* leave parent arguiment value unaltered but still count the argument. */
+        /* leave parent argument value unaltered but still count the argument. */
         parent->count++;
     } else {
         parent->filename[parent->count] = argval;
@@ -3173,7 +3173,7 @@ static int arg_int_scanfn(struct arg_int* parent, const char* argval) {
     } else if (!argval) {
         /* a valid argument with no argument value was given. */
         /* This happens when an optional argument value was invoked. */
-        /* leave parent arguiment value unaltered but still count the argument. */
+        /* leave parent argument value unaltered but still count the argument. */
         parent->count++;
     } else {
         long int val;
@@ -3813,8 +3813,8 @@ static const TRexChar* g_nnames[] = {_SC("NONE"),    _SC("OP_GREEDY"), _SC("OP_O
 #endif
 #define OP_GREEDY (MAX_CHAR + 1)  /*  * + ? {n} */
 #define OP_OR (MAX_CHAR + 2)
-#define OP_EXPR (MAX_CHAR + 3)       /* parentesis () */
-#define OP_NOCAPEXPR (MAX_CHAR + 4)  /* parentesis (?:) */
+#define OP_EXPR (MAX_CHAR + 3)       /* parenthesis () */
+#define OP_NOCAPEXPR (MAX_CHAR + 4)  /* parenthesis (?:) */
 #define OP_DOT (MAX_CHAR + 5)
 #define OP_CLASS (MAX_CHAR + 6)
 #define OP_CCLASS (MAX_CHAR + 7)
@@ -5313,7 +5313,7 @@ static void arg_parse_untagged(int argc, char** argv, struct arg_hdr** table, st
         }
     }
 
-    /* if a tenative error still remains at this point then register it as a proper error */
+    /* if a tentative error still remains at this point then register it as a proper error */
     if (errorlast) {
         arg_register_error(endtable, parentlast, errorlast, optarglast);
         optind++;
@@ -5384,7 +5384,7 @@ int arg_parse(int argc, char** argv, void** argtable) {
     /*
         Fill in the local copy of argv[]. We need a local copy
         because getopt rearranges argv[] which adversely affects
-        susbsequent parsing attempts.
+        subsequent parsing attempts.
         */
     for (i = 0; i < argc; i++)
         argvcopy[i] = argv[i];
@@ -5451,7 +5451,7 @@ static void arg_cat_option(char* dest, size_t ndest, const char* shortopts, cons
     if (shortopts) {
         char option[3];
 
-        /* note: option array[] is initialiazed dynamically here to satisfy   */
+        /* note: option array[] is initialized dynamically here to satisfy   */
         /* a deficiency in the watcom compiler wrt static array initializers. */
         option[0] = '-';
         option[1] = shortopts[0];
@@ -5509,7 +5509,7 @@ static void arg_cat_optionv(char* dest, size_t ndest, const char* shortopts, con
             /* "-a|-b|-c" */
             char shortopt[3];
 
-            /* note: shortopt array[] is initialiazed dynamically here to satisfy */
+            /* note: shortopt array[] is initialized dynamically here to satisfy */
             /* a deficiency in the watcom compiler wrt static array initializers. */
             shortopt[0] = '-';
             shortopt[1] = *c;
@@ -5881,7 +5881,7 @@ static void arg_print_formatted_ds(arg_dstr_t ds, const unsigned lmargin, const 
  * Prints the glossary in strict GNU format.
  * Differences to arg_print_glossary() are:
  *   - wraps lines after 80 chars
- *   - indents lines without shortops
+ *   - indents lines without shortopts
  *   - does not accept formatstrings
  *
  * Contributed by Uli Fouquet
@@ -5956,7 +5956,7 @@ int arg_nullcheck(void** argtable) {
  * that entry were still allocated ok. Those subsequent allocations will not be
  * deallocated by arg_free().
  * Despite the unlikeliness of the problem occurring, and the even unlikelier event
- * that it has any deliterious effect, it is fixed regardless by replacing arg_free()
+ * that it has any deleterious effect, it is fixed regardless by replacing arg_free()
  * with the newer arg_freetable() function.
  * We still keep arg_free() for backwards compatibility.
  */
