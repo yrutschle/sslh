@@ -79,6 +79,20 @@ of the Makefile:
 * `USELIBBSD` compiles support for updating the process name (as shown
   by `ps`).
 
+Generating the configuration parser
+-----------------------------------
+
+The configuration file and command line parser is generated
+by `conf2struct`, from `sslhconf.cfg`, which generates
+`sslh-conf.c` and `sslh-conf.h`. The resulting files are
+included in the source so `sslh` can be built without
+`conf2struct` installed.
+
+Further, to prevent build issues, `sslh-conf.[ch]` has no
+dependency to `sslhconf.cfg` in the Makefile.  In the event
+of adding configuration settings, they need to be
+regenerated using `make c2s`.
+
 Binaries
 --------
 
