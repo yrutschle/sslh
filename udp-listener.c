@@ -129,7 +129,7 @@ void udp_init(struct loop_info* fd_info)
  * If yes, returns file descriptor of connection
  * If not, returns -1
  * */
-static int known_source(hash* h, struct sockaddr* addr, socklen_t addrlen)
+static int known_source(hash* h, struct sockaddr_storage* addr, socklen_t addrlen)
 {
     struct connection search;
     search.client_addr = *addr;
@@ -243,7 +243,7 @@ static int nonblocking_socket(struct sslhcfg_protocols_item* proto)
 struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
 {
     char addr_str[NI_MAXHOST+1+NI_MAXSERV+1];
-    struct sockaddr src_addr;
+    struct sockaddr_storage src_addr;
     struct addrinfo addrinfo;
     struct sslhcfg_protocols_item* proto;
     cnx_collection* collection = fd_info->collection;
@@ -259,13 +259,13 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     udp_timeouts(fd_info);
 
     addrlen = sizeof(src_addr);
-    len = recvfrom(sockfd, data, sizeof(data), 0, &src_addr, &addrlen);
+    len = recvfrom(sockfd, data, sizeof(data), 0, (struct sockaddr*) &src_addr, &addrlen);
     if (len < 0) {
         perror("recvfrom");
         return NULL;
     }
     target = known_source(fd_info->hash_sources, &src_addr, addrlen);
-    addrinfo.ai_addr = &src_addr;
+    addrinfo.ai_addr = (struct sockaddr*) &src_addr;
     addrinfo.ai_addrlen = addrlen;
     print_message(msg_probe_info, "received %ld UDP from %d:%s\n", 
                   len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));

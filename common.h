@@ -112,7 +112,7 @@ struct connection {
     struct queue q[2];
 
     /* SOCK_DGRAM */
-    struct sockaddr client_addr; /* Contains the remote client address */
+    struct sockaddr_storage client_addr; /* Contains the remote client address */
     socklen_t addrlen;
 
     int local_endpoint; /* Contains the local address */
