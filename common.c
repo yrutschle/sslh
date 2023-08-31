@@ -4,7 +4,6 @@
  * No code here should assume whether sockets are blocking or not.
  **/
 
-#define SYSLOG_NAMES
 #define _GNU_SOURCE
 #include <stddef.h>
 #include <stdarg.h>
@@ -16,6 +15,7 @@
 
 #include "common.h"
 #include "probe.h"
+#include "log.h"
 #include "sslh-conf.h"
 
 /* Added to make the code compilable under CYGWIN
@@ -42,8 +42,6 @@ struct sslhcfg_item cfg;
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
 
-static int do_syslog = 1; /* Should we syslog? controled by syslog_facility = "none" */
-
 #ifdef LIBWRAP
 #include <tcpd.h>
 int allow_severity =0, deny_severity = 0;
@@ -60,7 +58,7 @@ void check_res_dump(CR_ACTION act, int res, struct addrinfo *addr, char* syscall
     char buf[NI_MAXHOST];
 
     if (res == -1) {
-        fprintf(stderr, "%s:%s: %s\n",
+        print_message(msg_system_error, "%s:%s: %s\n",
                 sprintaddr(buf, sizeof(buf), addr),
                 syscall,
                 strerror(errno));
@@ -77,7 +75,7 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
 #ifdef SYSTEMD
     sd = sd_listen_fds(0);
     if (sd < 0) {
-      fprintf(stderr, "sd_listen_fds(): %s\n", strerror(-sd));
+      print_message(msg_system_error, "sd_listen_fds(): %s\n", strerror(-sd));
       exit(1);
     }
     if (sd > 0) {
@@ -177,7 +175,7 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
 
     *sockfd = NULL;
 
-    if (cfg.verbose) fprintf(stderr, "Listening to:\n");
+    print_message(msg_config, "Listening to:\n");
 
     for (i = 0; i < cfg.listen_len; i++) {
         keepalive = cfg.listen[i].keepalive;
@@ -188,13 +186,12 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
 
         for (addr = start_addr; addr; addr = addr->ai_next) {
             num_addr++;
-            *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd));
+            *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
             (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
             (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
-            if (cfg.verbose)
-                fprintf(stderr, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
-                        cfg.listen[i].keepalive ? "keepalive" : "",
-                        cfg.listen[i].is_udp ? "udp" : "");
+            print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
+                          cfg.listen[i].keepalive ? "keepalive" : "",
+                          cfg.listen[i].is_udp ? "udp" : "");
         }
         freeaddrinfo(start_addr);
     }
@@ -322,19 +319,23 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
     res = getpeername(fd_from, from.ai_addr, &from.ai_addrlen);
     CHECK_RES_RETURN(res, "getpeername", res);
 
+    if (cnx->proto->resolve_on_forward) {
+        resolve_split_name(&(cnx->proto->saddr), cnx->proto->host,
+                           cnx->proto->port);
+    }
+
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
         if (transparent && a->ai_family != from.ai_addr->sa_family)
             continue;
-        if (cfg.verbose)
-            fprintf(stderr, "connecting to %s family %d len %d\n",
+        print_message(msg_connections_try, "trying to connect to %s family %d len %d\n",
                     sprintaddr(buf, sizeof(buf), a),
                     a->ai_addr->sa_family, a->ai_addrlen);
 
         /* XXX Needs to match ai_family from fd_from when being transparent! */
         fd = socket(a->ai_family, SOCK_STREAM, 0);
         if (fd == -1) {
-            log_message(LOG_ERR, "forward to %s failed:socket: %s\n",
+            print_message(msg_connections_error, "forward to %s failed:socket: %s\n",
                         cnx->proto->name, strerror(errno));
         } else {
             one = 1;
@@ -347,6 +348,7 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 
             if (transparent) {
                 res = bind_peer(fd, fd_from);
+                if (res == -1) close(fd);
                 CHECK_RES_RETURN(res, "bind_peer", res);
             }
             res = connect(fd, a->ai_addr, a->ai_addrlen);
@@ -354,7 +356,7 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
             /* EINPROGRESS indicates it might take time. If it eventually
              * fails, it'll be caught as a failed read */
             if ((res == -1) && (errno != EINPROGRESS)) {
-                log_message(LOG_ERR, "forward to %s failed:connect: %s\n",
+                print_message(msg_connections_error, "forward to %s failed:connect: %s\n",
                                      cnx->proto->name, strerror(errno));
                 close(fd);
                 continue; /* Try the next address */
@@ -374,9 +376,8 @@ int defer_write(struct queue *q, void* data, int data_size)
 {
     char *p;
     ptrdiff_t data_offset = q->deferred_data - q->begin_deferred_data;
-    if (cfg.verbose)
-        fprintf(stderr, "**** writing deferred on fd %d\n", q->fd);
 
+    print_message(msg_fd, "writing deferred on fd %d\n", q->fd);
     p = realloc(q->begin_deferred_data, data_offset + q->deferred_data_size + data_size);
     CHECK_ALLOC(p, "realloc");
 
@@ -397,8 +398,7 @@ int flush_deferred(struct queue *q)
 {
     int n;
 
-    if (cfg.verbose)
-        fprintf(stderr, "flushing deferred data to fd %d\n", q->fd);
+    print_message(msg_fd, "flushing deferred data to fd %d\n", q->fd);
 
     n = write(q->fd, q->deferred_data, q->deferred_data_size);
     if (n == -1)
@@ -430,11 +430,12 @@ void init_cnx(struct connection *cnx)
 
 void dump_connection(struct connection *cnx)
 {
-    printf("state: %d\n", cnx->state);
-    printf("0: fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
-    hexdump(cnx->q[0].deferred_data, cnx->q[0].deferred_data_size);
-    printf("1: fd %d, %d deferred\n", cnx->q[1].fd, cnx->q[1].deferred_data_size);
-    hexdump(cnx->q[1].deferred_data, cnx->q[1].deferred_data_size);
+    print_message(msg_int_error, "type: %s\n", cnx->type == SOCK_DGRAM ? "UDP" : "TCP");
+    print_message(msg_int_error, "state: %d\n", cnx->state);
+    print_message(msg_int_error, "0: fd %d, %d deferred\n", cnx->q[0].fd, cnx->q[0].deferred_data_size);
+    hexdump(msg_int_error, cnx->q[0].deferred_data, cnx->q[0].deferred_data_size);
+    print_message(msg_int_error, "1: fd %d, %d deferred\n", cnx->q[1].fd, cnx->q[1].deferred_data_size);
+    hexdump(msg_int_error, cnx->q[1].deferred_data, cnx->q[1].deferred_data_size);
 }
 
 
@@ -459,8 +460,6 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
    if (size_r == -1) {
        switch (errno) {
        case EAGAIN:
-           if (cfg.verbose)
-               fprintf(stderr, "reading 0 from %d\n", from);
            return FD_NODATA;
 
        case ECONNRESET:
@@ -511,7 +510,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
                cfg.numeric ? NI_NUMERICHOST | NI_NUMERICSERV : 0 );
 
    if (res) {
-       log_message(LOG_ERR, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
+       print_message(msg_system_error, "sprintaddr:getnameinfo: %s\n", gai_strerror(res));
        /* Name resolution failed: do it numerically instead */
        res = getnameinfo(a->ai_addr, a->ai_addrlen,
                          host, sizeof(host),
@@ -519,7 +518,7 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
                          NI_NUMERICHOST | NI_NUMERICSERV);
        /* should not fail but... */
        if (res) {
-           log_message(LOG_ERR, "sprintaddr:getnameinfo(NUM): %s\n", gai_strerror(res));
+           print_message(msg_system_error, "sprintaddr:getnameinfo(NUM): %s\n", gai_strerror(res));
            strcpy(host, "?");
            strcpy(serv, "?");
        }
@@ -548,7 +547,7 @@ int resolve_split_name(struct addrinfo **out, char* host, char* serv)
    if (host[0] == '[') {
        end = strrchr(host, ']');
        if (!end) {
-           fprintf(stderr, "%s: no closing bracket in IPv6 address?\n", host);
+           print_message(msg_config_error, "%s: no closing bracket in IPv6 address?\n", host);
            return -1;
        }
        host++; /* skip first bracket */
@@ -557,7 +556,7 @@ int resolve_split_name(struct addrinfo **out, char* host, char* serv)
 
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
-      log_message(LOG_ERR, "%s `%s:%s'\n", gai_strerror(res), host, serv);
+      print_message(msg_system_error, "%s `%s:%s'\n", gai_strerror(res), host, serv);
    return res;
 }
 
@@ -573,7 +572,7 @@ void resolve_name(struct addrinfo **out, char* fullname)
    /* Find port */
    char *sep = strrchr(fullname, ':');
    if (!sep) { /* No separator: parameter is just a port */
-      fprintf(stderr, "%s: names must be fully specified as hostname:port\n", fullname);
+      print_message(msg_config_error, "%s: names must be fully specified as hostname:port\n", fullname);
       exit(1);
    }
    serv = sep+1;
@@ -583,28 +582,11 @@ void resolve_name(struct addrinfo **out, char* fullname)
 
    res = resolve_split_name(out, host, serv);
    if (res) {
-      fprintf(stderr, "%s `%s'\n", gai_strerror(res), fullname);
+      print_message(msg_config_error, "%s `%s'\n", gai_strerror(res), fullname);
       if (res == EAI_SERVICE)
-         fprintf(stderr, "(Check you have specified all ports)\n");
+         print_message(msg_config_error, "(Check you have specified all ports)\n");
       exit(4);
    }
-}
-
-/* Log to syslog or stderr if foreground */
-void log_message(int type, const char* msg, ...)
-{
-    va_list ap;
-
-    va_start(ap, msg);
-    if (cfg.foreground)
-        vfprintf(stderr, msg, ap);
-    va_end(ap);
-
-    if (do_syslog) {
-        va_start(ap, msg);
-        vsyslog(type, msg, ap);
-        va_end(ap);
-    }
 }
 
 
@@ -641,30 +623,6 @@ int get_connection_desc(struct connection_desc* desc, const struct connection *c
     return 1;
 }
 
-/* syslogs who connected to where 
- * desc: string description of the connection. if NULL, log_connection will
- * manage on its own
- * cnx: connection descriptor
- * */
-void log_connection(struct connection_desc* desc, const struct connection *cnx)
-{
-    struct connection_desc d;
-
-    if (cnx->proto->log_level < 1)
-        return;
-
-    if (!desc) {
-        desc = &d;
-        get_connection_desc(desc, cnx);
-    }
-
-    log_message(LOG_INFO, "%s:connection from %s to %s forwarded from %s to %s\n",
-                cnx->proto->name,
-                desc->peer,
-                desc->service,
-                desc->local,
-                desc->target);
-}
 
 void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx)
 {
@@ -708,8 +666,7 @@ int check_access_rights(int in_socket, const char* service)
     /* extract peer address */
     res = getnameinfo(&peer.saddr, size, addr_str, sizeof(addr_str), NULL, 0, NI_NUMERICHOST);
     if (res) {
-        if (cfg.verbose)
-            fprintf(stderr, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
+        print_message(msg_system_error, "getnameinfo(NI_NUMERICHOST):%s\n", gai_strerror(res));
         strcpy(addr_str, STRING_UNKNOWN);
     }
     /* extract peer name */
@@ -717,15 +674,12 @@ int check_access_rights(int in_socket, const char* service)
     if (!cfg.numeric) {
         res = getnameinfo(&peer.saddr, size, host, sizeof(host), NULL, 0, NI_NAMEREQD);
         if (res) {
-            if (cfg.verbose)
-                fprintf(stderr, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
+            print_message(msg_system_error, "getnameinfo(NI_NAMEREQD):%s\n", gai_strerror(res));
         }
     }
 
     if (!hosts_ctl(service, host, addr_str, STRING_UNKNOWN)) {
-        if (cfg.verbose)
-            fprintf(stderr, "access denied\n");
-        log_message(LOG_INFO, "connection from %s(%s): access denied", host, addr_str);
+        print_message(msg_connections, "connection from %s(%s): access denied", host, addr_str);
         close(in_socket);
         return -1;
     }
@@ -760,35 +714,6 @@ void setup_signals(void)
 
 }
 
-/* Open syslog connection with appropriate banner;
- * banner is made up of basename(bin_name)+"[pid]" */
-void setup_syslog(const char* bin_name) {
-    char *name1, *name2;
-    int res, fn;
-
-    if (!strcmp(cfg.syslog_facility, "none")) {
-        do_syslog = 0;
-        return;
-    }
-
-    name1 = strdup(bin_name);
-    res = asprintf(&name2, "%s[%d]", basename(name1), getpid());
-    CHECK_RES_DIE(res, "asprintf");
-
-    for (fn = 0; facilitynames[fn].c_val != -1; fn++)
-        if (strcmp(facilitynames[fn].c_name, cfg.syslog_facility) == 0)
-            break;
-    if (facilitynames[fn].c_val == -1) {
-        fprintf(stderr, "Unknown facility %s\n", cfg.syslog_facility);
-        exit(1);
-    }
-
-    openlog(name2, LOG_CONS, facilitynames[fn].c_val);
-    free(name1);
-    /* Don't free name2, as openlog(3) uses it (at least in glibc) */
-
-    log_message(LOG_INFO, "%s %s started\n", server_type, VERSION);
-}
 
 /* Ask OS to keep capabilities over a setuid(nonzero) */
 void set_keepcaps(int val) {
@@ -866,16 +791,14 @@ void drop_privileges(const char* user_name, const char* chroot_path)
     if (user_name) {
         pw = getpwnam(user_name);
         if (!pw) {
-            fprintf(stderr, "%s: not found\n", user_name);
+            print_message(msg_config_error, "%s: not found\n", user_name);
             exit(2);
         }
-        if (cfg.verbose)
-            fprintf(stderr, "turning into %s\n", user_name);
+        print_message(msg_config, "turning into %s\n", user_name);
     }
 
     if (chroot_path) {
-        if (cfg.verbose)
-            fprintf(stderr, "chrooting into %s\n", chroot_path);
+        print_message(msg_config, "chrooting into %s\n", chroot_path);
 
         res = chroot(chroot_path);
         CHECK_RES_DIE(res, "chroot");
@@ -905,14 +828,24 @@ void drop_privileges(const char* user_name, const char* chroot_path)
 void write_pid_file(const char* pidfile)
 {
     FILE *f;
+    int res;
 
     f = fopen(pidfile, "w");
     if (!f) {
-        perror(pidfile);
+        print_message(msg_system_error, "write_pid_file:%s:%s", pidfile, strerror(errno));
         exit(3);
     }
 
-    fprintf(f, "%d\n", getpid());
-    fclose(f);
+    res = fprintf(f, "%d\n", getpid());
+    if (res < 0) {
+        print_message(msg_system_error, "write_pid_file:fprintf:%s", strerror(errno));
+        exit(3);
+    }
+
+    res = fclose(f);
+    if (res == EOF) {
+        print_message(msg_system_error, "write_pid_file:fclose:%s", strerror(errno));
+        exit(3);
+    }
 }
 

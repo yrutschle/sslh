@@ -40,20 +40,20 @@
 
 #define CHECK_RES_DIE(res, str) \
     if (res == -1) {    \
-       fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+       print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
        perror(str);     \
        exit(1);         \
     }
 
 #define CHECK_RES_RETURN(res, str, ret) \
     if (res == -1) {                                    \
-        log_message(LOG_CRIT, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
+        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, str, errno, strerror(errno));  \
         return ret;                                     \
     } 
 
 #define CHECK_ALLOC(a, str) \
     if (!a) { \
-        fprintf(stderr, "%s:%d:", __FILE__, __LINE__); \
+        print_message(msg_system_error, "%s:%d:", __FILE__, __LINE__); \
         perror(str); \
         exit(1); \
     }
@@ -83,9 +83,6 @@ enum connection_state {
     ST_SHOVELING   /* Connexion is established */
 };
 
-/* this is used to pass protocols through the command-line parameter parsing */
-#define PROT_SHIFT 1000  /* protocol options will be 1000, 1001, etc */
-
 /* A 'queue' is composed of a file descriptor (which can be read from or
  * written to), and a queue for deferred write data */
 struct queue {
@@ -94,6 +91,12 @@ struct queue {
     void *deferred_data;
     int deferred_data_size;
 };
+
+/* Double linked list for timeout management */
+typedef struct {
+    struct connection* head;
+    struct connection* tail;
+} dl_list;
 
 struct connection {
     int type;           /* SOCK_DGRAM | SOCK_STREAM */
@@ -109,12 +112,15 @@ struct connection {
     struct queue q[2];
 
     /* SOCK_DGRAM */
-    struct sockaddr client_addr; /* Contains the remote client address */
+    struct sockaddr_storage client_addr; /* Contains the remote client address */
     socklen_t addrlen;
 
     int local_endpoint; /* Contains the local address */
 
     time_t last_active;
+
+    /* double linked list of timeouts */
+    struct connection *timeout_prev, *timeout_next;
 
     /* We need one local socket for each target server, so we know where to
      * forward server responses */
@@ -160,7 +166,6 @@ void setup_syslog(const char* bin_name);
 void drop_privileges(const char* user_name, const char* chroot_path);
 void set_capabilities(int cap_net_admin);
 void write_pid_file(const char* pidfile);
-void log_message(int type, const char* msg, ...);
 void dump_connection(struct connection *cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
@@ -171,7 +176,6 @@ int flush_deferred(struct queue *q);
 
 extern struct sslhcfg_item cfg;
 extern struct addrinfo *addr_listen;
-extern const char* USAGE_STRING;
 extern const char* server_type;
 
 /* sslh-fork.c */

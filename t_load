@@ -20,7 +20,7 @@ use Conf::Libconfig;
 
 # How many total clients to we start? Each client will pick
 # a new protocol among what's in test.cfg.
-my $NUM_CNX = 50;
+my $NUM_CNX = 16;
 
 # Delay between starting new processes when starting up. If
 # you start 200 processes in under a second, things go wrong
@@ -35,7 +35,7 @@ my $block_rpt = 5;
 # Probability to stop a client after a message (e.g. with
 # .01 a client will send an average of 100 messages before
 # disconnecting).
-my $stop_client_probability = .001;
+my $stop_client_probability = .0001;
 
 ##END CONFIG
 
@@ -65,7 +65,7 @@ my %connect_params = (
         test_data => "foo bar",
         resp_len => 12,
     },
-        ssh => {
+    ssh => {
         sleep => 20,  # So it times out 50% of connections
         test_data => "SSH-2.0 hello",
         resp_len => 18,  # length "ssh: SSH-2.0 hello" => 18
@@ -73,7 +73,7 @@ my %connect_params = (
     tinc => {
         sleep => 0,
         test_data => "0 ",
-        resp_len => 8, # length "tinc: 0 " => 10 
+        resp_len => 8, # length "tinc: 0 " => 10
     },
     openvpn => {
         sleep => 0,

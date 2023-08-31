@@ -26,6 +26,7 @@ my $PROBES_NOFRAG =     1;
 my $PROBES_AGAIN =      1;
 my $SSL_MIX_SSH =       1;
 my $SSH_MIX_SSL =       1;
+my $DROP_CNX =          1;
 
 # Robustness tests. These are mostly to achieve full test
 # coverage, but do not necessarily result in an actual test
@@ -285,6 +286,19 @@ for my $binary (@binaries) {
         }
     }
 
+# Test: Drop connection without writing anything
+    if ($DROP_CNX) {
+        print "***Test: Connect but don't write anything\n";
+        my $cnx_h = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+        warn "$!\n" unless $cnx_h;
+        if ($cnx_h) {
+            close $cnx_h;
+            my_is(1, "$binary: Connect and write nothing");
+            # The goal of the test is to check sslh doesn't
+            # crash
+        }
+    }
+
 
     if ($PROBES_NOFRAG) {
         test_probes(no_frag => 1, binary => $binary);
@@ -382,7 +396,7 @@ if ($RB_RESOLVE_ADDRESS) {
     my $sslh_pid;
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        exec "./sslh-select -v 3 -f -u $user --listen blahblah.dontexist:9000 --ssh $ssh_address --tls $ssl_address -P $pidfile";
+        exec "./sslh-select -v 3 -f -u $user --listen blahblah.nonexistent:9000 --ssh $ssh_address --tls $ssl_address -P $pidfile";
     }
     warn "spawned $sslh_pid\n";
     waitpid $sslh_pid, 0;

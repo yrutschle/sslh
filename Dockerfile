@@ -1,23 +1,38 @@
-FROM alpine:latest as build
+ARG ALPINE_VERSION="latest"
+ARG TARGET_ARCH="library"
 
-ADD . /sslh
+FROM docker.io/${TARGET_ARCH}/alpine:${ALPINE_VERSION} AS build
 
-RUN \
-  apk add \
-    gcc \
-    libconfig-dev \
-    make \
-    musl-dev \
-    pcre-dev \
-    perl && \
-  cd /sslh && \
-  make sslh-select && \
-  strip sslh-select
+WORKDIR /sslh
 
-FROM alpine:latest
+RUN apk add --no-cache \
+        'gcc' \
+        'libconfig-dev' \
+        'make' \
+        'musl-dev' \
+        'pcre2-dev' \
+        'perl' \
+        ;
 
-COPY --from=build /sslh/sslh-select /sslh
+COPY . /sslh
 
-RUN apk --no-cache add libconfig pcre
+RUN make sslh-select && strip sslh-select
 
-ENTRYPOINT [ "/sslh", "--foreground"]
+FROM docker.io/${TARGET_ARCH}/alpine:${ALPINE_VERSION}
+
+COPY --from=build "/sslh/sslh-select" "/usr/local/bin/sslh"
+RUN apk add --no-cache \
+        'libconfig' \
+        'pcre2' \
+        'iptables' \
+        'ip6tables' \
+        'libcap' \
+    && \
+    adduser -s '/bin/sh' -S -D sslh && \
+    setcap cap_net_bind_service,cap_net_raw+ep /usr/local/bin/sslh
+
+COPY "./container-entrypoint.sh" "/init"
+ENTRYPOINT [ "/init" ]
+
+# required for updating iptables
+USER root:root

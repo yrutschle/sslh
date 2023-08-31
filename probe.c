@@ -1,7 +1,7 @@
 /*
 # probe.c: Code for probing protocols
 #
-# Copyright (C) 2007-2019  Yves Rutschle
+# Copyright (C) 2007-2021  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -27,11 +27,13 @@
 #endif
 #include <ctype.h>
 #include "probe.h"
+#include "log.h"
 
 
 
 static int is_ssh_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_openvpn_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
+static int is_wireguard_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_tinc_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_xmpp_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_http_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
@@ -39,6 +41,8 @@ static int is_tls_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
 static int is_adb_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_socks5_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
+static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
+static int is_msrdp_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item*);
 static int is_true(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -47,6 +51,7 @@ static struct protocol_probe_desc builtins[] = {
     /* description  probe  */
     { "ssh",        is_ssh_protocol},
     { "openvpn",    is_openvpn_protocol },
+    { "wireguard",  is_wireguard_protocol },
     { "tinc",       is_tinc_protocol },
     { "xmpp",       is_xmpp_protocol },
     { "http",       is_http_protocol },
@@ -54,6 +59,8 @@ static struct protocol_probe_desc builtins[] = {
     { "adb",        is_adb_protocol },
     { "socks5",     is_socks5_protocol },
     { "syslog",     is_syslog_protocol },
+    { "teamspeak",  is_teamspeak_protocol },
+    { "msrdp",      is_msrdp_protocol },
     { "anyprot",    is_true }
 };
 
@@ -81,33 +88,38 @@ struct sslhcfg_protocols_item* timeout_protocol(void)
 
 /* From http://grapsus.net/blog/post/Hexadecimal-dump-in-C */
 #define HEXDUMP_COLS 16
-void hexdump(const char *mem, unsigned int len)
+void hexdump(msg_info msg_info, const char *mem, unsigned int len)
 {
     unsigned int i, j;
+    char str[10 + HEXDUMP_COLS * 4 + 2];
+    int c = 0; /* index in str */
 
     for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++)
     {
         /* print offset */
         if(i % HEXDUMP_COLS == 0)
-            fprintf(stderr, "0x%06x: ", i);
+            c += sprintf(&str[c], "0x%06x: ", i);
 
         /* print hex data */
         if(i < len)
-            fprintf(stderr, "%02x ", 0xFF & mem[i]);
+            c += sprintf(&str[c], "%02x ", 0xFF & mem[i]);
         else /* end of block, just aligning for ASCII dump */
-            fprintf(stderr, "   ");
+            c+= sprintf(&str[c], "   ");
 
         /* print ASCII dump */
         if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1)) {
             for(j = i - (HEXDUMP_COLS - 1); j <= i; j++) {
                 if(j >= len) /* end of block, not really printing */
-                    fputc(' ', stderr);
+                    str[c++] = ' ';
                 else if(isprint(mem[j])) /* printable char */
-                    fputc(0xFF & mem[j], stderr);
+                    str[c++] = 0xFF & mem[j];
                 else /* other char */
-                    fputc('.', stderr);
+                    str[c++] = '.';
             }
-            fputc('\n', stderr);
+            str[c++] = '\n';
+            str[c++] = 0;
+            print_message(msg_info, "%s", str);
+            c = 0;
         }
     }
 }
@@ -131,15 +143,66 @@ static int is_ssh_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
  * http://www.fengnet.com/book/vpns%20illustrated%20tunnels%20%20vpnsand%20ipsec/ch08lev1sec5.html
  * and OpenVPN ssl.c, ssl.h and options.c
  */
+#define OVPN_OPCODE_MASK 0xF8
+#define OVPN_CONTROL_HARD_RESET_CLIENT_V1  (0x01 << 3)
+#define OVPN_CONTROL_HARD_RESET_CLIENT_V2  (0x07 << 3)
+#define OVPN_HMAC_128 16
+#define OVPN_HMAC_160 20
+#define OVPN_HARD_RESET_PACKET_ID_OFFSET(hmac_size) (9 + hmac_size)
 static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protocols_item* proto)
 {
     int packet_len;
 
-    if (len < 2)
-        return PROBE_AGAIN;
+    if (proto->is_udp == 0)
+    {
+        if (len < 2)
+            return PROBE_AGAIN;
 
-    packet_len = ntohs(*(uint16_t*)p);
-    return packet_len == len - 2;
+        packet_len = ntohs(*(uint16_t*)p);
+        return packet_len == len - 2;
+    } else {
+        if (len < 1)
+            return PROBE_NEXT;
+
+        if ((p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V1 &&
+            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2)
+            return PROBE_NEXT;
+
+        /* The detection pattern above may not be reliable enough.
+         * Check the packet id: OpenVPN sents five initial packets
+         * whereas the packet id is increased with every transmitted datagram.
+         */
+
+        if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128) + sizeof(uint32_t))
+            return PROBE_NEXT;
+
+        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128))) <= 5u)
+            return PROBE_MATCH;
+
+        if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160) + sizeof(uint32_t))
+            return PROBE_NEXT;
+
+        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))) <= 5u)
+            return PROBE_MATCH;
+
+        return PROBE_NEXT;
+    }
+}
+
+static int is_wireguard_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
+{
+    if (proto->is_udp == 0)
+        return PROBE_NEXT;
+
+    // Handshake Init: 148 bytes
+    if (len != 148)
+        return PROBE_NEXT;
+
+    // Handshake Init: p[0] = 0x01, p[1..3] = 0x000000 (reserved)
+    if (ntohl(*(uint32_t*)p) != 0x01000000)
+        return PROBE_NEXT;
+
+    return PROBE_MATCH;
 }
 
 /* Is the buffer the beginning of a tinc connections?
@@ -312,6 +375,27 @@ static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protoco
     return 0;
 }
 
+static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
+{
+    if (len < 8)
+        return PROBE_NEXT;
+
+    return !strncmp(p, "TS3INIT1", len);
+}
+
+static int is_msrdp_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
+{
+    char version;
+    char packet_len;
+    if (len < 7)
+        return PROBE_NEXT;
+    version=*p;
+    if (version!=0x03)
+        return 0;
+    packet_len = ntohs(*(uint16_t*)(p+2));
+    return packet_len == len;
+}
+
 static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
 #ifdef ENABLE_REGEX
@@ -328,51 +412,58 @@ static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item
     return 0;
 #else
     /* Should never happen as we check when loading config file */
-    fprintf(stderr, "FATAL: regex probe called but not built in\n");
+    print_message(msg_int_error, "FATAL: regex probe called but not built in\n");
     exit(5);
 #endif
 }
 
 /* Run all the probes on a buffer
+ * buf, len: buffer to test on
+ * proto_in, proto_len: array of protocols to try
+ * proto_out: protocol that matched
+ *
  * Returns
  *      PROBE_AGAIN if not enough data, and set *proto to NULL
  *      PROBE_MATCH if protocol is identified, in which case *proto is set to
  *      point to the appropriate protocol
  * */
-int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
+int probe_buffer(char* buf, int len,
+                 struct sslhcfg_protocols_item** proto_in,
+                 int proto_len,
+                 struct sslhcfg_protocols_item** proto_out
+                 )
 {
     struct sslhcfg_protocols_item* p;
     int i, res, again = 0;
 
-    if (cfg.verbose > 1) {
-        fprintf(stderr, "hexdump of incoming packet:\n");
-        hexdump(buf, len);
-    }
+    print_message(msg_packets, "hexdump of incoming packet:\n");
+    hexdump(msg_packets, buf, len);
 
-    *proto = NULL;
-    for (i = 0; i < cfg.protocols_len; i++) {
+    *proto_out = NULL;
+    for (i = 0; i < proto_len; i++) {
         char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};
-        p = &cfg.protocols[i];
+        p = proto_in[i];
 
         if (! p->probe) continue;
 
-        if (cfg.verbose) fprintf(stderr, "probing for %s\n", p->name);
+        print_message(msg_probe_info, "probing for %s\n", p->name);
 
         /* Don't probe last protocol if it is anyprot (and store last protocol) */
-        if ((i == cfg.protocols_len - 1) && (!strcmp(p->name, "anyprot")))
+        if ((i == proto_len - 1) && (!strcmp(p->name, "anyprot")))
             break;
 
         if (p->minlength_is_present && (len < p->minlength )) {
-            fprintf(stderr, "input too short, %d bytes but need %d\n", len , p->minlength);
+            print_message(msg_probe_info, "input too short, %d bytes but need %d\n", 
+                          len , p->minlength);
             again++;
             continue;
         }
 
         res = p->probe(buf, len, p);
-        if (cfg.verbose) fprintf(stderr, "probed for %s: %s\n", p->name, probe_str[res]);
+        print_message(msg_probe_info, "probed for %s: %s\n", p->name, probe_str[res]);
 
         if (res == PROBE_MATCH) {
-            *proto = p;
+            *proto_out = p;
             return PROBE_MATCH;
         }
         if (res == PROBE_AGAIN)
@@ -382,37 +473,14 @@ int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto)
         return PROBE_AGAIN;
 
     /* Everything failed: match the last one */
-    *proto = &cfg.protocols[cfg.protocols_len-1];
-    return PROBE_MATCH;
-}
 
-/*
- * Read the beginning of data coming from the client connection and check if
- * it's a known protocol.
- * Return PROBE_AGAIN if not enough data, or PROBE_MATCH if it succeeded in
- * which case cnx->proto is set to the appropriate protocol.
- */
-int probe_client_protocol(struct connection *cnx)
-{
-    char buffer[BUFSIZ];
-    ssize_t n;
-
-    n = read(cnx->q[0].fd, buffer, sizeof(buffer));
-    /* It's possible that read() returns an error, e.g. if the client
-     * disconnected between the previous call to select() and now. If that
-     * happens, we just connect to the default protocol so the caller of this
-     * function does not have to deal with a specific  failure condition (the
-     * connection will just fail later normally). */
-
-    if (n > 0) {
-        defer_write(&cnx->q[1], buffer, n);
-        return probe_buffer(cnx->q[1].begin_deferred_data,
-                            cnx->q[1].deferred_data_size,
-                            &cnx->proto);
+    if (proto_len == 0) {
+        /* This should be caught by configuration sanity checks, but just in
+         * case, die gracefully rather than segfaulting */
+        print_message(msg_int_error, "Received traffic on transport that has no target\n");
+        exit(0);
     }
-
-    /* read() returned an error, so just connect to the last protocol to die */
-    cnx->proto = &cfg.protocols[cfg.protocols_len-1];
+    *proto_out = proto_in[proto_len-1];
     return PROBE_MATCH;
 }
 

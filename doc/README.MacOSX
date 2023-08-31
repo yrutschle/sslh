@@ -33,7 +33,7 @@ with launchctl or simply reboot.
 		<string>0.0.0.0:443</string>
 		<string>--ssh</string>
 		<string>localhost:22</string>
-		<string>--ssl</string>
+		<string>--tls</string>
 		<string>localhost:443</string>
 	</array>
 	<key>QueueDirectories</key>

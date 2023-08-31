@@ -23,7 +23,8 @@
 #include "common.h"
 #include "probe.h"
 #include "sslh-conf.h"
-#include "udp-listener.h"
+#include "tcp-probe.h"
+#include "log.h"
 
 #ifdef LIBBSD
 #include <bsd/unistd.h>
@@ -58,8 +59,7 @@ int shovel(struct connection *cnx)
           if (FD_ISSET(cnx->q[i].fd, &fds)) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
               if (res == FD_CNXCLOSED) {
-                  if (cfg.verbose) 
-                      fprintf(stderr, "%s %s", i ? "client" : "server", "socket closed\n");
+                  print_message(msg_fd, "%s %s", i ? "client" : "server", "socket closed\n");
                   return res;
               }
           }
@@ -99,8 +99,7 @@ void start_shoveler(int in_socket)
        } else {
            /* Timed out: it's necessarily SSH */
            cnx.proto = timeout_protocol();
-           if (cfg.verbose) 
-               log_message(LOG_INFO, "timed out, connect to %s\n", cnx.proto->name);
+           print_message(msg_fd, "timed out, connect to %s\n", cnx.proto->name);
            break;
        }
    }
@@ -129,8 +128,7 @@ void start_shoveler(int in_socket)
    close(in_socket);
    close(out_socket);
    
-   if (cfg.verbose)
-      fprintf(stderr, "connection closed down\n");
+   print_message(msg_fd, "connection closed down\n");
 
    exit(0);
 }
@@ -179,10 +177,11 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
     while (1) {
         in_socket = accept(endpoint[active_endpoint].socketfd, 0, 0);
-        if (cfg.verbose) fprintf(stderr, "accepted fd %d\n", in_socket);
+        CHECK_RES_RETURN(in_socket, "accept", /*void*/ );
+        print_message(msg_fd, "accepted fd %d\n", in_socket);
 
         switch(fork()) {
-        case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+        case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
                  break;
 
         case 0: /* In child process */
@@ -209,18 +208,20 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     listener_pid = malloc(listener_pid_number * sizeof(listener_pid[0]));
     CHECK_ALLOC(listener_pid, "malloc");
 
+    tcp_init();
+
     /* Start one process for each listening address */
     for (i = 0; i < num_addr_listen; i++) {
         listener_pid[i] = fork();
         switch(listener_pid[i]) {
         /* Log if fork() fails for some reason */
-        case -1: log_message(LOG_ERR, "fork failed: err %d: %s\n", errno, strerror(errno));
+        case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
                  break;
         /* We're in the child, we have work to do  */
         case 0:
             set_listen_procname(&listen_sockets[i]);
             if (listen_sockets[i].type == SOCK_DGRAM)
-                log_message(LOG_ERR, "UDP not (yet?) supported in sslh-fork\n");
+                print_message(msg_config_error, "UDP not (yet?) supported in sslh-fork\n");
             else
                 tcp_listener(listen_sockets, num_addr_listen, i);
 	    break;

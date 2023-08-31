@@ -1,6 +1,6 @@
 /* echosrv: a simple line echo server with optional prefix adding.
  *
- * echsrv --listen localhost6:1234 --prefix "ssl: "
+ * echosrv --listen localhost6:1234 --prefix "ssl: "
  *
  * This will bind to 1234, and echo every line pre-pending "ssl: ". This is
  * used for testing: we create several such servers with different prefixes,
@@ -100,7 +100,10 @@ void tcp_echo(struct listen_endpoint* listen_socket)
 {
     while (1) {
         int in_socket = accept(listen_socket->socketfd, 0, 0);
-        CHECK_RES_DIE(in_socket, "accept");
+        if (in_socket == -1) {
+            perror("tcp_echo:accept");
+            exit(1);
+        }
 
         if (!fork())
         {
@@ -109,6 +112,7 @@ void tcp_echo(struct listen_endpoint* listen_socket)
             exit(0);
         }
         close(in_socket);
+        waitpid(-1, NULL, WNOHANG);
     }
 }
 

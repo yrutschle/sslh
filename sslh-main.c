@@ -36,29 +36,7 @@
 
 #include "common.h"
 #include "probe.h"
-
-const char* USAGE_STRING =
-"sslh " VERSION "\n" \
-"usage:\n" \
-"\tsslh  [-v] [-i] [-V] [-f] [-n] [--transparent] [-F<file>]\n"
-"\t[-t <timeout>] [-P <pidfile>] [-u <username>] [-C <chroot>] -p <addr> [-p <addr> ...] \n" \
-"%s\n\n" /* Dynamically built list of builtin protocols */  \
-"\t[--on-timeout <addr>]\n" \
-"-v: verbose\n" \
-"-V: version\n" \
-"-f: foreground\n" \
-"-n: numeric output\n" \
-"-u: specify under which user to run\n" \
-"-C: specify under which chroot path to run\n" \
-"--transparent: behave as a transparent proxy\n" \
-"-F: use configuration file (warning: no space between -F and file name!)\n" \
-"--on-timeout: connect to specified address upon timeout (default: ssh address)\n" \
-"-t: seconds to wait before connecting to --on-timeout address.\n" \
-"-p: address and port to listen on.\n    Can be used several times to bind to several addresses.\n" \
-"--[ssh,ssl,...]: where to connect connections from corresponding protocol.\n" \
-"-P: PID file.\n" \
-"-i: Run as a inetd service.\n" \
-"";
+#include "log.h"
 
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
@@ -73,7 +51,7 @@ static void printcaps(void) {
 
     desc = cap_to_text(caps, &len);
 
-    fprintf(stderr, "capabilities: %s\n", desc);
+    print_message(msg_config, "capabilities: %s\n", desc);
 
     cap_free(caps);
     cap_free(desc);
@@ -88,21 +66,26 @@ static void printsettings(void)
     
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
-        fprintf(stderr,
-                "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
-                p->name, 
-                sprintaddr(buf, sizeof(buf), p->saddr), 
-                p->service,
-                p->log_level,
-                p->saddr->ai_family,
-                p->saddr->ai_addr->sa_family,
-                p->keepalive ? "keepalive" : "",
-                p->fork ? "fork" : "",
-                p->transparent ? "transparent" : ""
-                );
+        print_message(msg_config, 
+                      "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
+                      p->name, 
+                      sprintaddr(buf, sizeof(buf), p->saddr), 
+                      p->service,
+                      p->log_level,
+                      p->saddr->ai_family,
+                      p->saddr->ai_addr->sa_family,
+                      p->keepalive ? "keepalive" : "",
+                      p->fork ? "fork" : "",
+                      p->transparent ? "transparent" : ""
+                     );
     }
-    fprintf(stderr, "timeout: %d\non-timeout: %s\n", cfg.timeout,
-            timeout_protocol()->name);
+    print_message(msg_config, 
+                  "timeout: %d\n"
+                  "on-timeout: %s\n"
+                  "UDP hash size: %d\n", 
+                  cfg.timeout,
+                  timeout_protocol()->name,
+                  cfg.udp_max_connections);
 }
 
 
@@ -126,7 +109,7 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
                                         &error, &error_offset, NULL);
         if (!pattern_list[i]) {
             pcre2_get_error_message(error, err_str, sizeof(err_str));
-            fprintf(stderr, "compiling pattern /%s/:%d:%s at offset %ld\n",
+            print_message(msg_config_error, "compiling pattern /%s/:%d:%s at offset %ld\n",
                     p->regex_patterns[i], error, err_str, error_offset);
             exit(1);
         }
@@ -146,14 +129,19 @@ static void config_protocols()
     int i;
     for (i = 0; i < cfg.protocols_len; i++) {
         struct sslhcfg_protocols_item* p = &(cfg.protocols[i]);
-        if (resolve_split_name(&(p->saddr), p->host, p->port)) {
-            fprintf(stderr, "cannot resolve %s:%s\n", p->host, p->port);
+
+        if (
+            !p->resolve_on_forward &&
+            resolve_split_name(&(p->saddr), p->host, p->port)
+        ) {
+            print_message(msg_config_error, "cannot resolve %s:%s\n",
+                          p->host, p->port);
             exit(4);
         }
 
         p->probe = get_probe(p->name);
         if (!p->probe) {
-            fprintf(stderr, "%s: probe unknown\n", p->name);
+            print_message(msg_config_error, "%s: probe unknown\n", p->name);
             exit(1);
         }
 
@@ -172,23 +160,55 @@ static void config_protocols()
                                   (const char**) cfg.protocols[i].alpn_protocols,
                                   cfg.protocols[i].alpn_protocols_len);
         }
+
+        p->timeouts.head = NULL;
+        p->timeouts.tail = NULL;
     }
 }
 
 
-void config_sanity_check(struct sslhcfg_item* cfg) {
-    if (!cfg->protocols_len) {
-        fprintf(stderr, "At least one target protocol must be specified.\n");
-        exit(2);
-    }
+void config_sanity_check(struct sslhcfg_item* cfg)
+{
+    size_t i;
 
 /* If compiling with systemd socket support no need to require listen address */
 #ifndef SYSTEMD
     if (!cfg->listen_len && !cfg->inetd) {
-        fprintf(stderr, "No listening address specified; use at least one -p option\n");
+        print_message(msg_config_error, "No listening address specified; use at least one -p option\n");
         exit(1);
     }
 #endif
+
+    for (i = 0; i < cfg->protocols_len; ++i) {
+        if (strcmp(cfg->protocols[i].name, "tls")) {
+            if (cfg->protocols[i].sni_hostnames_len) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option sni_hostnames is only applicable for tls\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+            if (cfg->protocols[i].alpn_protocols_len) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option alpn_protocols is only applicable for tls\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+        }
+
+        if (cfg->protocols[i].is_udp) {
+            if (cfg->protocols[i].tfo_ok) {
+                print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                              "Config option tfo_ok is not applicable for udp connections\n",
+                              cfg->protocols[i].name, cfg->protocols[i].host, cfg->protocols[i].port);
+                exit(1);
+            }
+        } else {
+            if (!strcmp(cfg->protocols[i].name, "wireguard")) {
+                print_message(msg_config_error, "Wireguard works only with UDP\n");
+                exit(1);
+            }
+        }
+    }
 }
 
 
@@ -207,26 +227,29 @@ int main(int argc, char *argv[], char* envp[])
    memset(&cfg, 0, sizeof(cfg));
    res = sslhcfg_cl_parse(argc, argv, &cfg);
    if (res) exit(6);
-   if (cfg.verbose > 3)
-       sslhcfg_fprint(stderr, &cfg, 0);
+
+   if (cfg.version) {
+       printf("%s %s\n", server_type, VERSION);
+       exit(0);
+   }
+
    config_protocols();
    config_sanity_check(&cfg);
 
    if (cfg.inetd)
    {
-       cfg.verbose = 0;
+       close(fileno(stderr)); /* Make sure no error will go to client */
        start_shoveler(0);
        exit(0);
    }
 
-   if (cfg.verbose)
-       printsettings();
+   printsettings();
 
    num_addr_listen = start_listen_sockets(&listen_sockets);
 
 #ifdef SYSTEMD
    if (num_addr_listen < 1) {
-     fprintf(stderr, "No listening sockets found, restart sockets or specify addresses in config\n");
+     print_message(msg_config_error, "No listening sockets found, restart sockets or specify addresses in config\n");
      exit(1);
     }
 #endif
@@ -249,13 +272,21 @@ int main(int argc, char *argv[], char* envp[])
    /* Open syslog connection before we drop privs/chroot */
    setup_syslog(argv[0]);
 
+   /* Open log file for writing */
+   setup_logfile();
+
    if (cfg.user || cfg.chroot)
        drop_privileges(cfg.user, cfg.chroot);
 
-   if (cfg.verbose)
-       printcaps();
+   printcaps();
+
+   print_message(msg_config, "%s %s started\n", server_type, VERSION);
 
    main_loop(listen_sockets, num_addr_listen);
+
+   close_logfile();
+
+   free(listen_sockets);
 
    return 0;
 }

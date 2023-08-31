@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "tls.h"
+#include "log.h"
 
 typedef enum {
     PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */
@@ -47,8 +48,12 @@ void set_protocol_list(struct sslhcfg_protocols_item*);
  */
 int probe_client_protocol(struct connection *cnx);
 
-/* Probe, but on a buffer */
-int probe_buffer(char* buf, int len, struct sslhcfg_protocols_item** proto);
+/* Probe on a buffer */
+int probe_buffer(char* buf, int len,
+                 struct sslhcfg_protocols_item** proto_in,
+                 int proto_len,
+                 struct sslhcfg_protocols_item** proto_out
+                 );
 
 /* set the protocol to connect to in case of timeout */
 void set_ontimeout(const char* name);
@@ -59,6 +64,6 @@ void set_ontimeout(const char* name);
  */
 struct sslhcfg_protocols_item* timeout_protocol(void);
 
-void hexdump(const char*, unsigned int);
+void hexdump(msg_info, const char*, unsigned int);
 
 #endif

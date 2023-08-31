@@ -3,6 +3,7 @@ VERSION=$(shell ./genver.sh -r)
 
 # Configuration -- you probably need to `make clean` if you
 # change any of these
+ENABLE_SANITIZER= # Enable ASAN/LSAN/UBSAN
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBWRAP?=	# Use libwrap?
@@ -19,15 +20,25 @@ MAN=sslh.8.gz	# man page name
 # End of configuration -- the rest should take care of
 # itself
 
+ifneq ($(strip $(ENABLE_SANITIZER)),)
+    CFLAGS_SAN=-fsanitize=address -fsanitize=leak -fsanitize=undefined
+endif
+
 ifneq ($(strip $(COV_TEST)),)
     CFLAGS_COV=-fprofile-arcs -ftest-coverage
 endif
 
 CC ?= gcc
-CFLAGS +=-Wall -DLIBPCRE -g $(CFLAGS_COV)
+AR ?= ar
+CFLAGS +=-Wall -O2 -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
+
 
 LIBS=-lm -lpcre2-8
-OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o udp-listener.o collection.o gap.o
+OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o
+OBJS_A=libsslh.a
+FORK_OBJS=sslh-fork.o $(OBJS_A)
+SELECT_OBJS=processes.o udp-listener.o sslh-select.o hash.o tcp-listener.o $(OBJS_A)
+EV_OBJS=processes.o udp-listener.o sslh-ev.o hash.o tcp-listener.o $(OBJS_A)
 
 CONDITIONAL_TARGETS=
 
@@ -64,32 +75,41 @@ endif
 
 all: sslh $(MAN) echosrv $(CONDITIONAL_TARGETS)
 
-.c.o: *.h version.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+%.o: %.c %.h version.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+$(OBJS_A): $(OBJS)
+	$(AR) rcs $(OBJS_A) $(OBJS)
 
 version.h:
 	./genver.sh >version.h
 
-sslh: sslh-fork sslh-select
+sslh: sslh-fork sslh-select sslh-ev
 
-$(OBJS): version.h common.h collection.h sslh-conf.h gap.h
+$(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h tls.h udp-listener.h version.h
+
+
+c2s:
+	conf2struct sslhconf.cfg
+	conf2struct echosrv.cfg
 
 sslh-conf.c sslh-conf.h: sslhconf.cfg
-	conf2struct sslhconf.cfg
+	$(warning "sslhconf.cfg is more recent than sslh-conf.[ch]. Use `make c2s` to rebuild using `conf2struct`")
 
-sslh-fork: version.h $(OBJS) sslh-fork.o Makefile
-	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork sslh-fork.o $(OBJS) $(LIBS)
-	#strip sslh-fork
+sslh-fork: version.h Makefile $(FORK_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-fork $(FORK_OBJS) $(LIBS)
 
-sslh-select: version.h $(OBJS) sslh-select.o Makefile
-	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select sslh-select.o $(OBJS) $(LIBS)
-	#strip sslh-select
+sslh-select: version.h $(SELECT_OBJS) Makefile
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-select $(SELECT_OBJS) $(LIBS)
+
+sslh-ev: version.h $(EV_OBJS) Makefile
+	$(CC) $(CFLAGS) $(LDFLAGS) -o sslh-ev $(EV_OBJS) $(LIBS) -lev
 
 systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
 echosrv-conf.c echosrv-conf.h: echosrv.cfg
-	conf2struct echosrv.cfg
+	$(warning "echosrv.cfg is more recent than echosrv-conf.[ch]. Use `make c2s` to rebuild using `conf2struct`")
 
 echosrv: version.h echosrv-conf.c echosrv.o echosrv-conf.o argtable3.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o echosrv-conf.o argtable3.o $(LIBS)
@@ -133,7 +153,7 @@ distclean: clean
 	rm -f tags sslh-conf.[ch] echosrv-conf.[ch] cscope.*
 
 clean:
-	rm -f sslh-fork sslh-select echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
+	rm -f sslh-fork sslh-select sslh-ev echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
 
 tags:
 	ctags --globals -T *.[ch]
