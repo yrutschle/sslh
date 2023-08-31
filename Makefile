@@ -30,7 +30,8 @@ endif
 
 CC ?= gcc
 AR ?= ar
-CFLAGS ?=-Wall -O2 -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
+CFLAGS +=-Wall -O2 -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
+
 
 LIBS=-lm -lpcre2-8
 OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o
