@@ -55,9 +55,12 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
                             config_setting_source_line(addr));
                     return -1;
                 } else {
-                    (*listen)[i] = malloc(strlen(resolve_listen(hostname, port)));
+                    char *resolved_listen = resolve_listen(hostname, port);
+
+                    (*listen)[i] = malloc(strlen(resolved_listen));
                     CHECK_ALLOC((*listen)[i], "malloc");
-                    strcpy((*listen)[i], resolve_listen(hostname, port));
+                    strcpy((*listen)[i], resolved_listen);
+                    free(resolved_listen);
                 }
             }
         }
@@ -125,6 +128,7 @@ static int gen_sslh_config(char *runtime_unit_dir) {
         strcpy(runtime_conf, runtime_unit_dir);
         strcat(runtime_conf, unit_file);
         runtime_conf_fd = fopen(runtime_conf, "w");
+        free(runtime_conf);
     }
 
 

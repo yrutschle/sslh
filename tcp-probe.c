@@ -65,6 +65,7 @@ static void tcp_protocol_list_init(void)
         if (!p->is_udp) {
             tcp_protocols_len++;
             tcp_protocols = realloc(tcp_protocols, tcp_protocols_len * sizeof(*tcp_protocols));
+            CHECK_ALLOC(tcp_protocols, "realloc");
             tcp_protocols[tcp_protocols_len-1] = p;
         }
     }
