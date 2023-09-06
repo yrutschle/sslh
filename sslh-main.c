@@ -60,20 +60,26 @@ static void printcaps(void) {
 
 static void printsettings(void)
 {
-    char buf[NI_MAXHOST];
+    char buf[NI_MAXHOST + 256]; /* 256 > " family %d %d" for reasonable ints */
     int i;
     struct sslhcfg_protocols_item *p;
     
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
+        strcpy(buf, "resolve on forward");
+        if (!p->resolve_on_forward) {
+            sprintaddr(buf, sizeof(buf), p->saddr);
+            int len = strlen(buf);
+            sprintf(buf+len, " family %d %d", 
+                    p->saddr->ai_family,
+                    p->saddr->ai_addr->sa_family);
+        }
         print_message(msg_config, 
-                      "%s addr: %s. libwrap service: %s log_level: %d family %d %d [%s] [%s] [%s]\n",
+                      "%s addr: %s. libwrap service: %s log_level: %d [%s] [%s] [%s]\n",
                       p->name, 
-                      sprintaddr(buf, sizeof(buf), p->saddr), 
+                      buf,
                       p->service,
                       p->log_level,
-                      p->saddr->ai_family,
-                      p->saddr->ai_addr->sa_family,
                       p->keepalive ? "keepalive" : "",
                       p->fork ? "fork" : "",
                       p->transparent ? "transparent" : ""
