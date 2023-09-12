@@ -14,7 +14,7 @@
 use strict;
 use IO::Socket::INET6;
 use Data::Dumper;
-use Conf::Libconfig;
+use Conf::Libconfig 1.0.3;
 
 ## BEGIN TEST CONFIG
 
@@ -44,7 +44,7 @@ $conf->read_file("test.cfg");
 
 
 # Pick one address for TCP and one for UDP
-my @listen = @{$conf->fetch_array("listen")};
+my @listen = @{$conf->value("listen")};
 my ($sslh_tcp_address, $sslh_udp_address);
 
 foreach my $l (@listen) {
@@ -186,7 +186,7 @@ sub udp_client {
     }
 }
 
-foreach my $p (@{$conf->fetch_array("protocols")}) {
+foreach my $p (@{$conf->value("protocols")}) {
     if (!fork) {
         my $udp = $p->{is_udp} ? "--udp" : "";
         my $cmd = "./echosrv $udp -p $p->{host}:$p->{port} --prefix '$p->{name}: ' 2> /dev/null";
@@ -203,7 +203,7 @@ sleep 2; # Let echosrv's and sslh start
 my ($c_in, $c_out);
 pipe $c_in, $c_out;
 
-my @protocols = @{$conf->fetch_array("protocols")};
+my @protocols = @{$conf->value("protocols")};
 
 if (!fork) {
     # Process that starts all the clients
