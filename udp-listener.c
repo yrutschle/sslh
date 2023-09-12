@@ -225,6 +225,11 @@ static void mark_active(struct connection* cnx)
 /* Creates a new non-blocking socket */
 static int nonblocking_socket(struct sslhcfg_protocols_item* proto)
 {
+    if (proto->resolve_on_forward) {
+        resolve_split_name(&(proto->saddr), proto->host,
+                           proto->port);
+    }
+
     int out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
     int res = set_nonblock(out);
     if (res == -1) {
