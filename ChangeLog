@@ -1,3 +1,8 @@
+v2.0.1:	
+	Fix resolve_on_forward setting, which would crash
+	sslh reliably.
+
+v2.0.0:
 v2.0:
 	New sslh-ev: this is functionally equivalent to
 	sslh-select (mono-process, only forks for specified
