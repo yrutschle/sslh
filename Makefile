@@ -6,6 +6,7 @@ VERSION=$(shell ./genver.sh -r)
 ENABLE_SANITIZER= # Enable ASAN/LSAN/UBSAN
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
+USELIBEV=1	# Use libev?
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 USESYSTEMD=     # Make use of systemd socket activation
@@ -72,6 +73,9 @@ ifneq ($(strip $(USELIBBSD)),)
         CPPFLAGS+=-DLIBBSD
 endif
 
+ifneq ($(strip $(USELIBEV)),)
+        CONDITIONAL_TARGETS+=sslh-ev
+endif
 
 all: sslh $(MAN) echosrv $(CONDITIONAL_TARGETS)
 
@@ -84,7 +88,7 @@ $(OBJS_A): $(OBJS)
 version.h:
 	./genver.sh >version.h
 
-sslh: sslh-fork sslh-select sslh-ev
+sslh: sslh-fork sslh-select
 
 $(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h tls.h udp-listener.h version.h
 
@@ -153,7 +157,7 @@ distclean: clean
 	rm -f tags sslh-conf.[ch] echosrv-conf.[ch] cscope.*
 
 clean:
-	rm -f sslh-fork sslh-select sslh-ev echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
+	rm -f sslh-fork sslh-select $(CONDITIONAL_TARGETS) echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
 
 tags:
 	ctags --globals -T *.[ch]
