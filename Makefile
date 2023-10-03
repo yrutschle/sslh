@@ -77,7 +77,7 @@ ifneq ($(strip $(USELIBEV)),)
         CONDITIONAL_TARGETS+=sslh-ev
 endif
 
-all: sslh $(MAN) echosrv $(CONDITIONAL_TARGETS)
+all: sslh-fork sslh-select $(MAN) echosrv $(CONDITIONAL_TARGETS)
 
 %.o: %.c %.h version.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
@@ -87,8 +87,6 @@ $(OBJS_A): $(OBJS)
 
 version.h:
 	./genver.sh >version.h
-
-sslh: sslh-fork sslh-select
 
 $(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h tls.h udp-listener.h version.h
 
