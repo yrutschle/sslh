@@ -135,7 +135,7 @@ docker-clean:
 	yes | docker image prune
 
 # generic install: install binary and man page
-install: sslh $(MAN)
+install: sslh-fork $(MAN)
 	mkdir -p $(DESTDIR)/$(BINDIR)
 	mkdir -p $(DESTDIR)/$(MANDIR)
 	install -p sslh-fork $(DESTDIR)/$(BINDIR)/sslh
