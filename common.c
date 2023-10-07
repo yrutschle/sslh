@@ -278,7 +278,25 @@ int bind_peer(int fd, int fd_from)
     }
 #endif /* IP_TRANSPARENT / IP_BINDANY */
     res = bind(fd, from.ai_addr, from.ai_addrlen);
-    CHECK_RES_RETURN(res, "bind", res);
+    if (res == -1 && errno != EADDRINUSE) {
+        CHECK_RES_RETURN(res, "bind", res);
+    }
+    else if (res == -1 ) {
+        /*
+         * If there is more than one transparent mode proxy going on, such as
+         * using sslh as the target of stunnel also in transparent mode, then
+         * the (ip,port) combination will already be bound for the previous application.
+         * In that case, the best we can do is bind with a different port.
+         * This does mean the local server can't use the ident protocol as the port will
+         * have changed, but most people won't care.
+         * Also note that stunnel uses the same logic for the same situation.
+         */
+        struct sockaddr_in *sin;
+        sin = from.ai_addr;
+        sin->sin_port = 0; /* auto-pick an unused high port */
+        res = bind(fd, from.ai_addr, from.ai_addrlen);
+        CHECK_RES_RETURN(res, "bind", res);
+    }
 
     return 0;
 }
