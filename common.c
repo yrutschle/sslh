@@ -110,7 +110,7 @@ int make_listen_tfo(int s)
     return setsockopt(s, SOL_SOCKET, TCP_FASTOPEN, (char*)&qlen, sizeof(qlen));
 }
 
-/* Starts listening on a single address 
+/* Starts listening on a single address
  * Returns a socket filehandle, or dies with message in case of major error */
 int listen_single_addr(struct addrinfo* addr, int keepalive, int udp)
 {
@@ -262,7 +262,7 @@ int bind_peer(int fd, int fd_from)
     /* if the destination is the same machine, there's no need to do bind */
     if (is_same_machine(&from))
         return 0;
-    
+
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
     res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
     CHECK_RES_DIE(res, "setsockopt IP_TRANSPARENT");
@@ -278,10 +278,13 @@ int bind_peer(int fd, int fd_from)
     }
 #endif /* IP_TRANSPARENT / IP_BINDANY */
     res = bind(fd, from.ai_addr, from.ai_addrlen);
-    if (res == -1 && errno != EADDRINUSE) {
-        CHECK_RES_RETURN(res, "bind", res);
-    }
-    else if (res == -1 ) {
+    if (res == -1) {
+        if (errno != EADDRINUSE) {
+            print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__,
+                        "bind", errno, strerror(errno));
+            return res;
+        }
+
         /*
          * If there is more than one transparent mode proxy going on, such as
          * using sslh as the target of stunnel also in transparent mode, then
@@ -291,9 +294,7 @@ int bind_peer(int fd, int fd_from)
          * have changed, but most people won't care.
          * Also note that stunnel uses the same logic for the same situation.
          */
-        struct sockaddr_in *sin;
-        sin = from.ai_addr;
-        sin->sin_port = 0; /* auto-pick an unused high port */
+        ((struct sockaddr_in *)from.ai_addr)->sin_port = 0;
         res = bind(fd, from.ai_addr, from.ai_addrlen);
         CHECK_RES_RETURN(res, "bind", res);
     }
@@ -866,4 +867,3 @@ void write_pid_file(const char* pidfile)
         exit(3);
     }
 }
-
