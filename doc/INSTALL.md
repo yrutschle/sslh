@@ -1,3 +1,12 @@
+Pre-built binaries
+==================
+
+Docker images of `master` and of the tagged versions are
+available directly from [Github](https://github.com/yrutschle/sslh/pkgs/container/sslh).
+
+Windows binaries for Cygwin are graciouly produced by
+nono303 on his [repository](https://github.com/nono303/sslh).
+
 Compile and install
 ===================
 
