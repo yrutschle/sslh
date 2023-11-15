@@ -21,8 +21,9 @@ address.
 `sslh` has the bells and whistles expected from a mature
 daemon: privilege and capabilities dropping, inetd support,
 systemd support, transparent proxying, chroot, logging,
-IPv4 and IPv6, TCP and UDP, a fork-based and a select-based
-model, and more.
+IPv4 and IPv6, TCP and UDP, a fork-based, a select-based
+model, and yet another based on libev for larger
+installations.
 
 Install
 =======
