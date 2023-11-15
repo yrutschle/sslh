@@ -3,8 +3,10 @@
 *.o
 cscope.*
 echosrv
+libsslh.a
 sslh-fork
 sslh-select
+sslh-ev
 sslh.8.gz
 tags
 version.h
