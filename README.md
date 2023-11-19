@@ -66,7 +66,7 @@ version: "3"
 
 services:
   sslh:
-    image: sslh:latest
+    image: ghcr.io/yrutschle/sslh:latest
     hostname: sslh
     ports:
       - 443:443
