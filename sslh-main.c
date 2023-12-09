@@ -283,6 +283,7 @@ int main(int argc, char *argv[], char* envp[])
 
    if (cfg.user || cfg.chroot)
        drop_privileges(cfg.user, cfg.chroot);
+   setup_landlock();
 
    printcaps();
 

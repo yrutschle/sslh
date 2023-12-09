@@ -183,4 +183,8 @@ void start_shoveler(int);
 
 void main_loop(struct listen_endpoint *listen_sockets, int num_addr_listen);
 
+/* landlock.c */
+void setup_landlock(void);
+
+
 #endif

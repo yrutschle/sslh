@@ -1,3 +1,7 @@
+vNEXT:
+	Support for the Landlock LSM. After initial setup,
+	sslh gives up all local file access rights.
+
 v2.0.1:	
 	Fix resolve_on_forward setting, which would crash
 	sslh reliably.

@@ -9,6 +9,7 @@ USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBEV=1	# Use libev?
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
+USELANDLOCK=1	# Use the landlock LSM?
 USESYSTEMD=     # Make use of systemd socket activation
 USELIBBSD?=     # Use libbsd (needed to update process name in `ps`)
 COV_TEST= 	# Perform test coverage?
@@ -35,7 +36,7 @@ CFLAGS +=-Wall -O2 -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
 
 
 LIBS=-lm -lpcre2-8
-OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o
+OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o landlock.o
 OBJS_A=libsslh.a
 FORK_OBJS=sslh-fork.o $(OBJS_A)
 SELECT_OBJS=processes.o udp-listener.o sslh-select.o hash.o tcp-listener.o $(OBJS_A)
@@ -76,6 +77,12 @@ endif
 ifneq ($(strip $(USELIBEV)),)
         CONDITIONAL_TARGETS+=sslh-ev
 endif
+
+ifneq ($(strip $(USELANDLOCK)),)
+        CPPFLAGS+=-DLANDLOCK
+endif
+
+
 
 all: sslh-fork sslh-select $(MAN) echosrv $(CONDITIONAL_TARGETS)
 
