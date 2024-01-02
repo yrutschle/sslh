@@ -1,3 +1,11 @@
+v1.23.0:
+	Obsolete. Please use v2.0 or above. This is a branch
+	where no new features will be introduced, only
+	bugfixes to versions below 1.22.
+
+	Reintroduce --ssl as alias to --tls.
+
+
 v1.22: 17AUG2021
 	sslh-select now supports UDP protocols.
 	Probes specified in the `protocols`
