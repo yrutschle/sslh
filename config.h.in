@@ -1,0 +1,9 @@
+
+
+#ifndef CONFIG_H
+/* Template for config.h, filled by `configure`. */
+
+/* Landlock sandboxing Linux LSM */
+#undef HAVE_LANDLOCK
+
+#endif

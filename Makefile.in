@@ -3,13 +3,13 @@ VERSION=$(shell ./genver.sh -r)
 
 # Configuration -- you probably need to `make clean` if you
 # change any of these
+# landlock is checked by `configure` and set in config.h
 ENABLE_SANITIZER= # Enable ASAN/LSAN/UBSAN
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBEV=1	# Use libev?
 USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
-USELANDLOCK=1	# Use the landlock LSM?
 USESYSTEMD=     # Make use of systemd socket activation
 USELIBBSD?=     # Use libbsd (needed to update process name in `ps`)
 COV_TEST= 	# Perform test coverage?
@@ -78,12 +78,6 @@ ifneq ($(strip $(USELIBEV)),)
         CONDITIONAL_TARGETS+=sslh-ev
 endif
 
-ifneq ($(strip $(USELANDLOCK)),)
-        CPPFLAGS+=-DLANDLOCK
-endif
-
-
-
 all: sslh-fork sslh-select $(MAN) echosrv $(CONDITIONAL_TARGETS)
 
 %.o: %.c %.h version.h
@@ -122,6 +116,9 @@ echosrv-conf.c echosrv-conf.h: echosrv.cfg
 
 echosrv: version.h echosrv-conf.c echosrv.o echosrv-conf.o argtable3.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o echosrv-conf.o argtable3.o $(LIBS)
+
+
+landlock.o: config.h
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)

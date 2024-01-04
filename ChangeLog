@@ -4,6 +4,8 @@ vNEXT:
 
 	Reintroduced --ssl as an alias to --tls.
 
+	Introduce autoconf to adapt to landlock presence.
+
 v2.0.1:	
 	Fix resolve_on_forward setting, which would crash
 	sslh reliably.

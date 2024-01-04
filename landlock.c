@@ -20,14 +20,16 @@
 #
 */
 
-#ifdef LANDLOCK
+#include "config.h"
+#include "log.h"
+
+#ifdef HAVE_LANDLOCK
 
 #define _GNU_SOURCE
 #include <linux/landlock.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 
-#include "log.h"
 
 #ifndef landlock_create_ruleset
 static inline int
@@ -103,9 +105,10 @@ void setup_landlock(void)
     print_message(msg_config, "Landlock: all restricted\n");
 }
 
-#else
+#else /* HAVE_LANDLOCK */
 void setup_landlock(void)
 {
+    print_message(msg_config, "Landlock: not built in\n");
     return;
 }
-#endif
+#endif /* HAVE_LANDLOCK */
