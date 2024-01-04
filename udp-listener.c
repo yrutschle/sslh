@@ -36,10 +36,10 @@
 
 static int cnx_cmp(struct connection* cnx1, struct connection* cnx2)
 {
-    struct sockaddr* addr1 = &cnx1->client_addr;
+    struct sockaddr_storage* addr1 = &cnx1->client_addr;
     socklen_t addrlen1 = cnx1->addrlen;
 
-    struct sockaddr* addr2 = &cnx2->client_addr;
+    struct sockaddr_storage* addr2 = &cnx2->client_addr;
     socklen_t addrlen2 = cnx2->addrlen;
 
     if (addrlen1 != addrlen2) return -1;
@@ -52,13 +52,13 @@ static int cnx_cmp(struct connection* cnx1, struct connection* cnx2)
  * lowest bytes of remote port */
 static int hash_make_key(hash_item new)
 {
-    struct sockaddr* addr = &new->client_addr;
+    struct sockaddr_storage* addr = &new->client_addr;
     //socklen_t addrlen = new->addrlen;
     struct sockaddr_in* addr4;
     struct sockaddr_in6* addr6;
     int out;
 
-    switch (addr->sa_family) {
+    switch (((struct sockaddr*)addr)->sa_family) {
     case AF_INET:
         addr4 = (struct sockaddr_in*)addr;
         out = addr4->sin_port;
@@ -327,7 +327,7 @@ void udp_s2c_forward(struct connection* cnx)
     if ((res == -1) && ((errno == EAGAIN) || (errno == EWOULDBLOCK))) return;
     CHECK_RES_DIE(res, "udp_listener/recvfrom");
     res = sendto(cnx->local_endpoint, data, res, 0,
-                 &cnx->client_addr, cnx->addrlen);
+                 (struct sockaddr*)&cnx->client_addr, cnx->addrlen);
     mark_active(cnx);
 }
 
