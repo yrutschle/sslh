@@ -16,7 +16,7 @@ RUN apk add --no-cache \
 
 COPY . /sslh
 
-RUN make sslh-select && strip sslh-select
+RUN ./configure && make sslh-select && strip sslh-select
 
 FROM docker.io/${TARGET_ARCH}/alpine:${ALPINE_VERSION}
 
