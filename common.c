@@ -549,7 +549,8 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 }
 
 /* Turns a hostname and port (or service) into a list of struct addrinfo
- * returns 0 on success, -1 otherwise and logs error
+ * On success, returns 0 
+ * On failure, returns -1 or one of getaddrinfo() codes
  */
 int resolve_split_name(struct addrinfo **out, char* host, char* serv)
 {
