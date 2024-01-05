@@ -575,7 +575,7 @@ int resolve_split_name(struct addrinfo **out, char* host, char* serv)
 
    res = getaddrinfo(host, serv, &hint, out);
    if (res)
-      print_message(msg_system_error, "%s `%s:%s'\n", gai_strerror(res), host, serv);
+      print_message(msg_system_error, "resolve_split_name: %s `%s:%s'\n", gai_strerror(res), host, serv);
    return res;
 }
 
