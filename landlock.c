@@ -59,6 +59,36 @@ static inline int landlock_restrict_self(const int ruleset_fd,
 }
 #endif
 
+typedef enum {
+    LL_TREE,
+    LL_FILE
+} ll_obj_type;
+
+static int add_path_ro(int ruleset_fd, ll_obj_type otype, const char* path)
+{
+    int fd = open(path, O_PATH | O_CLOEXEC);
+    if (fd < 0) {
+        print_message(msg_config_error, "Landlock: Failed to open %s: %s\n", path, strerror(errno));
+        return -1;
+    }
+
+    struct landlock_path_beneath_attr path_beneath = {
+        .allowed_access = (otype == LL_TREE ? LANDLOCK_ACCESS_FS_READ_DIR : 0 ) |
+                          LANDLOCK_ACCESS_FS_READ_FILE,
+        .parent_fd = fd,
+    };
+
+    int res = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH, &path_beneath, 0);
+    if (res) {
+        print_message(msg_config_error, "Landlock: Failed to update the ruleset with \"%s\": %s\n",
+                path, strerror(errno));
+        close(path_beneath.parent_fd);
+        return -1;
+    }
+
+    return 0;
+}
+
 
 void setup_landlock(void)
 {
@@ -90,7 +120,15 @@ void setup_landlock(void)
         return;
     }
 
-    /* No call to landlock_add_rule: we retain no rights whatsoever */
+    /* Access to libraries, to be able to fork */
+    add_path_ro(ruleset_fd, LL_TREE, "/lib");
+    add_path_ro(ruleset_fd, LL_TREE, "/usr/lib");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/ld.so.cache");  /* To avoid searching all libs... */
+
+    /* Files to resolve names (required when dynamic resolution is used) */
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/resolv.conf");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/nsswitch.conf");
 
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         print_message(msg_config_error, "Landlock: Failed to restrict privileges");
