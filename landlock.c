@@ -30,6 +30,10 @@
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 
+/* Ubuntu 22.04 does not have this symbol */
+#ifndef LANDLOCK_ACCESS_FS_REFER
+#define LANDLOCK_ACCESS_FS_REFER			(1ULL << 13)
+#endif
 
 #ifndef landlock_create_ruleset
 static inline int
