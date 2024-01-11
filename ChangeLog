@@ -1,8 +1,14 @@
-v1.23.0:
+
+v1.23.x:
 	Obsolete. Please use v2.0 or above. This is a branch
 	where no new features will be introduced, only
 	bugfixes to versions below 1.22.
 
+v1.23.1:
+	Check accept() for failure in sslh-fork. Aborted
+	connections otherwise result in crashes.
+
+v1.23.0:
 	Reintroduce --ssl as alias to --tls.
 
 
