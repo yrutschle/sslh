@@ -224,6 +224,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                 print_message(msg_config_error, "UDP not (yet?) supported in sslh-fork\n");
             else
                 tcp_listener(listen_sockets, num_addr_listen, i);
+
+            exit(0);
 	    break;
 
 	/* We're in the parent, we don't need to do anything */
