@@ -99,12 +99,8 @@ Then you can run sslh-select as an unprivileged user, e.g.:
 Transparent proxy support
 -------------------------
 
-Transparent proxying allows the target server to see the
-original client IP address, i.e. `sslh` becomes invisible.
-This makes it easier to use the server's logs, and potential
-IP-based banning ability.
-
-Set up can get complicated, so it has its own [document](tproxy.md).
+Transparent proxying is described in its own
+[document](tproxy.md).
 
 Systemd Socket Activation
 -------------------------

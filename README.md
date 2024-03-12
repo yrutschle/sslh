@@ -36,6 +36,18 @@ Configuration
 
 Please refer to the [configuration guide](doc/config.md).
 
+Transparent proxying allows the target server to see the
+original client IP address, i.e. `sslh` becomes invisible.
+This makes it easier to use the server's logs, and potential
+IP-based banning ability.
+
+Configuration of transparent proxying is highly dependent on
+your network environment and infrastructure setup. There is
+no known generic approach, and if you do not find directions
+for your exact setup, you will probably need an extensive
+knowledge of network management and iptables setup".
+
+It is described in its own [document](tproxy.md).
 
 
 Docker image
