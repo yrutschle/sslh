@@ -1,4 +1,4 @@
-vNEXT:
+v2.1.0:
 	Support for the Landlock LSM. After initial setup,
 	sslh gives up all local file access rights.
 
