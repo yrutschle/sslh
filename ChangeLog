@@ -6,6 +6,9 @@ vNEXT:
 
 	Introduce autoconf to adapt to landlock presence.
 
+	Close connexion without error message if remote
+	client forcefully closes connexion, for Windows.
+
 v2.0.1:	
 	Fix resolve_on_forward setting, which would crash
 	sslh reliably.

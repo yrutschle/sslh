@@ -482,6 +482,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
            return FD_NODATA;
 
        case ECONNRESET:
+       case ENOTSOCK:
        case EPIPE:
            return FD_CNXCLOSED;
        }
