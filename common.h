@@ -5,6 +5,7 @@
  * enough for the macros to adapt (http://support.microsoft.com/kb/111855)
  */
 #ifdef __CYGWIN__
+#undef FD_SETSIZE
 #define FD_SETSIZE 4096
 #endif
 
