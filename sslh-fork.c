@@ -167,11 +167,7 @@ void set_listen_procname(struct listen_endpoint *listen_socket)
 /* At least MacOS does not know these two options, so define them to something
  * equivalent for our use case */
 #ifndef ENONET
-#define ENONET ENETDOWN
-#endif
-
-#ifndef EOPNOTSUPP
-#define EOPNOTSUPP ENETDOWN
+#define ENONET EWOULDBLOCK
 #endif
 /* /MacOS kludge */
 
