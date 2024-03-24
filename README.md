@@ -47,7 +47,7 @@ no known generic approach, and if you do not find directions
 for your exact setup, you will probably need an extensive
 knowledge of network management and iptables setup".
 
-It is described in its own [document](tproxy.md).
+It is described in its own [document](doc/tproxy.md).
 
 
 Docker image
