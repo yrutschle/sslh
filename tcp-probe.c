@@ -60,13 +60,13 @@ int probe_client_protocol(struct connection *cnx)
 
 static void tcp_protocol_list_init(void)
 {
+    tcp_protocols = calloc(cfg.protocols_len, sizeof(tcp_protocols));
+    CHECK_ALLOC(tcp_protocols, "tcp_protocols");
     for (int i = 0; i < cfg.protocols_len; i++) {
         struct sslhcfg_protocols_item* p = &cfg.protocols[i];
         if (!p->is_udp) {
+            tcp_protocols[tcp_protocols_len] = p;
             tcp_protocols_len++;
-            tcp_protocols = realloc(tcp_protocols, tcp_protocols_len * sizeof(*tcp_protocols));
-            CHECK_ALLOC(tcp_protocols, "realloc");
-            tcp_protocols[tcp_protocols_len-1] = p;
         }
     }
 }
