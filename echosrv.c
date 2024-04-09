@@ -151,7 +151,7 @@ void udp_echo(struct listen_endpoint* listen_socket)
 
     while (1) {
         addrlen = sizeof(src_addr);
-        size_t len = recvfrom(listen_socket->socketfd, 
+        ssize_t len = recvfrom(listen_socket->socketfd,
                            data + prefix_len,
                            sizeof(data) - prefix_len,
                            0,
@@ -166,7 +166,7 @@ void udp_echo(struct listen_endpoint* listen_socket)
 
         print_udp_xchange(listen_socket->socketfd, &src_addr, addrlen);
 
-        int res = sendto(listen_socket->socketfd,
+        ssize_t res = sendto(listen_socket->socketfd,
                          data,
                          len + prefix_len,
                          0,
