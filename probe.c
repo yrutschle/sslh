@@ -323,7 +323,7 @@ static int is_adb_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
     if (len < min_data_packet_size + sizeof(empty_message))
         return PROBE_AGAIN;
 
-    if (memcmp(&p[0], empty_message, sizeof(empty_message)))
+    if (memcmp(&p[0], empty_message, sizeof(empty_message)) != 0)
         return PROBE_NEXT;
 
     return probe_adb_cnxn_message(&p[sizeof(empty_message)]);
