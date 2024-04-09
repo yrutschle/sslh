@@ -224,7 +224,7 @@ parse_server_name_extension(const struct TLSProtocol *tls_data, const char *data
         switch (data[pos]) { /* name type */
             case 0x00: /* host_name */
                 if(has_match(tls_data->sni_hostname_list, tls_data->sni_list_len, data + pos + 3, len)) {
-                    return len;
+                    return (int)len;
                 } else {
                     return TLS_ENOEXT;
                 }
@@ -253,7 +253,7 @@ parse_alpn_extension(const struct TLSProtocol *tls_data, const char *data, size_
             return TLS_EPROTOCOL;
 
         if (len > 0 && has_match(tls_data->alpn_protocol_list, tls_data->alpn_list_len, data + pos + 1, len)) {
-            return len;
+            return (int)len;
         } else if (len > 0) {
             print_message(msg_probe_error, "Unknown ALPN name: %.*s\n", (int)len, data + pos + 1);
         }
@@ -301,11 +301,11 @@ struct TLSProtocol *
 tls_data_set_list(struct TLSProtocol *tls_data, int alpn, const char** list, size_t list_len) {
     if (alpn) {
         tls_data->alpn_protocol_list = list;
-        tls_data->alpn_list_len = list_len;
+        tls_data->alpn_list_len = (int)list_len;
         tls_data->match_mode.tls_match_alpn = 1;
     } else {
         tls_data->sni_hostname_list = list;
-        tls_data->sni_list_len = list_len;
+        tls_data->sni_list_len = (int)list_len;
         tls_data->match_mode.tls_match_sni = 1;
     }
 

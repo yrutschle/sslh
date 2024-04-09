@@ -391,7 +391,7 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 }
 
 /* Store some data to write to the queue later */
-int defer_write(struct queue *q, void* data, int data_size)
+int defer_write(struct queue *q, void* data, ssize_t data_size)
 {
     char *p;
     ptrdiff_t data_offset = q->deferred_data - q->begin_deferred_data;
@@ -403,7 +403,7 @@ int defer_write(struct queue *q, void* data, int data_size)
     q->begin_deferred_data = p;
     q->deferred_data = p + data_offset;
     p += data_offset + q->deferred_data_size;
-    q->deferred_data_size += data_size;
+    q->deferred_data_size += (int)data_size;
     memcpy(p, data, data_size);
 
     return 0;
@@ -415,13 +415,13 @@ int defer_write(struct queue *q, void* data, int data_size)
  * */
 int flush_deferred(struct queue *q)
 {
-    int n;
+    ssize_t n;
 
     print_message(msg_fd, "flushing deferred data to fd %d\n", q->fd);
 
     n = write(q->fd, q->deferred_data, q->deferred_data_size);
     if (n == -1)
-        return n;
+        return (int)n;
 
     if (n == q->deferred_data_size) {
         /* All has been written -- release the memory */
@@ -432,10 +432,10 @@ int flush_deferred(struct queue *q)
     } else {
         /* There is data left */
         q->deferred_data += n;
-        q->deferred_data_size -= n;
+        q->deferred_data_size -= (int)n;
     }
 
-    return n;
+    return (int)n;
 }
 
 
@@ -470,7 +470,8 @@ void dump_connection(struct connection *cnx)
 int fd2fd(struct queue *target_q, struct queue *from_q)
 {
    char buffer[BUFSIZ];
-   int target, from, size_r, size_w;
+   int target, from;
+   ssize_t size_r, size_w;
 
    target = target_q->fd;
    from = from_q->fd;
@@ -515,7 +516,7 @@ int fd2fd(struct queue *target_q, struct queue *from_q)
 
    CHECK_RES_RETURN(size_w, "write", FD_CNXCLOSED);
 
-   return size_w;
+   return (int)size_w;
 }
 
 /* returns a string that prints the IP and port of the sockaddr */
