@@ -7,7 +7,7 @@ should be avoided as it is very inefficient on Windows, but
 The following script downloads the latest cygwin, the latest version of sslh, and then compiles and copies the binaries with dependancies to an output folder.
 
 It may be needed to correct it from time to time, but it works. I use it in a virtual machine.
-Just retrieve WGET.EXE from [https://eternallybored.org/misc/wget/](url) or git binaries.
+Just retrieve WGET.EXE from https://eternallybored.org/misc/wget/ or git binaries.
 
 Copy the 3 files
 
