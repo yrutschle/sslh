@@ -62,9 +62,10 @@ void check_res_dump(int res, struct addrinfo *addr, char* syscall)
 
 void start_echo(int fd)
 {
-    int res;
+    ssize_t res;
     char buffer[1 << 20];
-    int ret, prefix_len;
+    ssize_t ret;
+    size_t prefix_len;
     int first = 1;
 
     prefix_len = strlen(cfg.prefix);
