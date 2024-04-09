@@ -259,7 +259,8 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     struct connection* cnx;
     ssize_t len;
     socklen_t addrlen;
-    int res, target, out = -1;
+    ssize_t res;
+    int target, out = -1;
     char data[65536]; /* Theoretical max is 65507 (https://en.wikipedia.org/wiki/User_Datagram_Protocol).
                          This will do.  Dynamic allocation is possible with the MSG_PEEK flag in recvfrom(2), but that'd imply
                          malloc/free overhead for each packet, when really 64K is not that much */
@@ -280,7 +281,7 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
                   len, target, sprintaddr(addr_str, sizeof(addr_str), &addrinfo));
 
     if (target == -1) {
-        res = probe_buffer(data, len, udp_protocols, udp_protocols_len, &proto);
+        res = probe_buffer(data, (int)len, udp_protocols, udp_protocols_len, &proto);
         /* First version: if we can't work out the protocol from the first
          * packet, drop it. Conceivably, we could store several packets to
          * run probes on packet sets */
@@ -324,7 +325,7 @@ void udp_s2c_forward(struct connection* cnx)
 {
     int sockfd = cnx->target_sock;
     char data[65536];
-    int res;
+    ssize_t res;
 
     res = recvfrom(sockfd, data, sizeof(data), 0, NULL, NULL);
     if ((res == -1) && ((errno == EAGAIN) || (errno == EWOULDBLOCK))) return;
