@@ -3,7 +3,7 @@ Description=SSL/SSH multiplexer (fork mode) for %I
 After=network.target
 
 [Service]
-EnvironmentFile=/etc/conf.d/sslh
+EnvironmentFile=/etc/default/sslh
 ExecStart=/usr/sbin/sslh -F/etc/sslh/%I.cfg -f $DAEMON_OPTS
 KillMode=process
 #Hardening
