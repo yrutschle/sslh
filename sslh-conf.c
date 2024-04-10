@@ -2239,10 +2239,13 @@ int sslhcfg_cl_parse(int argc, char* argv[], struct sslhcfg_item* cfg)
     /* Parse command line */
     nerrors = arg_parse(argc, argv, argtable);
     if (nerrors) {
-        arg_print_errors(stdout, sslhcfg_end, "sslhcfg"); 
+        // print bad args
+        arg_print_errors(stdout, sslhcfg_end, "sslhcfg");
+        // print usage
         arg_print_syntax(stdout, argtable, "\n");
+        // print options
         arg_print_glossary(stdout, argtable, "  %-25s\t%s\n");
-        return -1;
+        fprintf(stderr, "Invalid args are ignored, please fix them\n");
     }
 
 
