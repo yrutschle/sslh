@@ -853,19 +853,19 @@ void write_pid_file(const char* pidfile)
 
     f = fopen(pidfile, "w");
     if (!f) {
-        print_message(msg_system_error, "write_pid_file:%s:%s", pidfile, strerror(errno));
-        exit(3);
+        print_message(msg_system_error, "write_pid_file: %s: %s\n", pidfile, strerror(errno));
+        return;
     }
 
     res = fprintf(f, "%d\n", getpid());
     if (res < 0) {
-        print_message(msg_system_error, "write_pid_file:fprintf:%s", strerror(errno));
-        exit(3);
+        print_message(msg_system_error, "write_pid_file: fprintf: %s\n", strerror(errno));
+        return;
     }
 
     res = fclose(f);
     if (res == EOF) {
-        print_message(msg_system_error, "write_pid_file:fclose:%s", strerror(errno));
-        exit(3);
+        print_message(msg_system_error, "write_pid_file: fclose: %s\n", strerror(errno));
+        return;
     }
 }
