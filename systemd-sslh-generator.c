@@ -88,7 +88,7 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
                 } else {
                     char *resolved_listen = resolve_listen(hostname, port);
 
-                    (*listen)[i] = malloc(strlen(resolved_listen));
+                    (*listen)[i] = malloc(strlen(resolved_listen) + 1);
                     CHECK_ALLOC((*listen)[i], "malloc");
                     strcpy((*listen)[i], resolved_listen);
                     free(resolved_listen);
