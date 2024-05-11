@@ -48,7 +48,7 @@ static const char
                        "PartOf=sslh@%s.socket\n";
 
 static char *resolve_listen(const char *hostname, const char *port) {
-    char *conn = malloc(strlen(hostname) + strlen(port) + 2);
+    char *conn = calloc(1, strlen(hostname) + strlen(port) + 2);
     CHECK_ALLOC(conn, "malloc")
     strcpy(conn, hostname);
     strcat(conn, ":");
@@ -86,12 +86,7 @@ static int get_listen_from_conf(const char *filename, char **listen[]) {
                             config_setting_source_line(addr));
                     return -1;
                 } else {
-                    char *resolved_listen = resolve_listen(hostname, port);
-
-                    (*listen)[i] = malloc(strlen(resolved_listen));
-                    CHECK_ALLOC((*listen)[i], "malloc");
-                    strcpy((*listen)[i], resolved_listen);
-                    free(resolved_listen);
+                    (*listen)[i] = resolve_listen(hostname, port);
                 }
             }
         }
