@@ -37,6 +37,7 @@
 #include "common.h"
 #include "probe.h"
 #include "log.h"
+#include "tcp-probe.h"
 
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
@@ -246,6 +247,7 @@ int main(int argc, char *argv[], char* envp[])
    if (cfg.inetd)
    {
        close(fileno(stderr)); /* Make sure no error will go to client */
+       tcp_init();
        start_shoveler(0);
        exit(0);
    }
