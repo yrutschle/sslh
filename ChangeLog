@@ -1,5 +1,8 @@
-v2.1.1:
+v2.1.2:
 	Fix inetd mode.
+
+v2.1.1:
+	Various minor fixes.
 
 v2.1.0:
 	Support for the Landlock LSM. After initial setup,
