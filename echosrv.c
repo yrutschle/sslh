@@ -163,7 +163,7 @@ void udp_echo(struct listen_endpoint* listen_socket)
             perror("recvfrom");
         }
         *(data + prefix_len + len) = 0;
-        fprintf(stderr, "%ld: %s\n", len, data + prefix_len);
+        fprintf(stderr, "%zd %s\n", len, data + prefix_len);
 
         print_udp_xchange(listen_socket->socketfd, &src_addr, addrlen);
 
