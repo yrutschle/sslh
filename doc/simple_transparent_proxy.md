@@ -60,15 +60,30 @@ We only need firewall protection for this specific ip address, when we have acti
 
 As described, we need as a first step a dedicated interface, just for the services, sslh should hide. Its possible, to generate individual interfaces for different configurations, however, that makes things again more complex and has no advantages seen so far.
 
+### Named Routing Table ###
+As we configure the needed routing rules in the interface configuration, we need to define a name for the sslh routing table first.
+Using named routing tables helps, understanding the routing configuration, as a name indicates, why this routing table is configured.
+To do so go to  _**/etc/iproute2/rt_tables**_ and add a line
+
+```
+ 111     sslh
+```
+
 ### Dummy Interface ###
+Now we configure our dedicatet interface.
 In the file _**/etc/network/interfaces**_, we place this entry:
 ```
 auto dummy0
 iface dummy0 inet static
     address 192.168.255.254/32
     pre-up modprobe dummy
-    ## Attention! with kernels, not automatically creating a dummy0 interface after module loading this line should be:
+    ## Attention! with kernels, not automatically creating a dummy0
+    ## interface after module loading the following line should be:
     ## pre-up modprobe dummy; if [ ! -e /sys/class/net/dummy0 ]; then ip link add dummy0 type dummy ; fi
+    post-up ip rule add from 192.168.255.254 table sslh
+    post-up ip route add local 0.0.0.0/0 dev dummy0 table sslh
+    pre-down ip route del local 0.0.0.0/0 dev dummy0 table sslh
+    pre-down ip rule del from 192.168.255.254 table sslh
 ```
 As long, as your system has no other interfaces with private address-space, or is routing such addresses, you can continue with the given example. Otherwise you need to select a conflict free address.
 If you are updating a older current configuration, make sure, that you have no longer insecure localnet routing in place:
@@ -78,196 +93,39 @@ If you are updating a older current configuration, make sure, that you have no l
 ```
 should both report "0"!
 
-Now go to  _**/etc/iproute2/rt_tables**_ and add a line `111     sslh`
 
-In your startup configuration, you need only two lines before starting the sslh service. Thise lines are:
-```
-        ip rule add from 192.168.255.254 table sslh
-        ip route add local 0.0.0.0/0 dev dummy0 table sslh
-```
+### Explanation Of The Routing Rules ###
+The two routing rules in the dummy0 interface configuration are the key for this configuration.
 
-The first line is an routing rule entry, routing everything coming from the dummy0 ip source address to a specual routing table _**sslh**_. The next line generates this table implicitly, by inserting a single rule, routing all from that ip address to dummy0.
+The first line is an routing rule entry, routing everything coming from the dummy0 ip source address to a special routing table _**sslh**_. 
 
-A startup script for sysv-init.d (debian ) is provided here:
-```
-#! /bin/sh
-### BEGIN INIT INFO
-# Provides:          sslh
-# Required-Start:    $remote_fs $syslog $network
-# Required-Stop:     $remote_fs $syslog $network
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: ssl/ssh multiplexer
-# Description:       sslh lets one accept both HTTPS and SSH connections on the
-#                    same port. It makes it possible to connect to an SSH server
-#                    on port 443 (e.g. from inside a corporate firewall) while
-#                    still serving HTTPS on that port.
-### END INIT INFO
+The next line generates this table implicitly, by inserting a single rule, routing everything from that ip address to dummy0.
 
-# Author: Guillaume Delacour <gui@iroqwa.org>
+Opposite to other firewall based configurations, we have those rules now tied to the dummy0 device, dedicated to the hidden services.
+When this interface comes up, the routing rules are making sure, that no martian packets can leave the system, by some processes using this IP address. When the interface goes down, we delete those rules.
+Also the startup script needs lo longer special treatment for the transparent mode.
 
-# Do NOT "set -e"
 
-# PATH should only include /usr/* if it runs after the mountnfs.sh script
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="ssl/ssh multiplexer"
-NAME=sslh
-DAEMON=/usr/sbin/$NAME
-DAEMON_OPTS=""
-PIDFILE=/var/run/sslh/$NAME.pid
-SCRIPTNAME=/etc/init.d/$NAME
-RUN=yes
-
-# Read configuration variable file if it is present
-[ -r /etc/default/$NAME ] && . /etc/default/$NAME
-
-# Exit if the package is not installed
-[ -x "$DAEMON" ] || exit 0
-
-# Load the VERBOSE setting and other rcS variables
-. /lib/init/vars.sh
-
-# Define LSB log_* functions.
-# Depend on lsb-base (>= 3.2-14) to ensure that this file is present
-# and status_of_proc is working.
-. /lib/lsb/init-functions
-
-#
-# Function that starts the daemon/service
-#
-do_start()
-{
-        # Return
-        #   0 if daemon has been started
-        #   1 if daemon was already running
-        #   2 if daemon could not be started
-    
-    # Use this if you want the user to explicitly set 'RUN' in
-    # /etc/default/
-    if [ "$RUN" != "yes" ]
-    then
-        echo "$NAME disabled, please adjust the configuration to your needs "
-        log_failure_msg "and then set RUN to 'yes' in /etc/default/$NAME to enable it."
-        return 2
-    fi
-    
-        # sslh write the pid as sslh user
-        if [ ! -d /var/run/sslh/ ]
-        then
-                mkdir -p /var/run/sslh
-                chown sslh:sslh /var/run/sslh
-        fi
-        ip rule add from 192.168.255.254 table sslh
-        ip route add local 0.0.0.0/0 dev dummy0 table sslh
-        start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
-                || return 1
-        start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_OPTS \
-                || return 2   >>/dev/null
-        # Add code here, if necessary, that waits for the process to be ready
-        # to handle requests from services started subsequently which depend
-        # on this one.  As a last resort, sleep for some time.
-}
-
-#
-# Function that stops the daemon/service
-#
-do_stop()
-{
-        # Return
-        #   0 if daemon has been stopped
-        #   1 if daemon was already stopped
-        #   2 if daemon could not be stopped
-        #   other if a failure occurred
-        ip route del local 0.0.0.0/0 dev dummy0 table sslh
-        ip rule  del from 192.168.255.254 table sslh
-        start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME    >>/dev/null
-        RETVAL="$?"
-        [ "$RETVAL" = 2 ] && return 2
-        # Wait for children to finish too if this is a daemon that forks
-        # and if the daemon is only ever run from this initscript.
-        # If the above conditions are not satisfied then add some other code
-        # that waits for the process to drop all resources that could be
-        # needed by services started subsequently.  A last resort is to
-        # sleep for some time.
-        start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --exec $DAEMON    >>/dev/null
-        [ "$?" = 2 ] && return 2
-        # Many daemons don't delete their pidfiles when they exit.
-        rm -f $PIDFILE
-        return "$RETVAL"
-}
-
-#
-# Function that sends a SIGHUP to the daemon/service
-#
-do_reload() {
-        #
-        # If the daemon can reload its configuration without
-        # restarting (for example, when it is sent a SIGHUP),
-        # then implement that here.
-        #
-        start-stop-daemon --stop --signal 1 --quiet --pidfile $PIDFILE --name $NAME    >>/dev/null
-        return 0
-}
-
-case "$1" in
-  start)
-        # check if sslh is launched via inetd
-        if [ -f /etc/inetd.conf ] && [ $(egrep -q "^https.*/usr/sbin/sslh" /etc/inetd.conf|wc -l) -ne 0 ]
-        then
-                echo "sslh is started from inetd."
-                exit 1
-        fi
-
-        log_daemon_msg "Starting $DESC" "$NAME"
-        do_start
-        case "$?" in
-                0|1) log_end_msg 0 ;;
-                2) log_end_msg 1 ;;
-        esac
-        ;;
-  stop)
-        log_daemon_msg "Stopping $DESC" "$NAME"
-        do_stop
-        case "$?" in
-                0|1) log_end_msg 0 ;;
-                2) log_end_msg 1 ;;
-        esac
-        ;;
-  status)
-       status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
-       ;;
-  restart|force-reload)
-        log_daemon_msg "Restarting $DESC" "$NAME"
-        do_stop
-        case "$?" in
-          0|1)
-                do_start
-                case "$?" in
-                        0) log_end_msg 0 ;;
-                        1) log_end_msg 1 ;; # Old process is still running
-                        *) log_end_msg 1 ;; # Failed to start
-                esac
-                ;;
-          *)
-                # Failed to stop
-                log_end_msg 1
-                ;;
-        esac
-        ;;
-  *)
-        echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
-        exit 3
-        ;;
-esac
-
-:
-```
+#### SSLH Default Configuration ####
 And finally you need to configute _**/etc/default/sslh**_ with the right settings for all the services, sslh should work for.
 ```
 DAEMON_OPTS="--user sslh --listen SERVER_IP:443 --transparent  \
              --ssh 192.168.255.254:22 --tls 192.168.255.254:443 \
              --pidfile /var/run/sslh/sslh.pid"
 ```
- 
-This should also work with systemd, as that parses initd.d scripts. Perhaps some configuration remainders in other systemd configuration locations must be deleted or adapted. But not tried up to now.
 
+#### Systemd #### 
+This setup is now startup agnostic. As we don't need special treatment in the startup script, the sysV based init scripts will just work, like the systemd scripts. Nothing needs to be modified, when going transparent.
+
+#### Remote Setups ####
+This concept can also be adapted for several setups, where the sshd (or any other target service) is running in a container, kvm-virtual machine, etc.
+Precondition is, that the target system is the next hop and uses the sslh-hosting system as default gateway. In addition you need to bind an additional ip-address, solely used for sshd on the corresponding interface.
+Than you can adapt the routing rule, routing traffic coming back from this ip to the sslh-routing-table.
+Its also possible, to forward to an next hop system, which has its own default gateway back, bypassing the sslh-host.
+In this case, you need to add a special route back to the sslh host, for all traffic with the sshd source ip address. This can be done similar to the two rules described above:
+```
+  # first define a name for the table in /etc/iproute2/rt_tables e.g. sslh-routeback
+  ip rule from IPADRESS-OF-SERVIE table sslh-routeback
+  ip route add default via IPADDRESS-OF_SSLH-HOST dev eth0 #or other
+```
+The details are depending on your network settings. Als long, as the forward chain to the hidden service passes systems under your control, you can add backroutes on each system in that route. Precondition: The used ip address produces no conflict on those systems.
