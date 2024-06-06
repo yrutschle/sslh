@@ -125,7 +125,9 @@ Its also possible, to forward to an next hop system, which has its own default g
 In this case, you need to add a special route back to the sslh host, for all traffic with the sshd source ip address. This can be done similar to the two rules described above:
 ```
   # first define a name for the table in /etc/iproute2/rt_tables e.g. sslh-routeback
-  ip rule from IPADRESS-OF-SERVIE table sslh-routeback
-  ip route add default via IPADDRESS-OF_SSLH-HOST dev eth0 #or other
+  ip rule add from IPADRESS-OF-SERVIE table sslh-routeback
+  ip route add default via IPADDRESS-OF_SSLH-HOST dev eth0 table sslh-routeback
 ```
 The details are depending on your network settings. Als long, as the forward chain to the hidden service passes systems under your control, you can add backroutes on each system in that route. Precondition: The used ip address produces no conflict on those systems.
+
+[I added a second document](./scenarios-for-simple-transparent-proxy.md), describing three possible scenarios in detail. Those three scenarios should cover all setups related to transparent proxying. 
