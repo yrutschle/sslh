@@ -1,6 +1,6 @@
 # Three Scenarios for the simple transparent proxy setup #
 
-![Simple Transparent Proxy Examples](./sslh-examples-v1.png)
+![Simple Transparent Proxy Examples](./sslh-examples-v2.png)
 
 ## Introduction ##
 The first example is the configuration, which was described in the previousd document. I omitted the loopback interface "lo" in those diagrams, trying not no overload the picture. 
