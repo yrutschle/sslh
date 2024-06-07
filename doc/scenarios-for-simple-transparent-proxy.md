@@ -44,4 +44,6 @@ This is setting up a default route for all traffic, originating from the ip addr
 ## Modifications ##
 Now you can think about many modifications, but the tools will be the same, for all other thinkable scenarios. You must always make sure, that packets from foreign hosts, will find their way back to the sslh host. So if the chain consists of three or four servers, all need the deflection rules. 
 
-
+## Important Finding On Routing ##
+When I went ahead and wrote in my first drawings the warning, that the kernel in scenario 2 and 3 needs to have forwarding in place, I finally tested, that this is not true. **Both scenarios are working without kernel forwarding beeing activated!**
+The background:  The deflecting routing table cames into the game, before the kernel has to made the decision, that packets with non local ip addresses in source and destination must be forwarded. After the routing rule deliveres the packet to sslh and sslh rewrites the source ip, the packet is treated as local, and can pass the system.
