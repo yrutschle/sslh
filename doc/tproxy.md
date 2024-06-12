@@ -1,15 +1,11 @@
-# Transparent proxy
+# Transparent proxy using packet marking
 
-On Linux and FreeBSD you can use the `--transparent` option to
-request transparent proxying. This means services behind `sslh`
-(Apache, `sshd` and so on) will see the external IP and ports
-as if the external world connected directly to them. This
-simplifies IP-based access control (or makes it possible at
-all).
+Before reading further, make sure you try to set up
+transparent proxying using [IP routing](doc/simple_transparent_proxy.md).
+It is conceptually easier to understand, cleaner, and more
+portable.
 
-This document shows recipes that may help to do that.
-
-Note that getting this to work is very tricky and
+Using this method is very tricky and
 detail-dependant: depending on whether the target server and
 sslh are on the same machine, different machines, or
 different dockers, and tool versions, all seem to change the

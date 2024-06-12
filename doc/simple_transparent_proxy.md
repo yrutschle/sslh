@@ -1,4 +1,4 @@
-# Simple Transparent Proxy Configuration Explained #
+# Transparent Proxy Configuration Using IP Routing#
 This documentation is another explanation of the transparent proxy with the goal, beeing secure and minimalistic. Besides this documentation will explain, how and why this configuration works.
 The explanation will only describe the connection to sshd, so the target sshd can be replace with any other target service, sslh supports.
 

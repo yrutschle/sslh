@@ -36,18 +36,34 @@ Configuration
 
 Please refer to the [configuration guide](doc/config.md).
 
+Transparent proxying
+--------------------
+
 Transparent proxying allows the target server to see the
 original client IP address, i.e. `sslh` becomes invisible.
-This makes it easier to use the server's logs, and potential
-IP-based banning ability.
 
-Configuration of transparent proxying is highly dependent on
-your network environment and infrastructure setup. There is
-no known generic approach, and if you do not find directions
-for your exact setup, you will probably need an extensive
-knowledge of network management and iptables setup".
+This means services behind `sslh` (Apache, `sshd` and so on)
+will see the external IP and ports as if the external world
+connected directly to them. This simplifies IP-based access
+control (or makes it possible at all), and makes it possible
+to use IP-based banning tools such as `fail2ban`.
+
+There are two methods. One uses additional virtual network
+interfaces. The principle and basic setup is described
+[here](doc/simple_transparent_proxy.md), with further
+scenarios described [there](doc/scenarios-for-simple-transparent-proxy.md).
+
+
+Another method uses iptable packet marking features, and is
+highly dependent on your network environment and
+infrastructure setup. There is no known generic approach,
+and if you do not find directions for your exact setup, you
+will probably need an extensive knowledge of network
+management and iptables setup".
 
 It is described in its own [document](doc/tproxy.md).
+In most cases, you will be better off following the first
+method.
 
 
 Docker image
