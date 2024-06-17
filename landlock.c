@@ -112,6 +112,18 @@ static int add_resolv(int ruleset_fd)
     return 0;
 }
 
+static int add_libwrap(int ruleset_fd)
+{
+    /* Files for libwrap */
+#ifdef LIBWRAP
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts.allow");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts.deny");
+#endif
+
+    return 0;
+}
+
+
 
 void setup_landlock(void)
 {
@@ -147,6 +159,7 @@ void setup_landlock(void)
     /* Add all the paths we need */
     add_libs(ruleset_fd);
     add_resolv(ruleset_fd);
+    add_libwrap(ruleset_fd);
 
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         print_message(msg_config_error, "Landlock: Failed to restrict privileges");
