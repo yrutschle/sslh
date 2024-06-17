@@ -94,6 +94,25 @@ static int add_path_ro(int ruleset_fd, ll_obj_type otype, const char* path)
 }
 
 
+static int add_libs(int ruleset_fd)
+{
+    /* Access to libraries, to be able to fork */
+    add_path_ro(ruleset_fd, LL_TREE, "/lib");
+    add_path_ro(ruleset_fd, LL_TREE, "/usr/lib");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/ld.so.cache");  /* To avoid searching all libs... */
+    return 0;
+}
+
+static int add_resolv(int ruleset_fd)
+{
+    /* Files to resolve names (required when dynamic resolution is used) */
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/resolv.conf");
+    add_path_ro(ruleset_fd, LL_FILE, "/etc/nsswitch.conf");
+    return 0;
+}
+
+
 void setup_landlock(void)
 {
     __u64 restrict_rules = 
@@ -124,15 +143,10 @@ void setup_landlock(void)
         return;
     }
 
-    /* Access to libraries, to be able to fork */
-    add_path_ro(ruleset_fd, LL_TREE, "/lib");
-    add_path_ro(ruleset_fd, LL_TREE, "/usr/lib");
-    add_path_ro(ruleset_fd, LL_FILE, "/etc/ld.so.cache");  /* To avoid searching all libs... */
 
-    /* Files to resolve names (required when dynamic resolution is used) */
-    add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts");
-    add_path_ro(ruleset_fd, LL_FILE, "/etc/resolv.conf");
-    add_path_ro(ruleset_fd, LL_FILE, "/etc/nsswitch.conf");
+    /* Add all the paths we need */
+    add_libs(ruleset_fd);
+    add_resolv(ruleset_fd);
 
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
         print_message(msg_config_error, "Landlock: Failed to restrict privileges");
