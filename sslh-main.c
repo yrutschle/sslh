@@ -129,6 +129,27 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
 }
 #endif
 
+/* Perform some fixups on configuration after reading it.
+ * if verbose is present, override all other verbose options
+ */
+void config_finish(struct sslhcfg_item* cfg)
+{
+    if (cfg->verbose) {
+        cfg->verbose_config = cfg->verbose;
+	cfg->verbose_config_error = cfg->verbose;
+	cfg->verbose_connections = cfg->verbose;
+	cfg->verbose_connections_try = cfg->verbose;
+	cfg->verbose_connections_error = cfg->verbose;
+	cfg->verbose_fd = cfg->verbose;
+	cfg->verbose_packets = cfg->verbose;
+	cfg->verbose_probe_info = cfg->verbose;
+	cfg->verbose_probe_error = cfg->verbose;
+	cfg->verbose_system_error = cfg->verbose;
+	cfg->verbose_int_error = cfg->verbose;
+    }
+}
+
+
 /* For each protocol in the configuration, resolve address and set up protocol
  * options if required
  */
@@ -235,6 +256,9 @@ int main(int argc, char *argv[], char* envp[])
    memset(&cfg, 0, sizeof(cfg));
    res = sslhcfg_cl_parse(argc, argv, &cfg);
    if (res) exit(6);
+   config_finish(&cfg);
+
+   sslhcfg_fprint(stdout, &cfg, 0);
 
    if (cfg.version) {
        printf("%s %s\n", server_type, VERSION);
