@@ -12,19 +12,20 @@ GitHub.
 Getting more info
 =================
 
-In general, if something doesn't work, you'll want to run
-`sslh` with lots of logging, and the logging directly in
-the terminal (Otherwise, logs are sent to `syslog`, and
-usually end up in `/var/log/auth.log`). You will achieve
-this by running `sslh` in foreground with verbose:
+There are several `verbose` options that each enable a set
+of messages, each related to some event type. See
+`example.cfg` for a list of them.
+
+If something doesn't work, you'll want to run `sslh` with
+lots of logging, and the logging directly in the terminal
+(Otherwise, logs are sent to `syslog`, and usually end up in
+`/var/log/auth.log`). There is a general `--verbose` option
+that will allow you to enable all messages:
 
 ```
-sslh -v 1 -f -F myconfig.cfg
+sslh -v 3 -f -F myconfig.cfg
 ```
 
-Higher values of `verbose` produce more information. 1 is
-usually sufficient. 2 will also print incoming packets used
-for probing.
 
 forward to [PROBE] failed:connect: Connection refused
 =====================================================

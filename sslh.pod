@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [B<-F>I<config file>] [B<-t> I<num>] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...]  [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-C> I<chroot>] [B<-P> I<pidfile>] [-v] [-i] [-V] [-f] [-n]
+sslh [B<-F>I<config file>] [B<-t> I<num>] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...]  [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-C> I<chroot>] [B<-P> I<pidfile>] [B<-v> I<n>] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
@@ -164,9 +164,10 @@ specified on the command line, this should be specified
 last. If no default is specified, B<sslh> will forward
 unknown protocols to the first protocol specified.
 
-=item B<-v>, B<--verbose>
+=item B<-v>, B<--verbose> I<n>
 
-Increase verboseness.
+Override all verboseness. Refer to B<example.cfg> for all
+verbose sub-options.
 
 =item B<-n>, B<--numeric>
 
