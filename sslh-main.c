@@ -258,8 +258,6 @@ int main(int argc, char *argv[], char* envp[])
    if (res) exit(6);
    config_finish(&cfg);
 
-   sslhcfg_fprint(stdout, &cfg, 0);
-
    if (cfg.version) {
        printf("%s %s\n", server_type, VERSION);
        exit(0);
