@@ -3,7 +3,9 @@ VERSION=$(shell ./genver.sh -r)
 
 # Configuration -- you probably need to `make clean` if you
 # change any of these
-# landlock is checked by `configure` and set in config.h
+
+# uncomment the following line to disable landlock
+# override undefine HAVE_LANDLOCK
 ENABLE_SANITIZER= # Enable ASAN/LSAN/UBSAN
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
