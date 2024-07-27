@@ -76,10 +76,10 @@ Configuration goes like this on the server side, using `stunnel3`:
 Capabilities support
 --------------------
 
-On Linux (only?), you can compile sslh with `USELIBCAP=1` to
-make use of POSIX capabilities; this will save the required
-capabilities needed for transparent proxying for unprivileged
-processes.
+On Linux (only?), you can compile sslh with `USELIBCAP=1` set 
+in the Makefile to make use of POSIX capabilities; this will 
+save the required capabilities needed for transparent proxying 
+for unprivileged processes.
 
 Alternatively, you may use filesystem capabilities instead
 of starting sslh as root and asking it to drop privileges.
