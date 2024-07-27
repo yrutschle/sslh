@@ -243,12 +243,17 @@ int is_same_machine(struct addrinfo* from)
 
 /* Transparent proxying: bind the peer address of fd to the peer address of
  * fd_from */
-#define IP_TRANSPARENT 19
+#ifndef IP_TRANSPARENT
+  #define IP_TRANSPARENT 19
+#endif
+#ifndef IP_BIND_ADDRESS_NO_PORT
+  #define IP_BIND_ADDRESS_NO_PORT 24
+#endif
 int bind_peer(int fd, int fd_from)
 {
     struct addrinfo from;
     struct sockaddr_storage ss;
-    int res, trans = 1;
+    int res, enable = 1, disable = 0;
 
     memset(&from, 0, sizeof(from));
     from.ai_addr = (struct sockaddr*)&ss;
@@ -264,15 +269,17 @@ int bind_peer(int fd, int fd_from)
         return 0;
 
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
-    res = setsockopt(fd, IPPROTO_IP, IP_TRANSPARENT, &trans, sizeof(trans));
+    res = setsockopt(fd, SOL_IP, IP_TRANSPARENT, &enable, sizeof(enable));
     CHECK_RES_DIE(res, "setsockopt IP_TRANSPARENT");
+    res = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
+    CHECK_RES_DIE(res, "setsockopt SO_REUSEADDR");
 #else
     if (from.ai_addr->sa_family==AF_INET) { /* IPv4 */
-        res = setsockopt(fd, IPPROTO_IP, IP_BINDANY, &trans, sizeof(trans));
+        res = setsockopt(fd, IPPROTO_IP, IP_BINDANY, &enable, sizeof(enable));
         CHECK_RES_RETURN(res, "setsockopt IP_BINDANY", res);
 #ifdef IPV6_BINDANY
     } else { /* IPv6 */
-        res = setsockopt(fd, IPPROTO_IPV6, IPV6_BINDANY, &trans, sizeof(trans));
+        res = setsockopt(fd, IPPROTO_IPV6, IPV6_BINDANY, &enable, sizeof(enable));
         CHECK_RES_RETURN(res, "setsockopt IPV6_BINDANY", res);
 #endif /* IPV6_BINDANY */
     }
@@ -284,19 +291,30 @@ int bind_peer(int fd, int fd_from)
                         "bind", errno, strerror(errno));
             return res;
         }
-
-        /*
-         * If there is more than one transparent mode proxy going on, such as
-         * using sslh as the target of stunnel also in transparent mode, then
-         * the (ip,port) combination will already be bound for the previous application.
-         * In that case, the best we can do is bind with a different port.
-         * This does mean the local server can't use the ident protocol as the port will
-         * have changed, but most people won't care.
-         * Also note that stunnel uses the same logic for the same situation.
-         */
+        res = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &disable, sizeof(disable));
+        CHECK_RES_DIE(res, "setsockopt SO_REUSEADDR");
+        res = setsockopt(fd, SOL_IP, IP_BIND_ADDRESS_NO_PORT, &enable, sizeof(enable));
+        CHECK_RES_DIE(res, "setsockopt IP_BIND_ADDRESS_NO_PORT");
         ((struct sockaddr_in *)from.ai_addr)->sin_port = 0;
         res = bind(fd, from.ai_addr, from.ai_addrlen);
         CHECK_RES_RETURN(res, "bind", res);
+        /*
+	 * There was a serious problem, when daisy-chaining programs using the same
+	 * ip transparent mechanism, as sslh uses. stunnel was mentioned in a previous 
+	 * comment. This problem should now be solved through the two methods, getting
+	 * a connection established:
+	 * In the first try, SO_REUSEADDR is set to socket, which will allow the same
+	 * IP-address:port tuple, as it is used by another application. The check for
+	 * inconsistency with other connections (same 4-value-tupel) is done at the 
+	 * moment, when the connection gets established.
+	 * If that fails, SO_REUSEADDR gets removed and IP_BIND_ADDRESS_NO_PORT get set.
+	 * This will search for a free port, which will not collide with current 
+	 * connections. Read more in this excellent blog-post: 
+	 * https://blog.cloudflare.com/how-to-stop-running-out-of-ephemeral-ports-and-start-to-love-long-lived-connections
+	 * The problem will still appear, if the another application in the daisy-chain
+	 * does not use similar mechanisms. In that case you must either pull this 
+	 * application at the beginning of the chain, or get it fixed.
+         */
     }
 
     return 0;
