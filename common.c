@@ -294,7 +294,7 @@ int bind_peer(int fd, int fd_from)
         res = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &disable, sizeof(disable));
         CHECK_RES_DIE(res, "setsockopt SO_REUSEADDR");
         res = setsockopt(fd, SOL_IP, IP_BIND_ADDRESS_NO_PORT, &enable, sizeof(enable));
-        CHECK_RES_DIE(res, "setsockopt IP_BIND_ADDRESS_NO_PORT");
+        CHECK_RES_RETURN(res, "setsockopt IP_BIND_ADDRESS_NO_PORT");
         ((struct sockaddr_in *)from.ai_addr)->sin_port = 0;
         res = bind(fd, from.ai_addr, from.ai_addrlen);
         CHECK_RES_RETURN(res, "bind", res);
