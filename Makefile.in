@@ -86,8 +86,9 @@ all: sslh-fork sslh-select $(MAN) echosrv $(CONDITIONAL_TARGETS)
 $(OBJS_A): $(OBJS)
 	$(AR) rcs $(OBJS_A) $(OBJS)
 
-version.h:
+version.h: .FORCE
 	./genver.sh >version.h
+.FORCE:	
 
 $(OBJS) $(FORK_OBJS) $(SELECT_OBJS) $(EV_OBJS): argtable3.h collection.h common.h gap.h hash.h log.h probe.h processes.h sslh-conf.h tcp-listener.h tcp-probe.h tls.h udp-listener.h version.h
 
@@ -160,6 +161,7 @@ distclean: clean
 
 clean:
 	rm -f sslh-fork sslh-select $(CONDITIONAL_TARGETS) echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
+	echo "// this is a placeholder for version.h, to make code-checking editors happy" > version.h
 
 tags:
 	ctags --globals -T *.[ch]
