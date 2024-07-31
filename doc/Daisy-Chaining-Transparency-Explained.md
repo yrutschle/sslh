@@ -2,7 +2,7 @@
 This documentation goes a level deeper, what happens in the operating system with IP-addresses, and why some combinations of programs are failing, when they use the same transparency method.
 There are situations, where you need to combine two applications, both working as ip-transparent proxies, to reach your goal. One example is, having nginx or stunnel as an proxytunnel-endpoint for tls tunneled ssh connections through https-proxies. An example for such a combination will be desribed at the end of this article.<br>
 Unfortunately you will see a lot of errors popping out: **Address already in use**<br>
-This article explains why this is happening, while it is describing the solution to another problem. However this is a close relative to our problem.
+[This article from Cloudflare blog](https://blog.cloudflare.com/how-to-stop-running-out-of-ephemeral-ports-and-start-to-love-long-lived-connections) explains why this is happening, while it is describing the solution to another problem. However this is a close relative to our problem.
 
 Let us look to the following example: We have sslh (S) accepting connections from a client (C) and forwarding one of those connections to a man-in-the-middle (M), which finally forwards this connection to sshd. If everything works perfectly, we would like to see those connections.
 
