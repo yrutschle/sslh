@@ -68,9 +68,11 @@ To do so go to  _**/etc/iproute2/rt_tables**_ and add a line
 ```
  111     sslh
 ```
+With newer versions of iproute2 the /etc/iproute2 directory with the embedded templates got no longer installed. The cause maybe, that the example names, which were not used in any configuration, generated confusion. However, once you need those files, generate them and they will be honoured. You still can use just numbers for your routing table. But doing this, and having more than one routing table, you need a list, which numer belongs to which configuration. 
+And seeing in the output from `ip route list table all ` the tables names instead just numbers is worth creating the file.
 
 ### Dummy Interface ###
-Now we configure our dedicatet interface.
+Now we configure our dedicated interface.
 In the file _**/etc/network/interfaces**_, we place this entry:
 ```
 auto dummy0
@@ -91,7 +93,7 @@ If you are updating a older current configuration, make sure, that you have no l
  sysctl  net.ipv4.conf.default.route_localnet  
  sysctl net.ipv4.conf.all.route_localnet
 ```
-should both report "0"!
+should both report "0"! 
 
 
 ### Explanation Of The Routing Rules ###

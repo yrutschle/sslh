@@ -3,7 +3,7 @@
 ![Simple Transparent Proxy Examples](./sslh-examples-v3.png)
 
 ## Introduction ##
-The first example is the configuration, which was described in the previousd document. I omitted the loopback interface "lo" in those diagrams, trying not no overload the picture. 
+The first example is the configuration, which was described in the previous document. I omitted the loopback interface "lo" in those diagrams, trying not no overload the picture. 
 The connections have two different endings, showing the direction of the opening connection (SYN flag) and the answer connection (SYN-ACK flags). This is important, as the traffic in the transparent proxy setup flows somewhat unexpected.
 
 ## Example 1 ##
@@ -40,6 +40,8 @@ ip route add default via SERVER1_ETH1_IP dev eth0 table sslh_routeback
 
 ```
 This is setting up a default route for all traffic, originating from the ip address sshd (or any other service) is using, back to the host, hosting sslh. On that host, those packets will be deflected again with the same rule from scenario 2.
+
+Be aware, that scenario 3 can look very different and the picture above shows only one of those setups. Each configuration, where packets from the target system can find their way back, without beeing forcibly routed through the sslh hosting system, belongs into this category. This are e.g. virtual machines or containers, having interfaces in the same network, like the sslh hosting system. Even, when they look in some drawings embedded in their host, as soon, as they have network interfaces, allowing a direct connection to the client, it is scenario 3!
 
 ## Modifications ##
 Now you can think about many modifications, but the tools will be the same, for all other thinkable scenarios. You must always make sure, that packets from foreign hosts, will find their way back to the sslh host. So if the chain consists of three or four servers, all need the deflection rules. 
