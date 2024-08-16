@@ -272,7 +272,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     wait(NULL);
 }
 
-/* The actual main is in common.c: it's the same for both version of
+/* The actual main() is in sslh_main.c: it's the same for all versions of
  * the server
  */
 

@@ -287,6 +287,16 @@ int main(int argc, char *argv[], char* envp[])
 
    if (!cfg.foreground) {
        if (fork() > 0) exit(0); /* Detach */
+       // close stdin, stderr, stdout
+       int newfd;
+       if (newfd = open("/dev/null", O_RDWR)) {
+         dup2 (newfd, STDIN_FILENO);
+         dup2 (newfd, STDOUT_FILENO);
+         dup2 (newfd, STDERR_FILENO);
+         close(newfd);
+       } else {
+         print_message(msg_config, "Error closing standard filehandles for background daemon\n");
+       }
 
        /* New session -- become group leader */
        if (getuid() == 0) {
