@@ -289,9 +289,9 @@ int main(int argc, char *argv[], char* envp[])
        if (fork() > 0) exit(0); /* Detach */
        // close stdin, stderr, stdout
        int newfd;
-       // duplicating a handle connected to /dev/null to stdout and stderr
-       // so we don't run in any problems, when a control-job wor whats-o-ever will
-       // grab stdout and stderr
+       // duplicating a handle connected to /dev/null to stdin, stdout and stderr
+       // so we don't run in any problems, when a control-job or whats-o-ever will
+       // grab the those handles.
        if ((newfd = open("/dev/null", O_RDWR))) {
          dup2 (newfd, STDIN_FILENO);
          dup2 (newfd, STDOUT_FILENO);
