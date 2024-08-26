@@ -288,14 +288,20 @@ int main(int argc, char *argv[], char* envp[])
    if (!cfg.foreground) {
        if (fork() > 0) exit(0); /* Detach */
        // close stdin, stderr, stdout
+       // closing stdin frees a filehandle, and 0 will not be reused, so no problem
+       // with control-jobs, trying to catch fd/0
+       close(fileno(stdin));
        int newfd;
-       if (newfd = open("/dev/null", O_RDWR)) {
-         dup2 (newfd, STDIN_FILENO);
+       // duplicating a handle connected to /dev/null to stdout and stderr
+       // so we don't run in any problems, when a control-job wor whats-o-ever will
+       // grab stdout and stderr
+       if ((newfd = open("/dev/null", O_RDWR))) {
          dup2 (newfd, STDOUT_FILENO);
          dup2 (newfd, STDERR_FILENO);
+         // close the helper handle, as this is now unnecessary
          close(newfd);
        } else {
-         print_message(msg_config, "Error closing standard filehandles for background daemon\n");
+         print_message(msg_system_error, "Error closing standard filehandles for background daemon\n");
        }
 
        /* New session -- become group leader */

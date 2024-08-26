@@ -210,7 +210,7 @@ void start_shoveler(int listen_socket) {
 }
 
 
-/* The actual main is in common.c: it's the same for both version of
+/* The actual main is in sslh-main.c: it's the same for all versions of
  * the server
  */
 
