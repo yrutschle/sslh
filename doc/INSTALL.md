@@ -68,8 +68,10 @@ After each run of ./configure, those changes are gone and the Makefile is recrea
 There are a couple of configuration options at the beginning of the Makefile: 
 
 * `# override undefine HAVE_LANDLOCK` if you uncomment this line, sslh will be compiled
-  without landlock. As an alternative ./configure creates a config.h file, 
-  which gives also the possibility, to comment that out.
+  without landlock. This works with gcc versions < 12. Otherwise, if your system has
+  linux/landlock.h in the include path, the configure script creates a _**config.h**_ file, 
+  which defines HAVE_LANDLOCK. It is not enough, to set this to 0, you must delete it, 
+  when you don't wish to have landlock in your binary.
   
 * `USELIBWRAP` compiles support for host access control (see `hosts_access(3)`),
   you will need `libwrap` headers and library to compile (`libwrap0-dev` in Debian).
@@ -81,6 +83,11 @@ There are a couple of configuration options at the beginning of the Makefile:
   You will need `systemd` headers to compile (`systemd-devel` in Fedora).
 
 * `USELIBBSD` compiles support for updating the process name (as shown by `ps`).
+
+* `USELIBCAP` compiles support for libcap, which allows to inherit capabilities to 
+  daughter-processes, which run as restricted users. You need this, when you wish to 
+  make sure, that the --user= parameter can be used, without setting capabilities etc.
+  to your binaries, to make this work.
 
 Now you can do either a plain `make` to create the binaries, or you can do an 
 `make install` to create the binaries and install them.

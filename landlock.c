@@ -90,6 +90,9 @@ static int add_path_ro(int ruleset_fd, ll_obj_type otype, const char* path)
         return -1;
     }
 
+    // close helper handle
+    close(fd);
+
     return 0;
 }
 
