@@ -102,8 +102,10 @@ clients wait for the server to send its banner.
 
 Makes B<sslh> behave as a transparent proxy, i.e. the
 receiving service sees the original client's IP address.
-This works on Linux only and involves B<iptables> settings.
-Refer to the README for more information.
+This works on Linux only and involves B<iproute2> settings.
+In some cases also B<iptables/nftables> settings are needed.
+Refer to the README or L<https://github.com/ftasnetamot/sslh/blob/2014-08-16--close-filehandles-with-detach/doc/simple_transparent_proxy.md>
+for more information.
 
 =item B<-p> I<listening address>, B<--listen> I<listening address>
 
@@ -123,10 +125,11 @@ Note that you can set B<sslh> to listen on I<ext_ip:443> and
 B<httpd> to listen on I<localhost:443>: this allows clients
 inside your network to just connect directly to B<httpd>.
 
-Also, B<sslh> probes for SSLv3 (or TLSv1) handshake and will
+Also, B<sslh> probes for TLS handshakes and will
 reject connections from clients requesting SSLv2. This is
-compliant with RFC6176 which prohibits the usage of SSLv2. If
-you wish to accept SSLv2, use B<--anyprot> instead.
+compliant with RFC6176 which prohibits the usage of SSLv2. 
+If you wish to accept SSLv2, use B<--anyprot> instead.
+
 
 =item B<--ssh> I<target address>
 
@@ -234,8 +237,8 @@ detailed explanation of the variables used by B<sslh>.
 =head1 SEE ALSO
 
 The latest version is available from
-L<http://www.rutschle.net/tech/sslh>, and can be tracked
-from L<http://freecode.com/projects/sslh>.
+L<https://github.com/yrutschle/sslh>. There you can find a more
+detailed and recent documentation.
 
 =head1 AUTHOR
 
