@@ -240,6 +240,24 @@ void config_sanity_check(struct sslhcfg_item* cfg)
     }
 }
 
+/* Connect stdin, stdout, stderr to /dev/null. It is better to keep them around
+ * so they do not get re-used by socket descriptors, and accidently used by
+ * some library code.
+ */
+void close_std(void)
+{
+    int newfd;
+
+    if ((newfd = open("/dev/null", O_RDWR))) {
+        dup2 (newfd, STDIN_FILENO);
+        dup2 (newfd, STDOUT_FILENO);
+        dup2 (newfd, STDERR_FILENO);
+        /* close the helper handle, as this is now unnecessary */
+        close(newfd);
+    } else {
+        print_message(msg_system_error, "Error closing standard filehandles for background daemon\n");
+    }
+}
 
 int main(int argc, char *argv[], char* envp[])
 {
@@ -287,20 +305,7 @@ int main(int argc, char *argv[], char* envp[])
 
    if (!cfg.foreground) {
        if (fork() > 0) exit(0); /* Detach */
-       // close stdin, stderr, stdout
-       int newfd;
-       // duplicating a handle connected to /dev/null to stdin, stdout and stderr
-       // so we don't run in any problems, when a control-job or whats-o-ever will
-       // grab the those handles.
-       if ((newfd = open("/dev/null", O_RDWR))) {
-         dup2 (newfd, STDIN_FILENO);
-         dup2 (newfd, STDOUT_FILENO);
-         dup2 (newfd, STDERR_FILENO);
-         // close the helper handle, as this is now unnecessary
-         close(newfd);
-       } else {
-         print_message(msg_system_error, "Error closing standard filehandles for background daemon\n");
-       }
+       close_std();
 
        /* New session -- become group leader */
        if (getuid() == 0) {
