@@ -265,7 +265,7 @@ int bind_peer(int fd, int fd_from)
     CHECK_RES_RETURN(res, "getpeername", res);
 
     /* if the destination is the same machine, there's no need to do bind */
-    if (is_same_machine(&from))
+    if (!cfg.no_discover_interfaces && is_same_machine(&from))
         return 0;
 
 #ifndef IP_BINDANY /* use IP_TRANSPARENT */
