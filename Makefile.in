@@ -129,7 +129,7 @@ $(MAN): sslh.pod Makefile
 # Create release: export clean tree and tag current
 # configuration
 release:
-	git archive master --prefix="sslh-$(VERSION)/" | gzip > /tmp/sslh-$(VERSION).tar.gz
+	git archive $(VERSION) --prefix="sslh-$(VERSION)/" | gzip > /tmp/sslh-$(VERSION).tar.gz
 	gpg --detach-sign --armor /tmp/sslh-$(VERSION).tar.gz
 
 # Build docker image
