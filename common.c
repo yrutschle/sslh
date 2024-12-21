@@ -337,11 +337,8 @@ int set_nonblock(int fd)
 }
 
 
-/* Connect to first address that works and returns a file descriptor, or -1 if
- * none work.
- * If transparent proxying is on, use fd_from peer address on external address
- * of new file descriptor. */
-int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
+/* Connects to INET/INET6 domain sockets and return a fd */
+static int connect_inet(struct connection *cnx, int fd_from, connect_blocking blocking)
 {
     struct addrinfo *a, from;
     struct sockaddr_storage ss;
@@ -360,7 +357,6 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
         resolve_split_name(&(cnx->proto->saddr), cnx->proto->host,
                            cnx->proto->port);
     }
-
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use the same address family */
         if (transparent && a->ai_family != from.ai_addr->sa_family)
@@ -406,6 +402,18 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
         }
     }
     return -1;
+}
+
+
+/* Connect to first address that works and returns a file descriptor, or -1 if
+ * none work.
+ * If transparent proxying is on, use fd_from peer address on external address
+ * of new file descriptor. */
+int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
+{
+    int fd = connect_inet(cnx, fd_from, blocking);
+
+    return fd;
 }
 
 /* Store some data to write to the queue later */
