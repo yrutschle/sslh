@@ -132,6 +132,7 @@ struct connection {
 struct listen_endpoint {
     int socketfd;       /* file descriptor of listening socket */
     int type;           /* SOCK_DGRAM | SOCK_STREAM */
+    int family;         /* AF_INET | AF_UNIX */
 };
 
 #define FD_CNXCLOSED    0

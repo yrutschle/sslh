@@ -178,6 +178,7 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
         *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
         (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, cfg->keepalive, cfg->is_udp);
         (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
+        (*sockfd)[num_addr-1].family = AF_INET;
         print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
                       cfg->keepalive ? "keepalive" : "",
                       cfg->is_udp ? "udp" : "");
@@ -185,6 +186,31 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
     freeaddrinfo(start_addr);
     return num_addr;
 }
+
+/* Same, but for UNIX sockets */
+static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, struct sslhcfg_listen_item* cfg)
+{
+    int fd = socket(AF_UNIX, cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
+    CHECK_RES_DIE(fd, "socket(AF_UNIX)");
+
+    struct sockaddr_un sun;
+    sun.sun_family = AF_UNIX;
+    strncpy(sun.sun_path, cfg->host, sizeof(sun.sun_path)-1);
+    printf("binding [%s]\n", sun.sun_path);
+    int res = bind(fd, (struct sockaddr*)&sun, sizeof(sun));
+    CHECK_RES_DIE(res, "bind(AF_UNIX)");
+
+    res = listen(fd, 50);
+
+    num_addr++;
+    *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
+    (*sockfd)[num_addr-1].socketfd = fd;
+    (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
+    (*sockfd)[num_addr-1].family = AF_INET;
+
+    return num_addr;
+}
+
 
 /* Starts listening sockets on specified addresses.
  * OUT: *sockfd[]  pointer to newly-allocated array of listen_endpoint objects
@@ -206,7 +232,11 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
     print_message(msg_config, "Listening to:\n");
 
     for (i = 0; i < cfg.listen_len; i++) {
-        num_addr = start_listen_inet(sockfd, num_addr, &cfg.listen[i]);
+        if (cfg.listen[i].is_unix) {
+            num_addr = start_listen_unix(sockfd, num_addr, &cfg.listen[i]);
+        } else {
+            num_addr = start_listen_inet(sockfd, num_addr, &cfg.listen[i]);
+        }
     }
 
     return num_addr;
@@ -425,7 +455,7 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     sun->sun_family = AF_UNIX;
-    strcpy(sun->sun_path, cnx->proto->host);
+    strncpy(sun->sun_path, cnx->proto->host, sizeof(sun->sun_path)-1);
 
     int res = connect(fd, (struct sockaddr*)sun, sizeof(*sun));
     CHECK_RES_RETURN(res, "connect", res);
@@ -587,6 +617,9 @@ char* sprintaddr(char* buf, size_t size, struct addrinfo *a)
 {
    char host[NI_MAXHOST], serv[NI_MAXSERV];
    int res;
+
+   memset(host, 0, sizeof(host));
+   memset(serv, 0, sizeof(serv));
 
    res = getnameinfo(a->ai_addr, a->ai_addrlen,
                host, sizeof(host),

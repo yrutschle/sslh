@@ -1,3 +1,10 @@
+vNEXT:
+	Added a boolean setting "is_unix" for listen and
+	protocol entries. This will use the 'host' setting
+	as a path name to a socket file, and connections
+	(listening or connecting) will be performed on Unix
+	socket instead of Internet sockets.
+
 v2.1.3:
 	Fix Landlock access to /etc/hosts.deny and
 	/etc/hosts.allow.
