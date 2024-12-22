@@ -67,13 +67,17 @@ static void printsettings(void)
     
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
-        strcpy(buf, "resolve on forward");
-        if (!p->resolve_on_forward) {
-            sprintaddr(buf, sizeof(buf), p->saddr);
-            size_t len = strlen(buf);
-            sprintf(buf+len, " family %d %d", 
-                    p->saddr->ai_family,
-                    p->saddr->ai_addr->sa_family);
+        if (p->is_unix) {
+            sprintf(buf, "unix socket: %s", p->host);
+        } else {
+            strcpy(buf, "resolve on forward");
+            if (!p->resolve_on_forward) {
+                sprintaddr(buf, sizeof(buf), p->saddr);
+                size_t len = strlen(buf);
+                sprintf(buf+len, " family %d %d",
+                        p->saddr->ai_family,
+                        p->saddr->ai_addr->sa_family);
+            }
         }
         print_message(msg_config, 
                       "%s addr: %s. libwrap service: %s log_level: %d [%s] [%s] [%s]\n",
@@ -149,6 +153,15 @@ void config_finish(struct sslhcfg_item* cfg)
     }
 }
 
+/* Checks that the UNIX socket specified exists and is accessible
+ * Dies otherwise
+ */
+static void check_access_unix_socket(struct sslhcfg_protocols_item* p)
+{
+    /* TODO */
+    return;
+}
+
 
 /* For each protocol in the configuration, resolve address and set up protocol
  * options if required
@@ -159,7 +172,9 @@ static void config_protocols()
     for (i = 0; i < cfg.protocols_len; i++) {
         struct sslhcfg_protocols_item* p = &(cfg.protocols[i]);
 
-        if (
+        if (p->is_unix) {
+            check_access_unix_socket(p);
+        } else if (
             !p->resolve_on_forward &&
             resolve_split_name(&(p->saddr), p->host, p->port)
         ) {

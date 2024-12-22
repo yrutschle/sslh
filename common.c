@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
+#include <sys/un.h>
 
 #include "common.h"
 #include "probe.h"
@@ -404,6 +405,24 @@ static int connect_inet(struct connection *cnx, int fd_from, connect_blocking bl
     return -1;
 }
 
+/* Connects to AF_UNIX domain sockets */
+static int connect_unix(struct connection *cnx, int fd_from, connect_blocking blocking)
+{
+    struct sockaddr_storage ss;
+    struct sockaddr_un* sun = (struct sockaddr_un*)&ss;
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    sun->sun_family = AF_UNIX;
+    strcpy(sun->sun_path, cnx->proto->host);
+
+    int res = connect(fd, (struct sockaddr*)sun, sizeof(*sun));
+    CHECK_RES_RETURN(res, "connect", res);
+
+    if (blocking == NON_BLOCKING) {
+        set_nonblock(fd);
+    }
+    return fd;
+}
 
 /* Connect to first address that works and returns a file descriptor, or -1 if
  * none work.
@@ -411,7 +430,13 @@ static int connect_inet(struct connection *cnx, int fd_from, connect_blocking bl
  * of new file descriptor. */
 int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 {
-    int fd = connect_inet(cnx, fd_from, blocking);
+    int fd;
+
+    if (cnx->proto->is_unix) {
+        fd = connect_unix(cnx, fd_from, blocking);
+    } else {
+        fd = connect_inet(cnx, fd_from, blocking);
+    }
 
     return fd;
 }
