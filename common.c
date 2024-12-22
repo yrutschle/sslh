@@ -156,17 +156,44 @@ int listen_single_addr(struct addrinfo* addr, int keepalive, int udp)
     return sockfd;
 }
 
+
+/* Start listening internet sockets for configuration entry 'index' 
+ * OUT: *sockfd[]: pointer to array of listen_endpoint object; we append new
+ * endpoints to that array
+ * IN: num_addr: how many entries are in sockfd[]
+ *     *cfg: configuration data for the endpoint we are adding
+ * Return: new value of num_addr
+ * */
+static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, struct sslhcfg_listen_item* cfg)
+{
+    struct addrinfo *addr, *start_addr;
+    char buf[NI_MAXHOST];
+    int res;
+
+    res = resolve_split_name(&start_addr, cfg->host, cfg->port);
+    if (res) exit(4);
+
+    for (addr = start_addr; addr; addr = addr->ai_next) {
+        num_addr++;
+        *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
+        (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, cfg->keepalive, cfg->is_udp);
+        (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
+        print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
+                      cfg->keepalive ? "keepalive" : "",
+                      cfg->is_udp ? "udp" : "");
+    }
+    freeaddrinfo(start_addr);
+    return num_addr;
+}
+
 /* Starts listening sockets on specified addresses.
  * OUT: *sockfd[]  pointer to newly-allocated array of listen_endpoint objects
  * Returns number of addresses bound
    */
 int start_listen_sockets(struct listen_endpoint *sockfd[])
 {
-    struct addrinfo *addr, *start_addr;
-    char buf[NI_MAXHOST];
-    int i, res;
-    int num_addr = 0, keepalive = 0, udp = 0;
-    int sd_socks = 0;
+    int i;
+    int num_addr = 0, sd_socks = 0;
 
     sd_socks = get_fd_sockets(sockfd);
 
@@ -179,22 +206,7 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
     print_message(msg_config, "Listening to:\n");
 
     for (i = 0; i < cfg.listen_len; i++) {
-        keepalive = cfg.listen[i].keepalive;
-        udp = cfg.listen[i].is_udp;
-
-        res = resolve_split_name(&start_addr, cfg.listen[i].host, cfg.listen[i].port);
-        if (res) exit(4);
-
-        for (addr = start_addr; addr; addr = addr->ai_next) {
-            num_addr++;
-            *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
-            (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
-            (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
-            print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
-                          cfg.listen[i].keepalive ? "keepalive" : "",
-                          cfg.listen[i].is_udp ? "udp" : "");
-        }
-        freeaddrinfo(start_addr);
+        num_addr = start_listen_inet(sockfd, num_addr, &cfg.listen[i]);
     }
 
     return num_addr;
