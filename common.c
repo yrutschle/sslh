@@ -193,11 +193,17 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
     int fd = socket(AF_UNIX, cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
     CHECK_RES_DIE(fd, "socket(AF_UNIX)");
 
+    int res = unlink(cfg->host);
+    if ((res == -1) && (errno != ENOENT)) {
+        print_message(msg_config_error, "unlink unix socket `%s':%d:%s\n", cfg->host, errno, strerror(errno));
+        exit(4);
+    }
+
     struct sockaddr_un sun;
     sun.sun_family = AF_UNIX;
     strncpy(sun.sun_path, cfg->host, sizeof(sun.sun_path)-1);
     printf("binding [%s]\n", sun.sun_path);
-    int res = bind(fd, (struct sockaddr*)&sun, sizeof(sun));
+    res = bind(fd, (struct sockaddr*)&sun, sizeof(sun));
     CHECK_RES_DIE(res, "bind(AF_UNIX)");
 
     res = listen(fd, 50);
