@@ -963,6 +963,7 @@ void write_pid_file(const char* pidfile)
     res = fprintf(f, "%d\n", getpid());
     if (res < 0) {
         print_message(msg_system_error, "write_pid_file: fprintf: %s\n", strerror(errno));
+        fclose(f);
         return;
     }
 
