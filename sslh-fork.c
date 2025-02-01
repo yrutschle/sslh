@@ -184,7 +184,6 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
     while (1) {
         in_socket = accept(endpoint[active_endpoint].socketfd, 0, 0);
-        CHECK_RES_RETURN(in_socket, "accept", /*void*/ );
         if (in_socket == -1) {
             print_message(msg_system_error, "%s:%d:%s:%d:%s\n", 
                           __FILE__, __LINE__, "accept", errno, strerror(errno));
