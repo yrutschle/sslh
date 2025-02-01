@@ -2163,6 +2163,7 @@ ac_config_headers="$ac_config_headers config.h"
 ac_config_files="$ac_config_files Makefile"
 
 
+have_proxyprotocol=0
 
 
 
@@ -3199,6 +3200,27 @@ then :
 fi
 
 done
+       for ac_header in proxy_protocol.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "proxy_protocol.h" "ac_cv_header_proxy_protocol_h" "$ac_includes_default"
+if test "x$ac_cv_header_proxy_protocol_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_PROXY_PROTOCOL_H 1" >>confdefs.h
+ printf "%s\n" "#define HAVE_PROXYPROTOCOL 1" >>confdefs.h
+
+else $as_nop
+  have_proxyprotocol=1
+fi
+
+done
+if test $have_proxyprotocol == 0
+then
+    LIBS="$LIBS -lproxyprotocol"
+fi
+
+LIBS="$LIBS"
+
+
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure

@@ -6,4 +6,7 @@
 /* Landlock sandboxing Linux LSM */
 #undef HAVE_LANDLOCK
 
+/* Support for Proxy-protocol using libproxyprotocol */
+#undef HAVE_PROXYPROTOCOL
+
 #endif
