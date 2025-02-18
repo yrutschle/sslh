@@ -3,6 +3,9 @@
 #ifndef CONFIG_H
 /* Template for config.h, filled by `configure`. */
 
+/* Libwrap, to support host_ctl, /etc/allow and /etc/deny */
+# undef HAVE_LIBWRAP
+
 /* Landlock sandboxing Linux LSM */
 #undef HAVE_LANDLOCK
 

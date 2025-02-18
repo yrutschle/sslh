@@ -43,7 +43,7 @@ struct sslhcfg_item cfg;
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
 
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
 #include <tcpd.h>
 int allow_severity =0, deny_severity = 0;
 #endif
@@ -775,7 +775,7 @@ void set_proctitle_shovel(struct connection_desc* desc, const struct connection 
  */
 int check_access_rights(int in_socket, const char* service)
 {
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
     union {
         struct sockaddr saddr;
         struct sockaddr_storage ss;
