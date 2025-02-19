@@ -3247,6 +3247,47 @@ then :
  LIBS="$LIBS -lwrap"
 fi
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for cap_get_proc in -lcap" >&5
+printf %s "checking for cap_get_proc in -lcap... " >&6; }
+if test ${ac_cv_lib_cap_cap_get_proc+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcap  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char cap_get_proc ();
+int
+main (void)
+{
+return cap_get_proc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_cap_cap_get_proc=yes
+else $as_nop
+  ac_cv_lib_cap_cap_get_proc=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_cap_cap_get_proc" >&5
+printf "%s\n" "$ac_cv_lib_cap_cap_get_proc" >&6; }
+if test "x$ac_cv_lib_cap_cap_get_proc" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBCAP 1" >>confdefs.h
+ LIBS="$LIBS -lcap"
+fi
+
 
 ac_header= ac_cache=
 for ac_item in $ac_header_c_list

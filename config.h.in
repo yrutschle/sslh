@@ -9,4 +9,7 @@
 /* Landlock sandboxing Linux LSM */
 #undef HAVE_LANDLOCK
 
+/* libcap support, to use Linux capabilities */
+#undef HAVE_LIBCAP
+
 #endif

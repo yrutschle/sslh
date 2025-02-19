@@ -19,6 +19,11 @@
 #include "log.h"
 #include "sslh-conf.h"
 
+#if HAVE_LIBCAP
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#endif
+
 /* Added to make the code compilable under CYGWIN
  * */
 #ifndef SA_NOCLDWAIT
@@ -841,7 +846,7 @@ void setup_signals(void)
 
 /* Ask OS to keep capabilities over a setuid(nonzero) */
 void set_keepcaps(int val) {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     int res;
     res = prctl(PR_SET_KEEPCAPS, val, 0, 0, 0);
     if (res) {
@@ -854,7 +859,7 @@ void set_keepcaps(int val) {
 /* Returns true if anything requires transparent proxying. */
 static int use_transparent(void)
 {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     if (cfg.transparent)
         return 1;
 
@@ -870,7 +875,7 @@ static int use_transparent(void)
  * IN: cap_net_admin: set to 1 to set CAP_NET_RAW
  * */
 void set_capabilities(int cap_net_admin) {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     int res;
     cap_t caps;
     cap_value_t cap_list[10];

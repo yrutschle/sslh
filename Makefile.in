@@ -10,7 +10,6 @@ ENABLE_SANITIZER= # Enable ASAN/LSAN/UBSAN
 ENABLE_REGEX=1  # Enable regex probes
 USELIBCONFIG=1	# Use libconfig? (necessary to use configuration files)
 USELIBEV=1	# Use libev?
-USELIBCAP=	# Use libcap?
 USESYSTEMD=     # Make use of systemd socket activation
 USELIBBSD?=     # Use libbsd (needed to update process name in `ps`)
 COV_TEST= 	# Perform test coverage?
@@ -52,11 +51,6 @@ endif
 ifneq ($(strip $(USELIBCONFIG)),)
 	LIBS:=$(LIBS) -lconfig
 	CPPFLAGS+=-DLIBCONFIG
-endif
-
-ifneq ($(strip $(USELIBCAP)),)
-	LIBS:=$(LIBS) -lcap
-	CPPFLAGS+=-DLIBCAP
 endif
 
 ifneq ($(strip $(USESYSTEMD)),)

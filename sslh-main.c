@@ -39,11 +39,15 @@
 #include "log.h"
 #include "tcp-probe.h"
 
+#if HAVE_LIBCAP
+#include <sys/capability.h>
+#endif
+
 /* Constants for options that have no one-character shorthand */
 #define OPT_ONTIMEOUT   257
 
 static void printcaps(void) {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     cap_t caps;
     char* desc;
     ssize_t len;
