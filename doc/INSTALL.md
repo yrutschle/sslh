@@ -22,19 +22,20 @@ Dependencies
 
 * [libwrap](http://packages.debian.org/source/unstable/tcp-wrappers).
   For Debian, this is contained in packages `libwrap0-dev`.
-  You can compile with or without it using USELIBWRAP in the Makefile.
+  Presence of libwrap is checked by the configure script.
 
 * [libsystemd](http://packages.debian.org/source/unstable/libsystemd-dev), in package `libsystemd-dev`.
   You can compile with or without it using USESYSTEMD in the Makefile.
 
 * [libcap](http://packages.debian.org/source/unstable/libcap-dev), in package `libcap-dev`.
-  You can compile with or without it using USELIBCAP in the Makefile
+  Presence of libcap is checked by the configure script.
 
 * [libconfig++-dev](https://packages.debian.org/bookworm/libconfig++-dev), in package `lìbconfig++-dev`
     
 * libbsd, to enable to change the process name (as shown in `ps`,
   so each forked process shows what protocol and what connection it is serving),
   which requires `libbsd` at runtime, and `libbsd-dev` at compile-time.
+  Presence of libbsd is checked by the configure script.
 
 * libpcre2, in package `libpcre2-dev`.
   You can compile with or without it using ENABLE_REGEX in the Makefile.
