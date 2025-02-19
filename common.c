@@ -802,7 +802,7 @@ int check_access_rights(int in_socket, const char* service)
         }
     }
 
-    if (!hosts_ctl(service, host, addr_str, STRING_UNKNOWN)) {
+    if (!hosts_ctl((char*)service, host, addr_str, STRING_UNKNOWN)) {
         print_message(msg_connections, "connection from %s(%s): access denied", host, addr_str);
         close(in_socket);
         return -1;
