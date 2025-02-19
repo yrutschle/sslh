@@ -12,4 +12,7 @@
 /* libcap support, to use Linux capabilities */
 #undef HAVE_LIBCAP
 
+/* libbsd, to change process name */
+#undef HAVE_LIBBSD
+
 #endif

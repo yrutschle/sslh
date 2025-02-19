@@ -30,14 +30,14 @@
 #include <pcre2.h>
 #endif
 
-#ifdef LIBBSD
-#include <bsd/unistd.h>
-#endif
-
 #include "common.h"
 #include "probe.h"
 #include "log.h"
 #include "tcp-probe.h"
+
+#if HAVE_LIBBSD
+#include <bsd/unistd.h>
+#endif
 
 #if HAVE_LIBCAP
 #include <sys/capability.h>
@@ -286,7 +286,7 @@ int main(int argc, char *argv[], char* envp[])
    int res, num_addr_listen;
    struct listen_endpoint *listen_sockets;
 
-#ifdef LIBBSD
+#if HAVE_LIBBSD
    setproctitle_init(argc, argv, envp);
 #endif
 

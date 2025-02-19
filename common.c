@@ -36,7 +36,7 @@
 #include <systemd/sd-daemon.h>
 #endif
 
-#ifdef LIBBSD
+#ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
 #endif
 
@@ -755,7 +755,7 @@ int get_connection_desc(struct connection_desc* desc, const struct connection *c
 
 void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx)
 {
-#ifdef LIBBSD
+#ifdef HAVE_LIBBSD
     struct connection_desc d;
 
     if (!desc) {

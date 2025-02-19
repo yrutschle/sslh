@@ -26,7 +26,7 @@
 #include "tcp-probe.h"
 #include "log.h"
 
-#ifdef LIBBSD
+#if HAVE_LIBBSD
 #include <bsd/unistd.h>
 #endif
 
@@ -147,7 +147,7 @@ void stop_listeners(int sig)
 
 void set_listen_procname(struct listen_endpoint *listen_socket)
 {
-#ifdef LIBBSD
+#if HAVE_LIBBSD
     int res;
     struct addrinfo addr;
     struct sockaddr_storage ss;
