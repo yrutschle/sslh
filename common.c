@@ -19,6 +19,11 @@
 #include "log.h"
 #include "sslh-conf.h"
 
+#if HAVE_LIBCAP
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#endif
+
 /* Added to make the code compilable under CYGWIN
  * */
 #ifndef SA_NOCLDWAIT
@@ -31,7 +36,7 @@
 #include <systemd/sd-daemon.h>
 #endif
 
-#ifdef LIBBSD
+#ifdef HAVE_LIBBSD
 #include <bsd/unistd.h>
 #endif
 
@@ -43,7 +48,7 @@ struct sslhcfg_item cfg;
 struct addrinfo *addr_listen = NULL; /* what addresses do we listen to? */
 
 
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
 #include <tcpd.h>
 int allow_severity =0, deny_severity = 0;
 #endif
@@ -750,7 +755,7 @@ int get_connection_desc(struct connection_desc* desc, const struct connection *c
 
 void set_proctitle_shovel(struct connection_desc* desc, const struct connection *cnx)
 {
-#ifdef LIBBSD
+#ifdef HAVE_LIBBSD
     struct connection_desc d;
 
     if (!desc) {
@@ -775,7 +780,7 @@ void set_proctitle_shovel(struct connection_desc* desc, const struct connection 
  */
 int check_access_rights(int in_socket, const char* service)
 {
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
     union {
         struct sockaddr saddr;
         struct sockaddr_storage ss;
@@ -802,7 +807,7 @@ int check_access_rights(int in_socket, const char* service)
         }
     }
 
-    if (!hosts_ctl(service, host, addr_str, STRING_UNKNOWN)) {
+    if (!hosts_ctl((char*)service, host, addr_str, STRING_UNKNOWN)) {
         print_message(msg_connections, "connection from %s(%s): access denied", host, addr_str);
         close(in_socket);
         return -1;
@@ -841,7 +846,7 @@ void setup_signals(void)
 
 /* Ask OS to keep capabilities over a setuid(nonzero) */
 void set_keepcaps(int val) {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     int res;
     res = prctl(PR_SET_KEEPCAPS, val, 0, 0, 0);
     if (res) {
@@ -854,7 +859,7 @@ void set_keepcaps(int val) {
 /* Returns true if anything requires transparent proxying. */
 static int use_transparent(void)
 {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     if (cfg.transparent)
         return 1;
 
@@ -870,7 +875,7 @@ static int use_transparent(void)
  * IN: cap_net_admin: set to 1 to set CAP_NET_RAW
  * */
 void set_capabilities(int cap_net_admin) {
-#ifdef LIBCAP
+#if HAVE_LIBCAP
     int res;
     cap_t caps;
     cap_value_t cap_list[10];

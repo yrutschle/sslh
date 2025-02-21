@@ -1445,6 +1445,53 @@ fi
 
 } # ac_fn_c_try_compile
 
+# ac_fn_c_try_link LINENO
+# -----------------------
+# Try to link conftest.$ac_ext, and return whether this succeeded.
+ac_fn_c_try_link ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  rm -f conftest.$ac_objext conftest.beam conftest$ac_exeext
+  if { { ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
+printf "%s\n" "$ac_try_echo"; } >&5
+  (eval "$ac_link") 2>conftest.err
+  ac_status=$?
+  if test -s conftest.err; then
+    grep -v '^ *+' conftest.err >conftest.er1
+    cat conftest.er1 >&5
+    mv -f conftest.er1 conftest.err
+  fi
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext && {
+	 test "$cross_compiling" = yes ||
+	 test -x conftest$ac_exeext
+       }
+then :
+  ac_retval=0
+else $as_nop
+  printf "%s\n" "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_retval=1
+fi
+  # Delete the IPA/IPO (Inter Procedural Analysis/Optimization) information
+  # created by the PGI compiler (conftest_ipa8_conftest.oo), as it would
+  # interfere with the next link command; also delete a directory that is
+  # left behind by Apple's compiler.  We do this before executing the actions.
+  rm -rf conftest.dSYM conftest_ipa8_conftest.oo
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+  as_fn_set_status $ac_retval
+
+} # ac_fn_c_try_link
+
 # ac_fn_c_check_header_compile LINENO HEADER VAR INCLUDES
 # -------------------------------------------------------
 # Tests whether HEADER exists and can be compiled using the include files in
@@ -2163,7 +2210,6 @@ ac_config_headers="$ac_config_headers config.h"
 ac_config_files="$ac_config_files Makefile"
 
 
-have_proxyprotocol=0
 
 
 
@@ -3160,6 +3206,130 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for hosts_ctl in -lwrap" >&5
+printf %s "checking for hosts_ctl in -lwrap... " >&6; }
+if test ${ac_cv_lib_wrap_hosts_ctl+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lwrap  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char hosts_ctl ();
+int
+main (void)
+{
+return hosts_ctl ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_wrap_hosts_ctl=yes
+else $as_nop
+  ac_cv_lib_wrap_hosts_ctl=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_wrap_hosts_ctl" >&5
+printf "%s\n" "$ac_cv_lib_wrap_hosts_ctl" >&6; }
+if test "x$ac_cv_lib_wrap_hosts_ctl" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBWRAP 1" >>confdefs.h
+ LIBS="$LIBS -lwrap"
+fi
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for cap_get_proc in -lcap" >&5
+printf %s "checking for cap_get_proc in -lcap... " >&6; }
+if test ${ac_cv_lib_cap_cap_get_proc+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcap  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char cap_get_proc ();
+int
+main (void)
+{
+return cap_get_proc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_cap_cap_get_proc=yes
+else $as_nop
+  ac_cv_lib_cap_cap_get_proc=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_cap_cap_get_proc" >&5
+printf "%s\n" "$ac_cv_lib_cap_cap_get_proc" >&6; }
+if test "x$ac_cv_lib_cap_cap_get_proc" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBCAP 1" >>confdefs.h
+ LIBS="$LIBS -lcap"
+fi
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for setproctitle in -lbsd" >&5
+printf %s "checking for setproctitle in -lbsd... " >&6; }
+if test ${ac_cv_lib_bsd_setproctitle+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbsd  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char setproctitle ();
+int
+main (void)
+{
+return setproctitle ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_bsd_setproctitle=yes
+else $as_nop
+  ac_cv_lib_bsd_setproctitle=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bsd_setproctitle" >&5
+printf "%s\n" "$ac_cv_lib_bsd_setproctitle" >&6; }
+if test "x$ac_cv_lib_bsd_setproctitle" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBBSD 1" >>confdefs.h
+ LIBS="$LIBS -lbsd"
+fi
+
+
 ac_header= ac_cache=
 for ac_item in $ac_header_c_list
 do
@@ -3207,16 +3377,10 @@ if test "x$ac_cv_header_proxy_protocol_h" = xyes
 then :
   printf "%s\n" "#define HAVE_PROXY_PROTOCOL_H 1" >>confdefs.h
  printf "%s\n" "#define HAVE_PROXYPROTOCOL 1" >>confdefs.h
-
-else $as_nop
-  have_proxyprotocol=1
+ LIBS="$LIBS -lproxyprotocol"
 fi
 
 done
-if test $have_proxyprotocol == 0
-then
-    LIBS="$LIBS -lproxyprotocol"
-fi
 
 LIBS="$LIBS"
 

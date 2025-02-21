@@ -34,6 +34,7 @@
 #include <sys/capability.h>
 #endif
 
+#include "config.h"
 #include "version.h"
 
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
