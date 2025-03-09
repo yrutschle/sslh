@@ -18,6 +18,7 @@
 #include "probe.h"
 #include "log.h"
 #include "sslh-conf.h"
+#include "proxyprotocol.h"
 
 #if HAVE_LIBCAP
 #include <sys/capability.h>
@@ -480,8 +481,11 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
 /* 
  * Connect to the first backend server address that works and updates the *cnx
  * object accordingly (in cnx->q[1].fd). Set that to -1 in case of failure.
+ *
  * If transparent proxying is on, use fd_from peer address on external address
- * of new file descriptor. */
+ * of new file descriptor. 
+ * If proxyprotocol is used, write header on new backend server connection
+ * */
 void connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 {
     int fd;
@@ -492,6 +496,13 @@ void connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking
         fd = connect_inet(cnx, fd_from, blocking);
     }
     cnx->q[1].fd = fd;
+
+    if (cnx->proto->proxyprotocol_is_present) {
+        int res = pp_write_header(cnx->proto->proxyprotocol, cnx);
+        /* If pp_write_header() fails, it already logs a message and there is
+         * nothing much we can do. The server side will probably close the
+         * connection */
+    }
 }
 
 /* Store some data to write to the queue later */
@@ -509,6 +520,27 @@ int defer_write(struct queue *q, void* data, ssize_t data_size)
     p += data_offset + q->deferred_data_size;
     q->deferred_data_size += (int)data_size;
     memcpy(p, data, data_size);
+
+    return 0;
+}
+
+/* Store some data to write *before* what's already in the queue */
+int defer_write_before(struct queue *q, void* data, ssize_t data_size)
+{
+    char *p;
+
+    print_message(msg_fd, "writing deferred to beginning on fd %d\n", q->fd);
+    p = malloc(q->deferred_data_size + data_size);
+    CHECK_ALLOC(p, "malloc");
+
+    memcpy(p, data, data_size);
+    memcpy(p + data_size, q->deferred_data, q->deferred_data_size);
+
+    free(q->begin_deferred_data);
+
+    q->begin_deferred_data = p;
+    q->deferred_data = p;
+    q->deferred_data_size += (int)data_size;
 
     return 0;
 }
