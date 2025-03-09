@@ -153,7 +153,7 @@ static int connect_queue(struct connection* cnx,
 {
     struct queue *q = &cnx->q[1];
 
-    q->fd = connect_addr(cnx, cnx->q[0].fd, NON_BLOCKING);
+    connect_addr(cnx, cnx->q[0].fd, NON_BLOCKING);
     if (q->fd != -1) {
         log_connection(NULL, cnx);
         flush_deferred(q);
@@ -227,7 +227,6 @@ static void shovel_single(struct connection *cnx)
 static void connect_proxy(struct connection *cnx)
 {
     int in_socket;
-    int out_socket;
 
     /* Minimize the file descriptor value to help select() */
     in_socket = dup(cnx->q[0].fd);
@@ -238,18 +237,16 @@ static void connect_proxy(struct connection *cnx)
         cnx->q[0].fd = in_socket;
     }
 
-    /* Connect the target socket */
-    out_socket = connect_addr(cnx, in_socket, BLOCKING);
-    CHECK_RES_DIE(out_socket, "connect");
-
-    cnx->q[1].fd = out_socket;
+    /* Connect the backend server socket */
+    connect_addr(cnx, in_socket, BLOCKING);
+    CHECK_RES_DIE(cnx->q[1].fd, "connect");
 
     log_connection(NULL, cnx);
 
     shovel_single(cnx);
 
     close(in_socket);
-    close(out_socket);
+    close(cnx->q[1].fd);
 
     print_message(msg_fd, "connection closed down\n");
 

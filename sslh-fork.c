@@ -74,7 +74,6 @@ void start_shoveler(int in_socket)
    fd_set fds;
    struct timeval tv;
    int res = PROBE_AGAIN;
-   int out_socket;
    struct connection cnx;
    struct connection_desc desc;
 
@@ -110,12 +109,10 @@ void start_shoveler(int in_socket)
    }
 
    /* Connect the target socket */
-   out_socket = connect_addr(&cnx, in_socket, BLOCKING);
-   CHECK_RES_DIE(out_socket, "connect");
+   connect_addr(&cnx, in_socket, BLOCKING);
+   CHECK_RES_DIE(cnx.q[1].fd, "connect");
 
    set_capabilities(0);
-
-   cnx.q[1].fd = out_socket;
 
    get_connection_desc(&desc, &cnx);
    log_connection(&desc, &cnx);
@@ -126,7 +123,7 @@ void start_shoveler(int in_socket)
    shovel(&cnx);
 
    close(in_socket);
-   close(out_socket);
+   close(cnx.q[1].fd);
    
    print_message(msg_fd, "connection closed down\n");
 

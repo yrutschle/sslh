@@ -156,7 +156,7 @@ typedef enum {
 /* common.c */
 void init_cnx(struct connection *cnx);
 int set_nonblock(int fd);
-int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking);
+void connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking);
 int fd2fd(struct queue *target, struct queue *from);
 char* sprintaddr(char* buf, size_t size, struct addrinfo *a);
 void resolve_name(struct addrinfo **out, char* fullname);

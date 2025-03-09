@@ -477,11 +477,12 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
     return fd;
 }
 
-/* Connect to first address that works and returns a file descriptor, or -1 if
- * none work.
+/* 
+ * Connect to the first backend server address that works and updates the *cnx
+ * object accordingly (in cnx->q[1].fd). Set that to -1 in case of failure.
  * If transparent proxying is on, use fd_from peer address on external address
  * of new file descriptor. */
-int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
+void connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
 {
     int fd;
 
@@ -490,8 +491,7 @@ int connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking)
     } else {
         fd = connect_inet(cnx, fd_from, blocking);
     }
-
-    return fd;
+    cnx->q[1].fd = fd;
 }
 
 /* Store some data to write to the queue later */
