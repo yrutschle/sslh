@@ -35,7 +35,7 @@ CFLAGS +=-Wall -O2 -DLIBPCRE -g $(CFLAGS_COV) $(CFLAGS_SAN)
 
 
 LIBS=-lm -lpcre2-8 @LIBS@
-OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o landlock.o
+OBJS=sslh-conf.o common.o log.o sslh-main.o probe.o tls.o argtable3.o collection.o gap.o tcp-probe.o landlock.o proxyprotocol.o
 OBJS_A=libsslh.a
 FORK_OBJS=sslh-fork.o $(OBJS_A)
 SELECT_OBJS=processes.o udp-listener.o sslh-select.o hash.o tcp-listener.o $(OBJS_A)
