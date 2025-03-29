@@ -498,7 +498,7 @@ void connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking
     cnx->q[1].fd = fd;
 
     if (cnx->proto->proxyprotocol_is_present) {
-        int res = pp_write_header(cnx->proto->proxyprotocol, cnx);
+        pp_write_header(cnx->proto->proxyprotocol, cnx);
         /* If pp_write_header() fails, it already logs a message and there is
          * nothing much we can do. The server side will probably close the
          * connection */

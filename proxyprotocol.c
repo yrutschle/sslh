@@ -44,6 +44,32 @@ static int family_to_pp(int af_family)
     }
 }
 
+typedef char libpp_addr[108];
+
+/* Fills *addr, *host and *serv with the connection information corresponding
+ * to fd. *host is the IP address as string and *serv is the service (port)
+ * */
+static int get_info(int fd, struct addrinfo* addr, libpp_addr* host, uint16_t* serv)
+{
+    char serv_str[NI_MAXSERV];
+    int res;
+
+    res = getpeername(fd, addr->ai_addr, &addr->ai_addrlen);
+    CHECK_RES_RETURN(res, "getpeername", -1);
+
+    res = getnameinfo(addr->ai_addr, addr->ai_addrlen,
+                      (char*)host, sizeof(*host),
+                      serv_str, sizeof(serv_str),
+                      NI_NUMERICHOST | NI_NUMERICSERV );
+    CHECK_RES_RETURN(res, "getnameinfo", -1);
+
+    *serv = atoi(serv_str);
+
+    return 0;
+}
+
+
+
 int pp_write_header(int pp_version, struct connection* cnx)
 {
     pp_info_t pp_info_in_v1 = {
@@ -54,28 +80,24 @@ int pp_write_header(int pp_version, struct connection* cnx)
 
     struct sockaddr_storage ss;
     struct addrinfo addr;
-    char host[NI_MAXHOST], serv[NI_MAXSERV];
     int res;
 
     addr.ai_addr = (struct sockaddr*)&ss;
     addr.ai_addrlen = sizeof(ss);
 
-    res = getpeername(cnx->q[0].fd, addr.ai_addr, &addr.ai_addrlen);
-    res = getnameinfo(addr.ai_addr, addr.ai_addrlen,
-                      host, sizeof(host),
-                      serv, sizeof(serv),
-                      NI_NUMERICHOST | NI_NUMERICSERV );
-    memcpy(pp_info_in_v1.src_addr, host, sizeof(pp_info_in_v1.src_addr));
-    pp_info_in_v1.src_port = atoi(serv);
+    res = get_info(cnx->q[0].fd,
+             &addr,
+             &pp_info_in_v1.src_addr,
+             &pp_info_in_v1.src_port);
+    if (res == -1) return -1;
     pp_info_in_v1.address_family = family_to_pp(addr.ai_addr->sa_family);
 
-    res = getpeername(cnx->q[1].fd, addr.ai_addr, &addr.ai_addrlen);
-    res = getnameinfo(addr.ai_addr, addr.ai_addrlen,
-                      host, sizeof(host),
-                      serv, sizeof(serv),
-                      NI_NUMERICHOST | NI_NUMERICSERV );
-    memcpy(pp_info_in_v1.dst_addr, host, sizeof(pp_info_in_v1.dst_addr));
-    pp_info_in_v1.dst_port = atoi(serv);
+    res = get_info(cnx->q[1].fd,
+             &addr,
+             &pp_info_in_v1.dst_addr,
+             &pp_info_in_v1.dst_port
+            );
+    if (res == -1) return -1;
 
     uint8_t *pp1_hdr = pp_create_hdr(pp_version, &pp_info_in_v1, &pp1_hdr_len, &error);
 
