@@ -42,6 +42,12 @@ Transparent proxying
 Transparent proxying allows the target server to see the
 original client IP address, i.e. `sslh` becomes invisible.
 
+The same result can be achieved more easily by using
+`proxyprotocol` if the backend server supports it. This is a
+simple setting to add to the `sslh` protocol configuration,
+usually with an equivalently simple setting to add in
+the backend server configuration, so try that first.
+
 This means services behind `sslh` (Apache, `sshd` and so on)
 will see the external IP and ports as if the external world
 connected directly to them. This simplifies IP-based access

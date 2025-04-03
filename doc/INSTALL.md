@@ -46,11 +46,12 @@ Dependencies
 * [libproxyprotocol](https://github.com/kosmas-valianos/libproxyprotocol.git)
   to support HAProxy's [ProxyProtocol](https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt).
   As this is not part of the distribution packages, set
-  C_INCLUDE_PATH and LD_LIBRARY_PATH to the appropriate
+  C_INCLUDE_PATH, LD_LIBRARY_PATH, and LIBRARY_PATH to the appropriate
   values:
   ```
     export C_INCLUDE_PATH=/home/user/src/libproxyprotocol/src 
-    export LD_LIBRARY_PATH=/home/user/src/libproxyprotocol/src
+    export LD_LIBRARY_PATH=/home/user/src/libproxyprotocol/libs
+    export LIBRARY_PATH=/home/user/src/libproxyprotocol/libs
   ```
 
 For OpenSUSE, these are contained in packages libconfig9 and

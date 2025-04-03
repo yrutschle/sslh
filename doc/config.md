@@ -102,6 +102,9 @@ Transparent proxy support
 Transparent proxying is described in its own
 [document](tproxy.md).
 
+It might be easier to configure `sslh` to use Proxyprotocol
+if the backend server supports it.
+
 Systemd Socket Activation
 -------------------------
 If compiled with `USESYSTEMD` then it is possible to activate 

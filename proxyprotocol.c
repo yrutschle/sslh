@@ -44,7 +44,7 @@ static int family_to_pp(int af_family)
     }
 }
 
-typedef char libpp_addr[108];
+typedef char libpp_addr[108]; /* This is hardcoded in libproxyprotocol/proxy_protocol.h */
 
 /* Fills *addr, *host and *serv with the connection information corresponding
  * to fd. *host is the IP address as string and *serv is the service (port)

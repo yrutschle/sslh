@@ -413,8 +413,9 @@ static int connect_inet(struct connection *cnx, int fd_from, connect_blocking bl
                            cnx->proto->port);
     }
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
-        /* When transparent, make sure both connections use the same address family */
-        if (transparent && a->ai_family != from.ai_addr->sa_family)
+        /* When transparent or using proxyprotocol, make sure both 
+         * connections use the same address family (e.g. IP4 on both sides) */
+        if ((transparent || cnx->proto->proxyprotocol_is_present) && (a->ai_family != from.ai_addr->sa_family))
             continue;
         print_message(msg_connections_try, "trying to connect to %s family %d len %d\n",
                     sprintaddr(buf, sizeof(buf), a),
