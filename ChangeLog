@@ -1,11 +1,18 @@
-vNEXT:
+v2.2.0:
 	Added a boolean setting "is_unix" for listen and
 	protocol entries. This will use the 'host' setting
 	as a path name to a socket file, and connections
 	(listening or connecting) will be performed on Unix
 	socket instead of Internet sockets.
 
-	Support proxyprotocol on the backend server side.
+	Support HAProxy's proxyprotocol on the backend
+	server side.
+
+	Lots of documentation about a new, simpler way to
+	perform transparent proxying.
+
+	New "verbose" option that overrides all other
+	verbose settings.
 
 v2.1.3:
 	Fix Landlock access to /etc/hosts.deny and
