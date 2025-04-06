@@ -1,4 +1,4 @@
-v2.2.0:
+v2.2.1:
 	Added a boolean setting "is_unix" for listen and
 	protocol entries. This will use the 'host' setting
 	as a path name to a socket file, and connections
