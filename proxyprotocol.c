@@ -20,6 +20,8 @@
 
 */
 
+#ifdef HAVE_PROXYPROTOCOL
+
 #include <proxy_protocol.h>
 #include "common.h"
 #include "log.h"
@@ -112,3 +114,5 @@ int pp_write_header(int pp_version, struct connection* cnx)
 
     return 0;
 }
+
+#endif /* HAVE_PROXYPROTOCOL */

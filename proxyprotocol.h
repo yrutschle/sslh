@@ -8,7 +8,7 @@ int pp_write_header(int pp_version, struct connection* cnx);
 
 #else /* HAVE_PROXYPROTOCOL */
 
-static inline int pp_write_header(int pp_version, struct connection* cnx) {}
+static inline int pp_write_header(int pp_version, struct connection* cnx) { return 0; }
 
 #endif /* HAVE_PROXYPROTOCOL */
 

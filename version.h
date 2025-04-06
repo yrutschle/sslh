@@ -1,5 +1,5 @@
 #ifndef VERSION_H 
 #define VERSION_H 
 
-#define VERSION "v2.1.4-42-g4978641-dirty"
+#define VERSION "v2.2.0-dirty"
 #endif
