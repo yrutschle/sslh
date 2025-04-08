@@ -20,6 +20,8 @@
 
 */
 
+#include "config.h"
+
 #ifdef HAVE_PROXYPROTOCOL
 
 #include <proxy_protocol.h>
