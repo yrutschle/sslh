@@ -989,23 +989,44 @@ void drop_privileges(const char* user_name, const char* chroot_path)
 /* Writes my PID */
 void write_pid_file(const char* pidfile)
 {
-    FILE *f;
-    int res;
+    int fd;
+    char pidbuf[32];
+    size_t len, written = 0;
+    ssize_t res;
 
-    f = fopen(pidfile, "w");
-    if (!f) {
+    /* Format PID as string */
+    len = snprintf(pidbuf, sizeof(pidbuf), "%d\n", getpid());
+    if (len >= sizeof(pidbuf)) {
+        print_message(msg_system_error, "write_pid_file: PID string too long\n");
+        return;
+    }
+
+    /* Open file with O_NOFOLLOW to prevent symlink attacks */
+    fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC
+#ifdef O_NOFOLLOW
+                | O_NOFOLLOW
+#endif
+                ,0644);
+
+    if (fd == -1) {
         print_message(msg_system_error, "write_pid_file: %s: %s\n", pidfile, strerror(errno));
         return;
     }
 
-    res = fprintf(f, "%d\n", getpid());
-    if (res < 0) {
-        print_message(msg_system_error, "write_pid_file: fprintf: %s\n", strerror(errno));
+    /* Write PID to file with proper error handling */
+    while (written < len) {
+        res = write(fd, pidbuf + written, len - written);
+        if (res == -1) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+            print_message(msg_system_error, "write_pid_file: write: %s\n", strerror(errno));
+            break;
+        }
+        written += res;
     }
 
-    res = fclose(f);
-    if (res == EOF) {
-        print_message(msg_system_error, "write_pid_file: fclose: %s\n", strerror(errno));
-        return;
+    /* Close file */
+    if (close(fd) == -1) {
+        print_message(msg_system_error, "write_pid_file: close: %s\n", strerror(errno));
     }
 }
