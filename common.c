@@ -986,6 +986,11 @@ void drop_privileges(const char* user_name, const char* chroot_path)
     }
 }
 
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
 /* Writes my PID */
 void write_pid_file(const char* pidfile)
 {
@@ -1001,12 +1006,8 @@ void write_pid_file(const char* pidfile)
         return;
     }
 
-    /* Open file with O_NOFOLLOW to prevent symlink attacks */
-    fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC
-#ifdef O_NOFOLLOW
-                | O_NOFOLLOW
-#endif
-                ,0644);
+    /* Open file with O_NOFOLLOW to prevent symlink attacks (Similar to CVE-2020-28935) */
+    fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW ,0644);
 
     if (fd == -1) {
         print_message(msg_system_error, "write_pid_file: %s: %s\n", pidfile, strerror(errno));
