@@ -20,6 +20,10 @@
 
 */
 
+#include "config.h"
+
+#if HAVE_PROXYPROTOCOL
+
 #include <proxy_protocol.h>
 #include "common.h"
 #include "log.h"
@@ -112,3 +116,19 @@ int pp_write_header(int pp_version, struct connection* cnx)
 
     return 0;
 }
+
+int pp_header_len(char* buffer, int buffer_len)
+{
+    pp_info_t pp_info;
+
+    int header_len = pp_parse_hdr((uint8_t*)buffer, buffer_len, &pp_info);
+
+    print_message(msg_probe_info, "proxyprotocol header %d bytes found\n", header_len);
+    
+    if (header_len < 0) header_len = 0;
+
+    return header_len;
+}
+
+
+#endif /* HAVE_PROXYPROTOCOL */

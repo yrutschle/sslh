@@ -436,9 +436,6 @@ int probe_buffer(char* buf, int len,
     struct sslhcfg_protocols_item* p;
     int i, res, again = 0;
 
-    print_message(msg_packets, "hexdump of incoming packet:\n");
-    hexdump(msg_packets, buf, len);
-
     *proto_out = NULL;
     for (i = 0; i < proto_len; i++) {
         char* probe_str[3] = {"PROBE_NEXT", "PROBE_MATCH", "PROBE_AGAIN"};

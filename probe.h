@@ -6,6 +6,7 @@
 #include "common.h"
 #include "tls.h"
 #include "log.h"
+#include "proxyprotocol.h"
 
 typedef enum {
     PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */
