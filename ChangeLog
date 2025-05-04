@@ -1,3 +1,6 @@
+v2.2.2:
+	Fix potential vulnerability similar to CVE-2020-28935
+
 v2.2.1:
 	Added a boolean setting "is_unix" for listen and
 	protocol entries. This will use the 'host' setting
