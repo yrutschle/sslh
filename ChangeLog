@@ -1,3 +1,9 @@
+v2.2.3:
+	Reverse older commit: version.h cannot be included
+	without breaking the build (everything recompiles
+	every time) and the release archive creation (which
+	relies on git tags).
+
 v2.2.2:
 	Fix potential vulnerability similar to CVE-2020-28935
 
