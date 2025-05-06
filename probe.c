@@ -367,12 +367,12 @@ static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protoco
     int res, i, j;
 
     res = sscanf(p, "<%d>", &i);
-    if (res == 1) return 1;
+    if (res == 1) return PROBE_MATCH;
 
     res = sscanf(p, "%d <%d>", &i, &j);
-    if (res == 2) return 1;
+    if (res == 2) return PROBE_MATCH;
 
-    return 0;
+    return PROBE_NEXT;
 }
 
 static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
