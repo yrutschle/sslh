@@ -25,6 +25,7 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
 #endif
+#include <regex.h>
 #include <ctype.h>
 #include "probe.h"
 #include "log.h"
@@ -362,17 +363,38 @@ static int is_socks5_protocol(const char *p_in, ssize_t len, struct sslhcfg_prot
     return PROBE_MATCH;
 }
 
+/* ******************
+ * is_syslog_protocol 
+ * */
+static regex_t syslog_preg;
+static int configured_syslog_regex = 0;
+
+static void config_syslog_regex(void)
+{
+    /* two patterns for syslog messages:
+     * <12> My message
+     * 15 <12> My message
+     * 12 is 'priority', 1 to 3 digits (RFC4234)
+     * 15 is 'message length', a TCP-only option (RFC6587)
+     */
+    int res = regcomp(&syslog_preg, "^([0-9]{1,3} )?<[0-9]{1,3}>", REG_EXTENDED);
+    if (res) {
+        print_message(msg_system_error, "regcomp");
+        exit(1);
+    }
+    configured_syslog_regex = 1;
+}
+
 static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
-    int res, i, j;
+    char buf[len+1];
 
-    res = sscanf(p, "<%d>", &i);
-    if (res == 1) return PROBE_MATCH;
+    if (!configured_syslog_regex) config_syslog_regex();
 
-    res = sscanf(p, "%d <%d>", &i, &j);
-    if (res == 2) return PROBE_MATCH;
+    strncpy(buf, p, len);
+    buf[len] = 0;
 
-    return PROBE_NEXT;
+    return (regexec(&syslog_preg, buf, (size_t)0, NULL, 0) == 0);
 }
 
 static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
