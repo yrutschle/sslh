@@ -9,7 +9,7 @@
 use strict;
 use IO::Socket::INET6;
 use Test::More qw/no_plan/;
-use Conf::Libconfig;
+use Conf::Libconfig 1.0.3;
 
 my $conf = new Conf::Libconfig;
 $conf->read_file("test.cfg");
@@ -17,7 +17,7 @@ $conf->read_file("test.cfg");
 
 my $no_listen = 8083;  # Port on which no-one listens
 my $pidfile = $conf->lookup_value("pidfile");
-my $sslh_port = $conf->fetch_array("listen")->[0]->{port};
+my $sslh_port = $conf->value("listen")->[0]->{port};
 my $user = (getpwuid $<)[0]; # Run under current username
 
 # Which tests do we run
@@ -119,7 +119,7 @@ sub test_probe {
 sub test_probes {
     my (%in_opts) = @_;
 
-    my @probes = @{$conf->fetch_array("protocols")};
+    my @probes = @{$conf->value("protocols")};
     foreach my $p (@probes) {
         my %protocols = (
             'ssh' => { data => "SSH-2.0 tester" },
@@ -194,7 +194,7 @@ sub test_probes {
 
 
 # Start an echoserver for each service
-foreach my $s (@{$conf->fetch_array("protocols")}) {
+foreach my $s (@{$conf->value("protocols")}) {
     my $prefix = $s->{name};
 
     $prefix =~ s/^ssl/tls/; # To remove in 1.21
@@ -339,11 +339,11 @@ if ($RB_CNX_NOSERVER) {
 }
 
 
-my $ssh_conf = (grep { $_->{name} eq "ssh" } @{$conf->fetch_array("protocols")})[0];
+my $ssh_conf = (grep { $_->{name} eq "ssh" } @{$conf->value("protocols")})[0];
 my $ssh_address = $ssh_conf->{host} . ":" .  $ssh_conf->{port};
 
 # Use the last TLS echoserv (no SNI/ALPN)
-my $ssl_conf = (grep { $_->{name} eq "tls" } @{$conf->fetch_array("protocols")})[-1];
+my $ssl_conf = (grep { $_->{name} eq "tls" } @{$conf->value ("protocols")})[-1];
 my $ssl_address = $ssl_conf->{host} . ":" .  $ssl_conf->{port};
 
 
