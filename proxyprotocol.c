@@ -53,7 +53,7 @@ typedef char libpp_addr[108]; /* This is hardcoded in libproxyprotocol/proxy_pro
 /* Fills *addr, *host and *serv with the connection information corresponding
  * to fd. *host is the IP address as string and *serv is the service (port)
  * */
-static int get_info(int fd, struct addrinfo* addr, libpp_addr* host, uint16_t* serv)
+static int get_peer_info(int fd, struct addrinfo* addr, libpp_addr* host, uint16_t* serv)
 {
     char serv_str[NI_MAXSERV];
     int res;
@@ -73,6 +73,33 @@ static int get_info(int fd, struct addrinfo* addr, libpp_addr* host, uint16_t* s
 }
 
 
+/* Fills *addr, *host and *serv with the LOCAL connection information corresponding
+ * to fd. *host is the IP address as string and *serv is the service (port)
+ * */
+static int get_local_sock_info(int fd, struct addrinfo* addr, libpp_addr* host, uint16_t* serv)
+{
+    char serv_str[NI_MAXSERV];
+    int res;
+
+    // addr->ai_addr should point to a suitable sockaddr
+    // addr->ai_addrlen should be initialized to its size
+    res = getsockname(fd, addr->ai_addr, &addr->ai_addrlen);
+    CHECK_RES_RETURN(res, "getsockname", -1);
+
+    res = getnameinfo(addr->ai_addr, addr->ai_addrlen,
+                      (char*)host, sizeof(*host),
+                      serv_str, sizeof(serv_str),
+                      NI_NUMERICHOST | NI_NUMERICSERV);
+    if (res != 0) {
+        print_message(msg_system_error, "getnameinfo for local sock: %s\n", gai_strerror(res));
+        return -1;
+    }
+
+    *serv = atoi(serv_str);
+
+    return 0;
+}
+
 
 int pp_write_header(int pp_version, struct connection* cnx)
 {
@@ -89,14 +116,14 @@ int pp_write_header(int pp_version, struct connection* cnx)
     addr.ai_addr = (struct sockaddr*)&ss;
     addr.ai_addrlen = sizeof(ss);
 
-    res = get_info(cnx->q[0].fd,
+    res = get_peer_info(cnx->q[0].fd,
              &addr,
              &pp_info_in_v1.src_addr,
              &pp_info_in_v1.src_port);
     if (res == -1) return -1;
     pp_info_in_v1.address_family = family_to_pp(addr.ai_addr->sa_family);
 
-    res = get_info(cnx->q[1].fd,
+    res = get_local_sock_info(cnx->q[0].fd,
              &addr,
              &pp_info_in_v1.dst_addr,
              &pp_info_in_v1.dst_port
