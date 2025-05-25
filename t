@@ -84,8 +84,9 @@ sub make_sni_alpn_name {
 sub test_probe {
     my (%opts) = @_;
 
+    print "test_probe [$opts{expected}] $sslh_port\n";
     my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
-    warn "$!\n" unless $cnx;
+    warn "t: $!\n" unless $cnx;
     return unless $cnx;
 
     my $pattern = $opts{data};
@@ -217,7 +218,7 @@ for my $binary (@binaries) {
     my ($sslh_pid, $valgrind);
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        my $cmd = "./$binary -v 4 -f -u $user -F test.cfg";
+        my $cmd = "./$binary -u $user -F test.cfg";
         #$valgrind = 1;
         #$cmd = "valgrind --leak-check=full $cmd";
         verbose_exec $cmd;
