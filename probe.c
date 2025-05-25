@@ -147,6 +147,7 @@ static int is_ssh_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
 #define OVPN_OPCODE_MASK 0xF8
 #define OVPN_CONTROL_HARD_RESET_CLIENT_V1  (0x01 << 3)
 #define OVPN_CONTROL_HARD_RESET_CLIENT_V2  (0x07 << 3)
+#define OVPN_CONTROL_HARD_RESET_CLIENT_V3  (0x0A << 3)
 #define OVPN_HMAC_128 16
 #define OVPN_HMAC_160 20
 #define OVPN_HARD_RESET_PACKET_ID_OFFSET(hmac_size) (9 + hmac_size)
@@ -165,8 +166,12 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
         if (len < 1)
             return PROBE_NEXT;
 
+        printf("opcode: %d\n", (p[0] & OVPN_OPCODE_MASK) >> 3);
+
         if ((p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V1 &&
-            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2)
+            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2 &&
+            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V3
+            )
             return PROBE_NEXT;
 
         /* The detection pattern above may not be reliable enough.
@@ -177,12 +182,18 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
         if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128) + sizeof(uint32_t))
             return PROBE_NEXT;
 
-        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128))) <= 5u)
+        uint32_t i;
+        /* OVPN_HMAC_128 is unaligned, which requires special care e.g. on ARM */
+        memcpy(&i, (p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128)), sizeof(i));
+        i = ntohl(i);
+        if (i <= 5u)
             return PROBE_MATCH;
 
         if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160) + sizeof(uint32_t))
             return PROBE_NEXT;
 
+        memcpy(&i, (p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160)), sizeof(i));
+        i = ntohl(i);
         if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))) <= 5u)
             return PROBE_MATCH;
 
