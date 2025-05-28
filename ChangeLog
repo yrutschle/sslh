@@ -1,3 +1,15 @@
+v2.2.4:
+	Fix CVE-2025-46806 for "Misaligned Memory Accesses in `is_openvpn_protocol()`"
+
+	Fix CVE-2025-46807 for "File Descriptor Exhaustion in sslh-select and sslh-ev"
+
+	Fix potential parsing of undefined data in syslog
+	probe (no CVE assigned)
+
+	Thanks to Matthias Gerstner of the SUSE security
+	team for the security review that found these
+	defects!
+
 v2.2.3:
 	Reverse older commit: version.h cannot be included
 	without breaking the build (everything recompiles
