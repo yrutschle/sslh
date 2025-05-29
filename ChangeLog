@@ -1,3 +1,6 @@
+vNEXT:
+	Fix proxyprotocol target field (Thanks to Github user 404-Not-Found)
+
 v2.2.4:
 	Fix CVE-2025-46806 for "Misaligned Memory Accesses in `is_openvpn_protocol()`"
 
