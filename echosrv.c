@@ -26,7 +26,6 @@
 #include <pwd.h>
 #include <syslog.h>
 #include <libgen.h>
-#include <getopt.h>
 #include <errno.h>
 
 #define cfg sslhcfg
@@ -323,9 +322,6 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
 
 int main(int argc, char *argv[])
 {
-
-   extern char *optarg;
-   extern int optind;
    int num_addr_listen;
 
    struct listen_endpoint *listen_sockets;
