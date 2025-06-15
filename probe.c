@@ -25,6 +25,7 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
 #endif
+#include <regex.h>
 #include <ctype.h>
 #include "probe.h"
 #include "log.h"
@@ -146,6 +147,7 @@ static int is_ssh_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_
 #define OVPN_OPCODE_MASK 0xF8
 #define OVPN_CONTROL_HARD_RESET_CLIENT_V1  (0x01 << 3)
 #define OVPN_CONTROL_HARD_RESET_CLIENT_V2  (0x07 << 3)
+#define OVPN_CONTROL_HARD_RESET_CLIENT_V3  (0x0A << 3)
 #define OVPN_HMAC_128 16
 #define OVPN_HMAC_160 20
 #define OVPN_HARD_RESET_PACKET_ID_OFFSET(hmac_size) (9 + hmac_size)
@@ -164,8 +166,12 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
         if (len < 1)
             return PROBE_NEXT;
 
+        printf("opcode: %d\n", (p[0] & OVPN_OPCODE_MASK) >> 3);
+
         if ((p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V1 &&
-            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2)
+            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2 &&
+            (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V3
+            )
             return PROBE_NEXT;
 
         /* The detection pattern above may not be reliable enough.
@@ -176,12 +182,18 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
         if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128) + sizeof(uint32_t))
             return PROBE_NEXT;
 
-        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128))) <= 5u)
+        uint32_t i;
+        /* OVPN_HMAC_128 is unaligned, which requires special care e.g. on ARM */
+        memcpy(&i, (p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_128)), sizeof(i));
+        i = ntohl(i);
+        if (i <= 5u)
             return PROBE_MATCH;
 
         if (len <= OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160) + sizeof(uint32_t))
             return PROBE_NEXT;
 
+        memcpy(&i, (p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160)), sizeof(i));
+        i = ntohl(i);
         if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))) <= 5u)
             return PROBE_MATCH;
 
@@ -362,17 +374,38 @@ static int is_socks5_protocol(const char *p_in, ssize_t len, struct sslhcfg_prot
     return PROBE_MATCH;
 }
 
+/* ******************
+ * is_syslog_protocol 
+ * */
+static regex_t syslog_preg;
+static int configured_syslog_regex = 0;
+
+static void config_syslog_regex(void)
+{
+    /* two patterns for syslog messages:
+     * <12> My message
+     * 15 <12> My message
+     * 12 is 'priority', 1 to 3 digits (RFC4234)
+     * 15 is 'message length', a TCP-only option (RFC6587)
+     */
+    int res = regcomp(&syslog_preg, "^([0-9]{1,3} )?<[0-9]{1,3}>", REG_EXTENDED);
+    if (res) {
+        print_message(msg_system_error, "regcomp");
+        exit(1);
+    }
+    configured_syslog_regex = 1;
+}
+
 static int is_syslog_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
-    int res, i, j;
+    char buf[len+1];
 
-    res = sscanf(p, "<%d>", &i);
-    if (res == 1) return 1;
+    if (!configured_syslog_regex) config_syslog_regex();
 
-    res = sscanf(p, "%d <%d>", &i, &j);
-    if (res == 2) return 1;
+    strncpy(buf, p, len);
+    buf[len] = 0;
 
-    return 0;
+    return (regexec(&syslog_preg, buf, (size_t)0, NULL, 0) == 0);
 }
 
 static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)

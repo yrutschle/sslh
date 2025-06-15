@@ -156,13 +156,15 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
             if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
-                struct connection* new_cnx = cnx_accept_process(&fd_info, &listen_sockets[i]);
-
-                if (fd_out_of_range(new_cnx->q[0].fd))
-                    tidy_connection(new_cnx, &fd_info);
-
                 /* don't also process it as a read socket */
                 FD_CLR(listen_sockets[i].socketfd, &readfds);
+
+                struct connection* new_cnx;
+                while ((new_cnx = cnx_accept_process(&fd_info, &listen_sockets[i]))) {
+                    if (fd_out_of_range(new_cnx->q[0].fd))
+                        tidy_connection(new_cnx, &fd_info);
+                }
+
             }
         }
 

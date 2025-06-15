@@ -280,9 +280,6 @@ void close_std(void)
 
 int main(int argc, char *argv[], char* envp[])
 {
-
-   extern char *optarg;
-   extern int optind;
    int res, num_addr_listen;
    struct listen_endpoint *listen_sockets;
 

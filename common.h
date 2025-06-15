@@ -34,6 +34,10 @@
 #include <sys/capability.h>
 #endif
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
+
 #include "config.h"
 #include "version.h"
 
@@ -181,6 +185,10 @@ int flush_deferred(struct queue *q);
 extern struct sslhcfg_item cfg;
 extern struct addrinfo *addr_listen;
 extern const char* server_type;
+
+#if defined(__APPLE__) && (MAC_OS_X_VERSION_MIN_REQUIRED < 1080)
+extern int hosts_ctl();
+#endif
 
 /* sslh-fork.c */
 void start_shoveler(int);

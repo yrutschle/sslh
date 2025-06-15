@@ -1,0 +1,335 @@
+#! /usr/bin/perl -w
+
+# Test suite for sslh
+
+# Uses Conf::Libconfig to read sslh config file: install
+# with:
+# cpan Conf::Libconfig
+
+# Usage:
+#  ./run        # run all tests
+#  ./run -l     # list all tests
+#  ./run 1 3 5  # run specified tests
+
+use strict;
+use IO::Socket::INET6;
+use Test::More qw/no_plan/;
+use Conf::Libconfig 1.0.3;
+use Getopt::Long;
+
+my ($coverage, $list_tests);
+GetOptions(
+    'cover' => \$coverage,
+    'list' => \$list_tests,
+);
+
+
+use Data::Dumper;
+
+################################################################################
+# Global setup
+################################################################################
+my $no_listen = 8083;  # Port on which no-one listens
+my $user = (getpwuid $<)[0]; # Run under current username
+
+################################################################################
+# Helper functions
+################################################################################
+sub get_conf {
+    my ($filename) = @_;
+    my $conf = new Conf::Libconfig;
+    $conf->read_file($filename) or die "$filename: $!";
+    return $conf;
+}
+
+# We want to keep track of tests to print a report at the
+# end, so we centralise all calls to Test::More::is here
+my $cnt = 1;   # test counter
+my @results;
+sub my_is {
+    my ($a, $b, $desc) = @_;
+
+    my $res =  is($a, $b, $desc);
+    push @results, [$cnt++, $desc, $res];
+}
+
+#my $pidfile = $conf->lookup_value("pidfile");
+
+sub verbose_exec
+{
+    my ($cmd) = @_;
+
+    warn "$cmd\n";
+    if (!fork) {
+        exec $cmd;
+    }
+}
+
+# Returns a 'host:port' address targetting ssh from the configuration file
+sub ssh_address {
+    my ($conf) = @_;
+    my $ssh_conf = (grep { $_->{name} eq "ssh" } @{$conf->value("protocols")})[0];
+    return $ssh_conf->{host} . ":" .  $ssh_conf->{port};
+}
+
+
+# Returns the last TLS target from the configuration file
+sub ssl_address {
+    my ($conf) = @_;
+    my $ssl_conf = (grep { $_->{name} eq "tls" } @{$conf->value ("protocols")})[-1];
+    return $ssl_conf->{host} . ":" .  $ssl_conf->{port};
+}
+
+# For SNI/ALPN, build a protocol name as such:
+# tls:sni1,sni2,...;alpn1,alpn2,...
+# input: a protocol entry from Libconfig
+sub make_sni_alpn_name {
+    my ($prot) = @_;
+
+   return "tls:" . (join ",", @{$prot->{sni_hostnames} // []})
+           . ";" . (join ",", @{$prot->{alpn_protocols} // [] });
+}
+
+# Start an echoserver for each service
+my ($started_echosrvs);
+sub start_echosrv
+{
+    my ($conf) = @_;
+
+    return if defined $started_echosrvs;
+
+    foreach my $s (@{$conf->value("protocols")}) {
+        my $prefix = $s->{name};
+
+        $prefix =~ s/^ssl/tls/;
+
+        if ($s->{sni_hostnames} or $s->{alpn_protocols}) {
+            $prefix = make_sni_alpn_name($s);
+        }
+
+        verbose_exec "../echosrv --listen $s->{host}:$s->{port} --prefix '$prefix: '";
+    }
+    $started_echosrvs = 1;
+}
+
+sub stop_echosrv
+{
+    `killall echosrv` if $started_echosrvs;
+    undef $started_echosrvs;
+}
+
+
+# Runs sslh
+my ($sslh_pid);
+sub start_sslh
+{
+    my ($exe, $conf) = @_;
+    return if defined $sslh_pid;
+    my ($valgrind);
+    if (!($sslh_pid = fork)) {
+        my $user = (getpwuid $<)[0]; # Run under current username
+        my $cmd = "../$exe -u $user -F $conf";
+        print "****CMDLINE [$cmd]\n";
+        #$valgrind = 1;
+        #$cmd = "valgrind --leak-check=full $cmd";
+        verbose_exec $cmd;
+        exit 0;
+    }
+    sleep 1;
+    warn "spawned $sslh_pid\n";
+    sleep 5 if $valgrind;  # valgrind can be heavy -- wait 5 seconds
+}
+
+#stop sslh
+sub stop_sslh
+{
+    if (defined $sslh_pid) {
+        kill TERM => $sslh_pid or warn "kill process: $!\n";
+        undef $sslh_pid;
+    }
+}
+
+################################################################################
+# Test methods
+################################################################################
+
+# runs a test that ends in sslh exiting early
+# $cmdline: which command line to run
+# $test: test object
+# Returns: sslh exit code
+sub run_ending_test
+{
+    my ($exe, $params,  $test) = @_;
+    my $conf = get_conf($test->{cfg});
+    my $ssh_address = ssh_address($conf);
+    my $ssl_address = ssl_address($conf);
+    my $pidfile = $conf->lookup_value("pidfile");
+    my $sslh_pid;
+    if (!($sslh_pid = fork)) {
+        my $cmdline = "../$exe $params";
+        warn "eval `$cmdline`\n";
+        $cmdline = eval "\"$cmdline\"";
+        warn "running `$cmdline`\n";
+        exec "$cmdline";
+    }
+    warn "spawned $sslh_pid\n";
+    waitpid $sslh_pid, 0;
+    my $code = $? >> 8;
+    warn "exited with $code\n";
+    my_is($code, $test->{exit}, "$exe: $test->{desc}");
+    return $code;
+}
+
+
+
+# Runs one test for one probe. Start echosrv's if required.
+# Extract sslh's listening port from the config file, run
+# sslh, connect, write the test pattern, read the result,
+# check it connected to the right echosrv, check the data
+# was transfered ok.
+sub run_test_probe
+{
+    my ($exe, $test) = @_;
+
+    my $conf = get_conf($test->{cfg});
+    start_echosrv($conf);
+    start_sslh($exe, $test->{cfg});
+
+    my $expected = $test->{expected};
+
+    my $sslh_port = $conf->value("listen")->[0]->{port};
+    print "test_probe [$expected] $sslh_port\n";
+    my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+    warn "t: $!\n" unless $cnx;
+    return unless $cnx;
+
+    syswrite $cnx, $test->{data};
+
+    my $data;
+    my $n = sysread $cnx, $data, 1024;
+    $data =~ /^(.*?): /;
+    my $prefix = $1;
+    $data =~ s/$prefix: //g;
+    print "Received $n bytes: protocol $prefix data [$data]\n";
+    close $cnx;
+
+    my_is($prefix, $expected, "$exe:$expected: probe");
+    my_is($data, $test->{data}, "$exe:$expected: shoveled");
+}
+
+
+################################################################################
+# Test bodies
+# Functions here each perform one test, and will be called with:
+# - exe: path the executable to test
+# - test: test object
+################################################################################
+
+sub test_no_host
+{
+    my ($exe, $test) = @_;
+    run_ending_test(
+        $exe,
+        "-v 3 -f -u $user --listen $no_listen --ssh \$ssh_address --tls \$ssl_address -P \$pidfile",
+        $test,
+    );
+}
+
+sub test_wrong_user
+{
+    my ($exe, $test) = @_;
+    run_ending_test(
+        $exe,
+        "-F $test->{cfg} -u ${user}_doesnt_exist --listen localhost:$no_listen --ssh \$ssh_address --tls \$ssl_address -P \$pidfile",
+        $test,
+    );
+}
+
+
+################################################################################
+
+my @tests = (
+    {
+        desc => "No hostname in address",
+        run => \&test_no_host,
+        cfg => "test1.cfg",
+        exit => 6,
+    },
+    {
+        desc => "Changing to non-existant username",
+        run => \&test_wrong_user,
+        cfg => "test1.cfg",
+        exit => 2,
+    },
+
+    {
+        desc => "ssh probe",
+        run => \&run_test_probe,
+        cfg => "test1.cfg",
+        data => "SSH-2.0 Tester banner\n",   # Sent to echosrv
+        expected => "ssh",                   # prefix expected from echosrv
+    },
+
+    {
+        desc => "socks5 probe",
+        run => \&run_test_probe,
+        cfg => "test1.cfg",
+        data =>  "\x05\x04\x01\x02\x03\x04",
+        expected => "socks5",                   # prefix expected from echosrv
+    },
+
+);
+
+
+# Number tests
+my $i = 1;
+map { $_->{'index'} = $i++ } @tests;
+
+# Only keep selected tests
+@tests = @tests[ map { $_ - 1 } @ARGV ] if @ARGV;
+
+################################################################################
+#####List all tests
+format test_list_top =
+ID  | Description
+----+-------------------------------------------------------------------------
+.
+format test_list =
+@>> | @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+$_->{'index'}, $_->{'desc'};
+.
+if ($list_tests) {
+    format_name STDOUT "test_list";
+    format_top_name STDOUT "test_list_top";
+    map { write; } @tests;
+    exit 0;
+}
+#####/list
+
+################################################################################
+# Run selected tests
+foreach my $test (@tests) {
+    warn "Running test: $test->{desc}\n";
+    my $binary = 'sslh-ev';
+    my $code = ($test->{run})->($binary, $test);
+}
+
+stop_echosrv();
+stop_sslh();
+
+done_testing();
+
+format test_results_top =
+ID  | Description                                                       | Status
+----+-------------------------------------------------------------------+-------
+.
+
+format test_results = 
+@>> | @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< |   @>>
+$_->[0], $_->[1], $_->[2] ? "OK" : "NOK"
+.
+
+format_name STDOUT "test_results";
+format_top_name STDOUT "test_results_top";
+map { write; } @results;
+

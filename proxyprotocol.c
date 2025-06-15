@@ -22,7 +22,7 @@
 
 #include "config.h"
 
-#if HAVE_PROXYPROTOCOL
+#ifdef HAVE_PROXYPROTOCOL
 
 #include <proxy_protocol.h>
 #include "common.h"
@@ -50,22 +50,38 @@ static int family_to_pp(int af_family)
 
 typedef char libpp_addr[108]; /* This is hardcoded in libproxyprotocol/proxy_protocol.h */
 
+
+typedef enum {
+    PEER,
+    SOCK
+} sockpeer_t;
+
 /* Fills *addr, *host and *serv with the connection information corresponding
- * to fd. *host is the IP address as string and *serv is the service (port)
+ * to fd. sockpeer indicates if if is filled with the remote, or local, part of
+ * the socket.
+ * *host is the IP address as string and *serv is the service (port)
  * */
-static int get_info(int fd, struct addrinfo* addr, libpp_addr* host, uint16_t* serv)
+static int get_info(int fd, sockpeer_t sockpeer, struct addrinfo* addr, libpp_addr* host, uint16_t* serv)
 {
     char serv_str[NI_MAXSERV];
     int res;
 
-    res = getpeername(fd, addr->ai_addr, &addr->ai_addrlen);
-    CHECK_RES_RETURN(res, "getpeername", -1);
+    if (sockpeer == PEER) {
+        res = getpeername(fd, addr->ai_addr, &addr->ai_addrlen);
+        CHECK_RES_RETURN(res, "getpeername", -1);
+    } else {
+        res = getsockname(fd, addr->ai_addr, &addr->ai_addrlen);
+        CHECK_RES_RETURN(res, "getsockname", -1);
+    }
 
     res = getnameinfo(addr->ai_addr, addr->ai_addrlen,
                       (char*)host, sizeof(*host),
                       serv_str, sizeof(serv_str),
                       NI_NUMERICHOST | NI_NUMERICSERV );
-    CHECK_RES_RETURN(res, "getnameinfo", -1);
+    if (res != 0) {
+        print_message(msg_system_error, "getnameinfo: %s\n", gai_strerror(res));
+        return -1;
+    }
 
     *serv = atoi(serv_str);
 
@@ -89,14 +105,14 @@ int pp_write_header(int pp_version, struct connection* cnx)
     addr.ai_addr = (struct sockaddr*)&ss;
     addr.ai_addrlen = sizeof(ss);
 
-    res = get_info(cnx->q[0].fd,
+    res = get_info(cnx->q[0].fd, PEER,
              &addr,
              &pp_info_in_v1.src_addr,
              &pp_info_in_v1.src_port);
     if (res == -1) return -1;
     pp_info_in_v1.address_family = family_to_pp(addr.ai_addr->sa_family);
 
-    res = get_info(cnx->q[1].fd,
+    res = get_info(cnx->q[1].fd, SOCK,
              &addr,
              &pp_info_in_v1.dst_addr,
              &pp_info_in_v1.dst_port

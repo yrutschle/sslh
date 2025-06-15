@@ -59,6 +59,7 @@ interfaces. The principle and basic setup is described
 [here](doc/simple_transparent_proxy.md), with further
 scenarios described [there](doc/scenarios-for-simple-transparent-proxy.md).
 
+There is also a guide to use [podman](doc/podman.md).
 
 Another method uses iptable packet marking features, and is
 highly dependent on your network environment and
