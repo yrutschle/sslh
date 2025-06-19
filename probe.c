@@ -194,7 +194,7 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
 
         memcpy(&i, (p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160)), sizeof(i));
         i = ntohl(i);
-        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))) <= 5u)
+        if (i <= 5u)
             return PROBE_MATCH;
 
         return PROBE_NEXT;
