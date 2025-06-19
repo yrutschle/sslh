@@ -130,6 +130,7 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
             exit(1);
         }
     }
+    probe_regex_matches = pcre2_match_data_create(1, NULL);
 }
 #else
 {

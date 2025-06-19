@@ -21,10 +21,6 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#ifdef ENABLE_REGEX
-#define PCRE2_CODE_UNIT_WIDTH 8
-#include <pcre2.h>
-#endif
 #include <regex.h>
 #include <ctype.h>
 #include "probe.h"
@@ -429,16 +425,18 @@ static int is_msrdp_protocol(const char *p, ssize_t len, struct sslhcfg_protocol
     return packet_len == len;
 }
 
+#ifdef ENABLE_REGEX
+pcre2_match_data* probe_regex_matches;
+#endif
+
 static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
 #ifdef ENABLE_REGEX
     pcre2_code**probe = (pcre2_code**)proto->data;
-    pcre2_match_data* matches;
 
-    matches = pcre2_match_data_create(1, NULL);
 
     for (; *probe; probe++) {
-        int res = pcre2_match(*probe, (PCRE2_SPTR8)p, len, 0, 0, matches, NULL);
+        int res = pcre2_match(*probe, (PCRE2_SPTR8)p, len, 0, 0, probe_regex_matches, NULL);
         if (res >= 0) return 1;
 
     }
