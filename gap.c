@@ -59,6 +59,11 @@ gap_array* gap_init(int len)
     return gap;
 }
 
+void gap_set_hardlimit(gap_array* gap, int index)
+{
+    gap->hardlimit = index;
+}
+
 int gap_extend(gap_array* gap)
 {
     int elem_size = sizeof(gap->array[0]);
@@ -88,7 +93,11 @@ void gap_destroy(gap_array* gap)
  * is considered len elements long.
  * A poor man's list, if you will. Currently only used to remove probing
  * connections, so it only copies a few pointers at most.
- * Returns -1 if ptr was not found */
+ * Returns:
+ * -1 if ptr was not found 
+ * -2 if `len` is inconsistent with gap->len (i.e. trying to shift beyond the
+ * end of the array)
+ * */
 int gap_remove_ptr(gap_array* gap, void* ptr, int len)
 {
     int start, i;
@@ -101,6 +110,9 @@ int gap_remove_ptr(gap_array* gap, void* ptr, int len)
         start = i;
     else
         return -1;
+
+    if (gap->len < len)
+        return -2;
 
     for (i = start; i < len - 1; i++) {
         gap->array[i] = gap->array[i+1];
