@@ -595,6 +595,37 @@ void dump_connection(struct connection *cnx)
 }
 
 
+/* *cnx must have its proto field probed already.
+ * If required, increment the connection count for this protocol.
+ * Returns 1 if connection count is exceeded, 0 otherwise */
+int inc_connections(struct connection* cnx)
+{
+    if (cnx->proto->max_connections_is_present) {
+        cnx->proto->num_connections++;
+        print_message(msg_connections, "Proto %s +1: %d/%d cnx\n",
+                      cnx->proto->name,
+                      cnx->proto->num_connections,
+                      cnx->proto->max_connections);
+        if (cnx->proto->num_connections > cnx->proto->max_connections) {
+            print_message(msg_connections_error, "%s: too many connections, dropping", cnx->proto->name);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void dec_connections(struct connection* cnx)
+{
+    if (cnx->proto) {
+        cnx->proto->num_connections--;
+        print_message(msg_connections, "Proto %s -1: %d/%d cnx\n",
+                      cnx->proto->name,
+                      cnx->proto->num_connections,
+                      cnx->proto->max_connections);
+    }
+}
+
+
 /*
  * moves data from one fd to other
  *

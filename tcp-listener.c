@@ -276,6 +276,11 @@ void probing_read_process(struct connection* cnx,
     remove_probing_cnx(fd_info, cnx);
     cnx->state = ST_SHOVELING;
 
+    if (inc_connections(cnx)) {
+        tidy_connection(cnx, fd_info);
+        return;
+    }
+
     /* libwrap check if required for this protocol */
     if (cnx->proto->service &&
         check_access_rights(cnx->q[0].fd, cnx->proto->service)) {

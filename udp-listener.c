@@ -302,6 +302,11 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         cnx->addrlen = addrlen;
         cnx->local_endpoint = sockfd;
 
+        if (inc_connections(cnx)) {
+            tidy_connection(cnx, fd_info);
+            return NULL;
+        }
+
         res = new_source(fd_info->hash_sources, cnx);
         if (res == -1) {
             print_message(msg_connections_error, "Out of hash space for new incoming UDP connection -- increase udp_max_connections");
