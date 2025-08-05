@@ -185,6 +185,7 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
         (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, cfg->keepalive, cfg->is_udp);
         (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
         (*sockfd)[num_addr-1].family = AF_INET;
+        (*sockfd)[num_addr-1].endpoint_cfg = cfg;
         print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
                       cfg->keepalive ? "keepalive" : "",
                       cfg->is_udp ? "udp" : "");
@@ -219,6 +220,7 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
     (*sockfd)[num_addr-1].socketfd = fd;
     (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
     (*sockfd)[num_addr-1].family = AF_INET;
+    (*sockfd)[num_addr-1].endpoint_cfg = cfg;
 
     return num_addr;
 }
@@ -880,16 +882,23 @@ int check_access_rights(int in_socket, const char* service)
     return 0;
 }
 
+volatile sig_atomic_t received_sigchld;
+
+void sig_sigchld(int sig)
+{
+    received_sigchld = 1;
+}
+
+
 void setup_signals(void)
 {
     int res;
     struct sigaction action;
 
-    /* Request no SIGCHLD is sent upon termination of
-     * the children */
+    /* Set SIGCHLD to sig_sigchld() */
     memset(&action, 0, sizeof(action));
-    action.sa_handler = NULL;
-    action.sa_flags = SA_NOCLDWAIT;
+    action.sa_handler = sig_sigchld;
+    action.sa_flags = SA_NOCLDSTOP;
     res = sigaction(SIGCHLD, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
 

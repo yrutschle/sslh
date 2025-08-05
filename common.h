@@ -138,6 +138,8 @@ struct listen_endpoint {
     int socketfd;       /* file descriptor of listening socket */
     int type;           /* SOCK_DGRAM | SOCK_STREAM */
     int family;         /* AF_INET | AF_UNIX */
+    int num_connections; /* How many active connections on this endpoint */
+    struct sslhcfg_listen_item* endpoint_cfg; /* the configuration item that corresponds to this endpoint */
 };
 
 #define FD_CNXCLOSED    0
@@ -200,5 +202,8 @@ void main_loop(struct listen_endpoint *listen_sockets, int num_addr_listen);
 /* landlock.c */
 void setup_landlock(void);
 
+
+/* sslh-fork.c or processes.c, depending on the model */
+void setup_sigchld(void);
 
 #endif

@@ -1,7 +1,7 @@
 /*
    sslh-fork: forking server
 
-# Copyright (C) 2007-2021  Yves Rutschle
+# Copyright (C) 2007-2025  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -160,6 +160,35 @@ void set_listen_procname(struct listen_endpoint *listen_socket)
 #endif
 }
 
+static void mask_sigchld(void)
+{
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = NULL;
+    action.sa_flags = SA_NOCLDWAIT;
+    int res = sigaction(SIGCHLD, &action, NULL);
+    CHECK_RES_DIE(res, "sigaction");
+}
+
+
+extern volatile sig_atomic_t received_sigchld;
+/* EINTR, so we probably received a signal; check if it's SIGCHLD */
+static void process_signals(struct listen_endpoint* endpoint)
+{
+    int chld;
+    if (received_sigchld) {
+        received_sigchld = 0;
+        do {
+            chld = waitpid(-1, NULL, WNOHANG);
+            CHECK_RES_RETURN(chld, "waitpid", 0);
+            if (chld) {
+                endpoint->num_connections--;
+                print_message(msg_fd, "child died, %d concurrent connections remaining\n", endpoint->num_connections);
+            }
+        } while (chld);
+    }
+}
 
 /* At least MacOS does not know these two options, so define them to something
  * equivalent for our use case */
@@ -196,11 +225,24 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
             case ECONNABORTED:
                 continue;
 
+            case EINTR:
+                process_signals(endpoint);
+                continue;
+
             default:  /* Otherwise, it's something wrong in our parameters, we fail */
                 return;
             }
         }
-        print_message(msg_fd, "accepted fd %d\n", in_socket);
+        endpoint->num_connections++;
+        print_message(msg_fd, "accepted fd %d (%d concurrent connections)\n", in_socket, endpoint->num_connections);
+        if ((endpoint->endpoint_cfg->max_connections_is_present) 
+            && (endpoint->num_connections > endpoint->endpoint_cfg->max_connections)) 
+        {
+            print_message(msg_fd, "too many connection, reclosing fd %d\n", in_socket);
+            endpoint->num_connections--;
+            close(in_socket);
+            continue;
+        }
 
         switch(fork()) {
         case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
@@ -250,8 +292,10 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
             exit(0);
 	    break;
 
-	/* We're in the parent, we don't need to do anything */
+	/* We're in the parent, which does nothing but wait to be killed by
+         * SIGTERM, which it will send to its children */
 	default:
+            mask_sigchld();
 	    break;
         }
     }
