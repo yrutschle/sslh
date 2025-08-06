@@ -118,12 +118,45 @@ void tcp_read_process(struct loop_info* fd_info,
     }
 }
 
+
+
+/* *cnx must have its endpoint field filled;
+ * Increment the connection count for the listen endpoint.
+ * Return 1 if connection count is exceeded, 0 otherwise */
+static int inc_listen_connections(struct connection* cnx)
+{
+    cnx->endpoint->num_connections++;
+    if (cnx->endpoint->endpoint_cfg->max_connections_is_present) {
+        int num_cnx = cnx->endpoint->num_connections;
+        int max_cnx = cnx->endpoint->endpoint_cfg->max_connections;
+
+        print_message(msg_connections, "Endpoint %d +1: %d/%d cnx\n",
+                      cnx->endpoint->socketfd, num_cnx, max_cnx);
+        if (num_cnx > max_cnx) {
+            print_message(msg_connections_error, "Endpoint %d: too many connections, dropping\n", cnx->endpoint->socketfd);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void dec_listen_connections(struct connection* cnx)
+{
+    cnx->endpoint->num_connections--;
+    print_message(msg_connections, "Endpoint %d -1: %d/%d cnx\n",
+                  cnx->endpoint->socketfd,
+                  cnx->endpoint->num_connections,
+                  cnx->endpoint->endpoint_cfg->max_connections);
+}
+
+
 /* Accepts a connection from the main socket and assigns it to an empty slot.
  * If no slots are available, allocate another few. If that fails, drop the
  * connexion */
-struct connection* accept_new_connection(int listen_socket, struct loop_info* fd_info)
+struct connection* accept_new_connection(struct listen_endpoint* endpoint, struct loop_info* fd_info)
 {
     int in_socket, res;
+    int listen_socket = endpoint->socketfd;
 
     print_message(msg_fd, "accepting from %d\n", listen_socket);
 
@@ -141,11 +174,15 @@ struct connection* accept_new_connection(int listen_socket, struct loop_info* fd
         close(in_socket);
         return NULL;
     }
+    cnx->endpoint = endpoint;
+    if (inc_listen_connections(cnx)) {
+        tidy_connection(cnx, fd_info);
+        return NULL;
+    }
 
     add_probing_cnx(fd_info, cnx);
     return cnx;
 }
-
 
 /* Connect queue 1 of connection to SSL; returns new file descriptor */
 static int connect_queue(struct connection* cnx,

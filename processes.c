@@ -50,6 +50,7 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
         fd_info->num_probing--;
 
     dec_connections(cnx);
+    dec_listen_connections(cnx);
 
     collection_remove_cnx(fd_info->collection, cnx);
     return 0;
@@ -92,7 +93,7 @@ struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_e
 
     switch (type) {
     case SOCK_STREAM:
-        cnx = accept_new_connection(fd, fd_info);
+        cnx = accept_new_connection(listen_socket, fd_info);
         if (!cnx) return NULL;
 
         break;

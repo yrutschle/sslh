@@ -22,22 +22,31 @@ connections:
 - Use `ulimit` (see bash(3) or your shell's man page) to
 limit the number of file descriptors.
 
-- In `sslh-select` and `sslh-ev`, you can set
-`max_connections` per protocol, and `sslh` will drop
-connections after probing if the count is exceeded. 
-This should help in keeping SSH connections available even
-if an attacker is stuffing other protocols. Currently this
-does not work for forking protocols (support is planned)
+Then, `sslh` provides several mechanisms to limit the number
+of concurrent connections, which in turns limits the number
+of file descriptors used.
 
-- `sslh-fork` has an explicit design goal to be as simple as
+Essentially there are two ways to do this:
+
+- you can set `max_connections` per protocol, and `sslh`
+will drop connections after probing if the count is
+exceeded.  This should help in keeping SSH connections
+available even if an attacker is stuffing other protocols.
+Currently this does not work for forking protocols (support
+is planned).
+
+- you can set `max_connections` for each `listen` entry. So
+the `sslh` process for each port will limit the number of
+concurrent connections to that port. This is similar to the
+`udp_max_connections` setting, but for TCP.
+
+`sslh-select` and `sslh-ev` support both limit types.
+
+`sslh-fork` has an explicit design goal to be as simple as
 possible, which makes it impossible to implement limits per
 protocol (because protocol probing is performed after the
-process has forked). Instead, you can set `max_connections`
-for each `listen` entry. So the `sslh` process for each port
-will limit the number of concurrent connections to that
-port. Currently this is not supported in `sslh-select` and
-`sslh-ev` (support is planned).
-
+process has forked). Limits will only work for `listen`
+entries.
 
 As of sslh 2.2.5, this is an experimental feature and not
 all use cases have been tested. If 2.2.5 does not exist yet,

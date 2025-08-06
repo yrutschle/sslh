@@ -109,6 +109,7 @@ struct connection {
     struct sslhcfg_protocols_item* proto; /* Where to connect to */
 
     /* SOCK_STREAM */
+    struct listen_endpoint* endpoint; /* Client-facing listen fd */
     enum connection_state state;
     time_t probe_timeout;
 
