@@ -208,4 +208,4 @@ Limiting file descriptor consumption
 There are various mechanisms to limit the number of
 concurrent connections, which allows to limit the usage of
 file descriptor. This is described in a separate
-[guide](doc/max_connections.md).
+[guide](max_connections.md).
