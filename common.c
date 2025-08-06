@@ -602,8 +602,8 @@ void dump_connection(struct connection *cnx)
  * Returns 1 if connection count is exceeded, 0 otherwise */
 int inc_connections(struct connection* cnx)
 {
+    cnx->proto->num_connections++;
     if (cnx->proto->max_connections_is_present) {
-        cnx->proto->num_connections++;
         print_message(msg_connections, "Proto %s +1: %d/%d cnx\n",
                       cnx->proto->name,
                       cnx->proto->num_connections,
