@@ -313,7 +313,7 @@ void probing_read_process(struct connection* cnx,
     remove_probing_cnx(fd_info, cnx);
     cnx->state = ST_SHOVELING;
 
-    if (inc_connections(cnx)) {
+    if (inc_proto_connections(cnx)) {
         tidy_connection(cnx, fd_info);
         return;
     }

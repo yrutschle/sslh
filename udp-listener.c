@@ -302,7 +302,7 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         cnx->addrlen = addrlen;
         cnx->local_endpoint = sockfd;
 
-        if (inc_connections(cnx)) {
+        if (inc_proto_connections(cnx)) {
             tidy_connection(cnx, fd_info);
             return NULL;
         }

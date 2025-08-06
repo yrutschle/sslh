@@ -600,7 +600,7 @@ void dump_connection(struct connection *cnx)
 /* *cnx must have its proto field probed already.
  * If required, increment the connection count for this protocol.
  * Returns 1 if connection count is exceeded, 0 otherwise */
-int inc_connections(struct connection* cnx)
+int inc_proto_connections(struct connection* cnx)
 {
     cnx->proto->num_connections++;
     if (cnx->proto->max_connections_is_present) {
@@ -616,7 +616,7 @@ int inc_connections(struct connection* cnx)
     return 0;
 }
 
-void dec_connections(struct connection* cnx)
+void dec_proto_connections(struct connection* cnx)
 {
     if (cnx->proto) {
         cnx->proto->num_connections--;

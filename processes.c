@@ -49,7 +49,7 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
     if (gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing) != -1)
         fd_info->num_probing--;
 
-    dec_connections(cnx);
+    dec_proto_connections(cnx);
     dec_listen_connections(cnx);
 
     collection_remove_cnx(fd_info->collection, cnx);
