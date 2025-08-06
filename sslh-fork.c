@@ -181,7 +181,7 @@ static void process_signals(struct listen_endpoint* endpoint)
         received_sigchld = 0;
         do {
             chld = waitpid(-1, NULL, WNOHANG);
-            CHECK_RES_RETURN(chld, "waitpid", 0);
+            CHECK_RES_RETURN(chld, "waitpid", );
             if (chld) {
                 endpoint->num_connections--;
                 print_message(msg_fd, "child died, %d concurrent connections remaining\n", endpoint->num_connections);
