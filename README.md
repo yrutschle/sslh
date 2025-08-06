@@ -30,6 +30,20 @@ Install
 
 Please refer to the [install guide](doc/INSTALL.md).
 
+Security
+========
+
+Matthias Gerstner from OpenSUSE has performed a code review
+of `sslh` from a security point of view, which revealed a
+number of problems, including two CVE. His findings have
+already been taken partly into account for the more critical
+ones. The [full
+review](https://security.opensuse.org/2025/06/13/sslh-denial-of-service-vulnerabilities.html)
+is well worth reading if you are using `sslh` in production.
+
+Part of the securing your installation involves configuring
+connection limits. This is described in [this
+guide](doc/max_connections.md).
 
 Configuration
 =============
