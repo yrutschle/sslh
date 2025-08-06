@@ -1,4 +1,11 @@
 vNEXT:
+	Added `max_connections` setting to `listen` and
+	`protocol` configuration; see the
+	[guide](doc/max_connections.md) for more
+	information.
+	(still missing: protocol count for forked protocols
+	 in sslh-[ev|select])
+
 	Fix proxyprotocol target field (Thanks to Github user 404-Not-Found)
 
 	Fix memory leak in regex probe.
