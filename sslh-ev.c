@@ -131,13 +131,10 @@ static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
 
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
-    struct loop_info ev_info = {0};
+    struct loop_info ev_info;
     loop = EV_DEFAULT;
 
-    ev_info.collection = collection_init(0);
-    ev_info.probing_list = gap_init(0);
-    udp_init(&ev_info);
-    tcp_init();
+    loop_init(&ev_info);
 
     watchers_init(&ev_info.watchers, listen_sockets, num_addr_listen);
     ev_set_userdata(EV_A_ &ev_info);

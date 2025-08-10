@@ -30,6 +30,7 @@ void cnx_read_process(struct loop_info* fd_info, int fd);
 struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
 
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
+void loop_init(struct loop_info* loop);
 
 
 /* These must be declared in the loop handler, sslh-ev or sslh-select */

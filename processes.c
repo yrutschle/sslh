@@ -113,6 +113,13 @@ struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_e
     return cnx;
 }
 
-
+void loop_init(struct loop_info* loop)
+{
+    memset(loop, 0, sizeof(*loop));
+    loop->collection = collection_init(0);
+    loop->probing_list = gap_init(0);
+    udp_init(loop);
+    tcp_init();
+}
 
 

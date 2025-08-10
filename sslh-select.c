@@ -124,15 +124,12 @@ static int fd_out_of_range(int fd) {
  */
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
-    struct loop_info fd_info = {0};
+    struct loop_info fd_info;
     fd_set readfds, writefds; /* working read and write fd sets */
     struct timeval tv;
     int i, res;
 
-    fd_info.num_probing = 0; 
-    fd_info.probing_list = gap_init(0);
-    udp_init(&fd_info);
-    tcp_init();
+    loop_init(&fd_info);
 
     watchers_init(&fd_info.watchers, listen_sockets, num_addr_listen);
 
