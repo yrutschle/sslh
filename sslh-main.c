@@ -87,9 +87,10 @@ static void printsettings(void)
             }
         }
         print_message(msg_config, 
-                      "%s addr: %s. libwrap service: %s log_level: %d [%s] [%s] [%s]\n",
+                      "%s addr: %s. max_cnx: %d libwrap service: %s log_level: %d [%s] [%s] [%s]\n",
                       p->name, 
                       buf,
+                      p->max_connections,
                       p->service,
                       p->log_level,
                       p->keepalive ? "keepalive" : "",
