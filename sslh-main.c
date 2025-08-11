@@ -74,8 +74,11 @@ static void printsettings(void)
         if (p->is_unix) {
             sprintf(buf, "unix socket: %s", p->host);
         } else {
-            strcpy(buf, "resolve on forward");
-            if (!p->resolve_on_forward) {
+            if (p->resolve_on_forward) {
+                strcpy(buf, "resolve on forward: ");
+                size_t len = strlen(buf);
+                sprintf(buf+len, "%s:%s", p->host, p->port);
+            } else {
                 sprintaddr(buf, sizeof(buf), p->saddr);
                 size_t len = strlen(buf);
                 sprintf(buf+len, " family %d %d",
