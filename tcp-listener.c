@@ -294,6 +294,32 @@ static void connect_proxy(struct connection *cnx)
     exit(0);
 }
 
+
+/* Forks a shoveler process for one protocol */
+void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
+    pid_t pid;
+    switch (pid = fork()) {
+    case 0:  /* child */
+        /* TODO: close all file descriptors except 2 */
+        /* free(cnx); */
+        connect_proxy(cnx);
+        exit(0);
+    case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
+             break;
+    default: /* parent */
+             struct pid2proto* pid2proto = malloc(sizeof(*pid2proto));
+             pid2proto->pid = pid;
+             pid2proto->proto = cnx->proto;
+             if (hash_insert(fd_info->pid2proto, pid2proto)) {
+                 /* TODO something if it fails */
+             }
+             break;
+    }
+    /* Free file descriptor, but do not reduce protocol count */
+    cnx->proto = NULL;
+    tidy_connection(cnx, fd_info);
+}
+
 /* Process read activity on a socket in probe state 
  * IN/OUT cnx: connection data, updated if connected
  * IN/OUT info: updated if connected
@@ -301,17 +327,13 @@ static void connect_proxy(struct connection *cnx)
 void probing_read_process(struct connection* cnx,
                                  struct loop_info* fd_info)
 {
-    int res;
-
     /* If timed out it's SSH, otherwise the client sent
      * data so probe the protocol */
     if ((cnx->probe_timeout < time(NULL))) {
         cnx->proto = timeout_protocol();
         print_message(msg_fd, "timed out, connect to %s\n", cnx->proto->name);
     } else {
-        res = probe_client_protocol(cnx);
-        if (res == PROBE_AGAIN)
-            return;
+        probe_client_protocol(cnx);
     }
 
     remove_probing_cnx(fd_info, cnx);
@@ -326,33 +348,10 @@ void probing_read_process(struct connection* cnx,
     if (cnx->proto->service &&
         check_access_rights(cnx->q[0].fd, cnx->proto->service)) {
         tidy_connection(cnx, fd_info);
-        res = -1;
     } else if (cnx->proto->fork) {
-        pid_t pid;
-        switch (pid = fork()) {
-        case 0:  /* child */
-            /* TODO: close all file descriptors except 2 */
-            /* free(cnx); */
-            connect_proxy(cnx);
-            exit(0);
-        case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
-                 break;
-        default: /* parent */
-                 struct pid2proto* pid2proto = malloc(sizeof(*pid2proto));
-                 pid2proto->pid = pid;
-                 pid2proto->proto = cnx->proto;
-                 if (hash_insert(fd_info->pid2proto, pid2proto)) {
-                     /* TODO something if it fails */
-                 }
-                 break;
-        }
-        /* Free file descriptor, but do not reduce protocol count */
-        cnx->proto = NULL;
-        tidy_connection(cnx, fd_info);
-
-        res = -1;
+        fork_shoveling_process(fd_info, cnx);
     } else {
-        res = connect_queue(cnx, fd_info);
+        connect_queue(cnx, fd_info);
     }
 }
 
