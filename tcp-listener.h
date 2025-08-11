@@ -5,9 +5,11 @@
 #include "collection.h"
 #include "tcp-probe.h"
 
-/* Struct to keep track of an association of a forked PID to a protocol */
+/* Struct to keep track of an association of a forked PID to its
+ * listening socket and its protocol */
 struct pid2proto {
     pid_t pid;
+    struct listen_endpoint* endpoint;
     struct sslhcfg_protocols_item* proto;
 };
 
@@ -16,5 +18,5 @@ struct connection* accept_new_connection(struct listen_endpoint* endpoint, struc
 void probing_read_process(struct connection* cnx, struct loop_info* fd_info);
 void cnx_write_process(struct loop_info* fd_info, int fd);
 
-void dec_listen_connections(struct connection* cnx);
+void dec_listen_connections(struct listen_endpoint*);
 #endif

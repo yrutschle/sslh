@@ -620,7 +620,7 @@ int inc_proto_connections(struct sslhcfg_protocols_item* proto)
                       proto->num_connections,
                       proto->max_connections);
         if (proto->num_connections > proto->max_connections) {
-            print_message(msg_connections_error, "%s: too many connections, dropping", proto->name);
+            print_message(msg_connections_error, "%s: too many connections, dropping\n", proto->name);
             return 1;
         }
     }

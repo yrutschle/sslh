@@ -50,7 +50,7 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
         fd_info->num_probing--;
 
     dec_proto_connections(cnx->proto);
-    dec_listen_connections(cnx);
+    dec_listen_connections(cnx->endpoint);
 
     collection_remove_cnx(fd_info->collection, cnx);
     return 0;
@@ -145,6 +145,8 @@ void sigchld_process(struct loop_info* loop)
                 p2p.proto = NULL;
                 struct pid2proto* found = hash_find(loop->pid2proto, &p2p);
                 dec_proto_connections(found->proto);
+                dec_listen_connections(found->endpoint);
+
                 hash_remove(loop->pid2proto, found);
                 free(found);
             }

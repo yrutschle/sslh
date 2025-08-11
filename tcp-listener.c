@@ -127,30 +127,32 @@ void tcp_read_process(struct loop_info* fd_info,
 /* *cnx must have its endpoint field filled;
  * Increment the connection count for the listen endpoint.
  * Return 1 if connection count is exceeded, 0 otherwise */
-static int inc_listen_connections(struct connection* cnx)
+static int inc_listen_connections(struct listen_endpoint* endpoint)
 {
-    cnx->endpoint->num_connections++;
-    if (cnx->endpoint->endpoint_cfg->max_connections_is_present) {
-        int num_cnx = cnx->endpoint->num_connections;
-        int max_cnx = cnx->endpoint->endpoint_cfg->max_connections;
+    endpoint->num_connections++;
+    if (endpoint->endpoint_cfg->max_connections_is_present) {
+        int num_cnx = endpoint->num_connections;
+        int max_cnx = endpoint->endpoint_cfg->max_connections;
 
         print_message(msg_connections, "Endpoint %d +1: %d/%d cnx\n",
-                      cnx->endpoint->socketfd, num_cnx, max_cnx);
+                      endpoint->socketfd, num_cnx, max_cnx);
         if (num_cnx > max_cnx) {
-            print_message(msg_connections_error, "Endpoint %d: too many connections, dropping\n", cnx->endpoint->socketfd);
+            print_message(msg_connections_error, "Endpoint %d: too many connections, dropping\n", endpoint->socketfd);
             return 1;
         }
     }
     return 0;
 }
 
-void dec_listen_connections(struct connection* cnx)
+void dec_listen_connections(struct listen_endpoint* endpoint)
 {
-    cnx->endpoint->num_connections--;
-    print_message(msg_connections, "Endpoint %d -1: %d/%d cnx\n",
-                  cnx->endpoint->socketfd,
-                  cnx->endpoint->num_connections,
-                  cnx->endpoint->endpoint_cfg->max_connections);
+    if (endpoint) {
+        endpoint->num_connections--;
+        print_message(msg_connections, "Endpoint %d -1: %d/%d cnx\n",
+                      endpoint->socketfd,
+                      endpoint->num_connections,
+                      endpoint->endpoint_cfg->max_connections);
+    }
 }
 
 
@@ -179,7 +181,7 @@ struct connection* accept_new_connection(struct listen_endpoint* endpoint, struc
         return NULL;
     }
     cnx->endpoint = endpoint;
-    if (inc_listen_connections(cnx)) {
+    if (inc_listen_connections(endpoint)) {
         tidy_connection(cnx, fd_info);
         return NULL;
     }
@@ -317,6 +319,7 @@ void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
     }
     /* Free file descriptor, but do not reduce protocol count */
     cnx->proto = NULL;
+    cnx->endpoint = NULL;
     tidy_connection(cnx, fd_info);
 }
 
