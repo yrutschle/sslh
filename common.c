@@ -162,6 +162,17 @@ int listen_single_addr(struct addrinfo* addr, int keepalive, int udp)
     return sockfd;
 }
 
+void print_inet_listen_info(int fd, const char* addr, 
+                            struct sslhcfg_listen_item* cfg)
+{
+    print_message(msg_config, "%d:\t%s\t[%s] [%s] [max_cnx: %d]\n", 
+                  fd, 
+                  addr,
+                  cfg->keepalive ? "keepalive" : "",
+                  cfg->is_udp ? "udp" : "",
+                  cfg->max_connections);
+}
+
 
 /* Start listening internet sockets for configuration entry 'index' 
  * OUT: *sockfd[]: pointer to array of listen_endpoint object; we append new
@@ -186,9 +197,9 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
         (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
         (*sockfd)[num_addr-1].family = AF_INET;
         (*sockfd)[num_addr-1].endpoint_cfg = cfg;
-        print_message(msg_config, "%d:\t%s\t[%s] [%s]\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr),
-                      cfg->keepalive ? "keepalive" : "",
-                      cfg->is_udp ? "udp" : "");
+        print_inet_listen_info((*sockfd)[num_addr-1].socketfd, 
+                               sprintaddr(buf, sizeof(buf), addr), 
+                               cfg);
     }
     freeaddrinfo(start_addr);
     return num_addr;
