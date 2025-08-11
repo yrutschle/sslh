@@ -199,6 +199,9 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                 cnx_read_process(&fd_info, i);
             }
         }
+
+        /* Process if signals occured */
+        sigchld_process(&fd_info);
     }
 }
 

@@ -25,6 +25,10 @@
 #include "probe.h"
 #include "log.h"
 
+
+typedef struct pid2proto* hash_item;
+#include "hash.h"
+
 /* Removes cnx from probing list */
 static void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
 {
@@ -313,7 +317,7 @@ void probing_read_process(struct connection* cnx,
     remove_probing_cnx(fd_info, cnx);
     cnx->state = ST_SHOVELING;
 
-    if (inc_proto_connections(cnx)) {
+    if (inc_proto_connections(cnx->proto)) {
         tidy_connection(cnx, fd_info);
         return;
     }
@@ -324,7 +328,8 @@ void probing_read_process(struct connection* cnx,
         tidy_connection(cnx, fd_info);
         res = -1;
     } else if (cnx->proto->fork) {
-        switch (fork()) {
+        pid_t pid;
+        switch (pid = fork()) {
         case 0:  /* child */
             /* TODO: close all file descriptors except 2 */
             /* free(cnx); */
@@ -333,9 +338,18 @@ void probing_read_process(struct connection* cnx,
         case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
                  break;
         default: /* parent */
+                 struct pid2proto* pid2proto = malloc(sizeof(*pid2proto));
+                 pid2proto->pid = pid;
+                 pid2proto->proto = cnx->proto;
+                 if (hash_insert(fd_info->pid2proto, pid2proto)) {
+                     /* TODO something if it fails */
+                 }
                  break;
         }
+        /* Free file descriptor, but do not reduce protocol count */
+        cnx->proto = NULL;
         tidy_connection(cnx, fd_info);
+
         res = -1;
     } else {
         res = connect_queue(cnx, fd_info);

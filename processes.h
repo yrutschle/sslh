@@ -5,12 +5,11 @@
 #include "collection.h"
 #include "gap.h"
 
-typedef struct connection* hash_item;
-#include "hash.h"
-
 /* Provided by event loop, sslh-ev or sslh-select, for implementation-dependant
  * data */
 typedef struct watchers watchers; 
+
+typedef void hash;
 
 /* Global state for a loop */
 struct loop_info {
@@ -20,6 +19,8 @@ struct loop_info {
     gap_array* probing_list;  /* Pointers to cnx that are in probing mode */
 
     hash* hash_sources; /* UDP remote sources previously encountered */
+
+    hash* pid2proto; /* to follow which forked PID is processing what protocol for connection count */
 
     watchers* watchers;
 
@@ -32,6 +33,7 @@ struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_e
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
 void loop_init(struct loop_info* loop);
 
+void sigchld_process(struct loop_info* loop);
 
 /* These must be declared in the loop handler, sslh-ev or sslh-select */
 void watchers_add_read(watchers* w, int fd);

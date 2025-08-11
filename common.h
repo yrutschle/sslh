@@ -177,8 +177,8 @@ void drop_privileges(const char* user_name, const char* chroot_path);
 void set_capabilities(int cap_net_admin);
 void write_pid_file(const char* pidfile);
 void dump_connection(struct connection *cnx);
-int inc_proto_connections(struct connection* cnx);
-void dec_proto_connections(struct connection* cnx);
+int inc_proto_connections(struct sslhcfg_protocols_item* cnx);
+void dec_proto_connections(struct sslhcfg_protocols_item* cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
 int start_listen_sockets(struct listen_endpoint *sockfd[]);

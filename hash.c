@@ -44,7 +44,13 @@
 
 #include "gap.h"
 
+#if 0
+#define DEBUG 1
+#endif
+
 typedef void* hash_item;
+
+typedef struct hash hash;
 #include "hash.h"
 
 static void* const FREE = NULL;
@@ -55,9 +61,9 @@ static void* const FREE = NULL;
  * hash_item_print() takes a pointer to a function that prints a hash item
  * See test suite in hashtest/ for an example
  *  */
-/*
+#if 0
 #define HASH_DEBUG 1
-*/
+#endif
 
 struct hash {
     int hash_size;      /* Max number of items in the hash */
@@ -71,7 +77,6 @@ struct hash {
 #endif
 };
 
-typedef struct hash hash;
 
 
 static int hash_make_key(hash* h, hash_item item)
@@ -164,7 +169,7 @@ int hash_insert(hash* h, hash_item new)
         if (distance(index, h, curr_item) < distance(index, h, new)) {
             gap_set(h->data, index, new);
 #if DEBUG
-            fprintf(stderr, "intermediate insert [%s] at %d\n", &new->client_addr, index);
+            fprintf(stderr, "intermediate insert [%d] at %d\n", new->pid, index);
 #endif
             new = curr_item;
         }

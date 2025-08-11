@@ -27,11 +27,15 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
+
 /* Incoming connections are of course all received on a single socket. Create a
  * hash that associates (incoming sockaddr) => struct connection*, so finding
  * the connection related to an incoming packet is fast.
  */
 
+
+typedef struct connection* hash_item;
+#include "hash.h"
 
 
 static int cnx_cmp(struct connection* cnx1, struct connection* cnx2)
@@ -302,7 +306,7 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         cnx->addrlen = addrlen;
         cnx->local_endpoint = sockfd;
 
-        if (inc_proto_connections(cnx)) {
+        if (inc_proto_connections(cnx->proto)) {
             tidy_connection(cnx, fd_info);
             return NULL;
         }

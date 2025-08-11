@@ -611,30 +611,30 @@ void dump_connection(struct connection *cnx)
 /* *cnx must have its proto field probed already.
  * If required, increment the connection count for this protocol.
  * Returns 1 if connection count is exceeded, 0 otherwise */
-int inc_proto_connections(struct connection* cnx)
+int inc_proto_connections(struct sslhcfg_protocols_item* proto)
 {
-    cnx->proto->num_connections++;
-    if (cnx->proto->max_connections_is_present) {
+    proto->num_connections++;
+    if (proto->max_connections_is_present) {
         print_message(msg_connections, "Proto %s +1: %d/%d cnx\n",
-                      cnx->proto->name,
-                      cnx->proto->num_connections,
-                      cnx->proto->max_connections);
-        if (cnx->proto->num_connections > cnx->proto->max_connections) {
-            print_message(msg_connections_error, "%s: too many connections, dropping", cnx->proto->name);
+                      proto->name,
+                      proto->num_connections,
+                      proto->max_connections);
+        if (proto->num_connections > proto->max_connections) {
+            print_message(msg_connections_error, "%s: too many connections, dropping", proto->name);
             return 1;
         }
     }
     return 0;
 }
 
-void dec_proto_connections(struct connection* cnx)
+void dec_proto_connections(struct sslhcfg_protocols_item* proto)
 {
-    if (cnx->proto) {
-        cnx->proto->num_connections--;
+    if (proto) {
+        proto->num_connections--;
         print_message(msg_connections, "Proto %s -1: %d/%d cnx\n",
-                      cnx->proto->name,
-                      cnx->proto->num_connections,
-                      cnx->proto->max_connections);
+                      proto->name,
+                      proto->num_connections,
+                      proto->max_connections);
     }
 }
 

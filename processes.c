@@ -1,7 +1,7 @@
 /* 
   Processes that are common to sslh-ev and sslh-select
  
-# Copyright (C) 2021  Yves Rutschle
+# Copyright (C) 2021-2025  Yves Rutschle
 # 
 # This program is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public
@@ -49,7 +49,7 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
     if (gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing) != -1)
         fd_info->num_probing--;
 
-    dec_proto_connections(cnx);
+    dec_proto_connections(cnx->proto);
     dec_listen_connections(cnx);
 
     collection_remove_cnx(fd_info->collection, cnx);
@@ -113,6 +113,46 @@ struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_e
     return cnx;
 }
 
+
+
+typedef struct pid2proto* hash_item;
+#include "hash.h"
+
+static int pid_make_key(hash_item item) 
+{
+    return item->pid;
+}
+
+static int pid_cmp(hash_item item1, hash_item item2)
+{
+    fprintf(stderr, "pid_cmp (%d,%d)\n", item1->pid, item2->pid);
+    return item1->pid != item2->pid;
+}
+
+/* Check if SIGCHLD was received, and then decrease counts */
+extern volatile sig_atomic_t received_sigchld;
+void sigchld_process(struct loop_info* loop)
+{
+    int chld;
+    if (received_sigchld) {
+        received_sigchld = 0;
+        do {
+            chld = waitpid(-1, NULL, WNOHANG);
+            CHECK_RES_RETURN(chld, "waitpid", );
+            if (chld) {
+                struct pid2proto p2p;
+                p2p.pid = chld;
+                p2p.proto = NULL;
+                struct pid2proto* found = hash_find(loop->pid2proto, &p2p);
+                dec_proto_connections(found->proto);
+                hash_remove(loop->pid2proto, found);
+                free(found);
+            }
+        } while (chld);
+    }
+}
+
+
 void loop_init(struct loop_info* loop)
 {
     memset(loop, 0, sizeof(*loop));
@@ -120,6 +160,11 @@ void loop_init(struct loop_info* loop)
     loop->probing_list = gap_init(0);
     udp_init(loop);
     tcp_init();
+
+    loop->pid2proto = hash_init(32, pid_make_key, pid_cmp);
+    if (!loop->pid2proto) {
+        /* do something!  (we're also not doing anything for UDP) */
+    }
 }
 
 
