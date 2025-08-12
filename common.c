@@ -87,7 +87,7 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
     }
     if (sd > 0) {
       int i;
-      *sockfd = malloc(sd * sizeof(*sockfd[0]));
+      *sockfd = calloc(sd, sizeof(*sockfd[0]));
       CHECK_ALLOC(*sockfd, "malloc");
       for (i = 0; i < sd; i++) {
         (*sockfd)[i].socketfd = SD_LISTEN_FDS_START + i;
@@ -193,6 +193,7 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
     for (addr = start_addr; addr; addr = addr->ai_next) {
         num_addr++;
         *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
+        memset(&(*sockfd)[num_addr-1], 0, sizeof((*sockfd)[num_addr-1]));
         (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, cfg->keepalive, cfg->is_udp);
         (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
         (*sockfd)[num_addr-1].family = AF_INET;
@@ -228,6 +229,7 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
 
     num_addr++;
     *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
+    memset(&(*sockfd)[num_addr-1], 0, sizeof((*sockfd)[num_addr-1]));
     (*sockfd)[num_addr-1].socketfd = fd;
     (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
     (*sockfd)[num_addr-1].family = AF_INET;
