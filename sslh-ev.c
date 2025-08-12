@@ -132,7 +132,6 @@ static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
 
 void sigchld_cb(EV_P_ ev_child *w, int revents)
 {
-    printf("sigchld_cb %d\n", w->pid);
     struct loop_info* info = ev_userdata(EV_A);
     ev_child_stop(EV_A_ w);
 
