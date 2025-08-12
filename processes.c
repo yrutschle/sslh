@@ -125,11 +125,24 @@ static int pid_make_key(hash_item item)
 
 static int pid_cmp(hash_item item1, hash_item item2)
 {
-    fprintf(stderr, "pid_cmp (%d,%d)\n", item1->pid, item2->pid);
     return item1->pid != item2->pid;
 }
 
-/* Check if SIGCHLD was received, and then decrease counts */
+/* When a child has died, update the counts appropriately */
+void decrease_forked_connection(struct loop_info* loop, pid_t pid) {
+    struct pid2proto p2p = {
+        .pid = pid,
+        .proto = NULL
+    };
+    struct pid2proto* found = hash_find(loop->pid2proto, &p2p);
+    dec_proto_connections(found->proto);
+    dec_listen_connections(found->endpoint);
+
+    hash_remove(loop->pid2proto, found);
+    free(found);
+}
+
+/* Check if SIGCHLD was received, find which PID and reap appropriately */
 extern volatile sig_atomic_t received_sigchld;
 void sigchld_process(struct loop_info* loop)
 {
@@ -140,15 +153,7 @@ void sigchld_process(struct loop_info* loop)
             chld = waitpid(-1, NULL, WNOHANG);
             CHECK_RES_RETURN(chld, "waitpid", );
             if (chld) {
-                struct pid2proto p2p;
-                p2p.pid = chld;
-                p2p.proto = NULL;
-                struct pid2proto* found = hash_find(loop->pid2proto, &p2p);
-                dec_proto_connections(found->proto);
-                dec_listen_connections(found->endpoint);
-
-                hash_remove(loop->pid2proto, found);
-                free(found);
+                decrease_forked_connection(loop, chld);
             }
         } while (chld);
     }
