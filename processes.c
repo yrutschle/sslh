@@ -168,13 +168,13 @@ void loop_init(struct loop_info* loop)
     memset(loop, 0, sizeof(*loop));
     loop->collection = collection_init(0);
     loop->probing_list = gap_init(0);
+    CHECK_ALLOC(loop->probing_list, "gap_init");
+
     udp_init(loop);
     tcp_init();
 
     loop->pid2proto = hash_init(32, pid_make_key, pid_cmp);
-    if (!loop->pid2proto) {
-        /* TODO do something!  (we're also not doing anything for UDP) */
-    }
+    CHECK_ALLOC(loop->pid2proto, "hash_init");
 }
 
 
