@@ -88,8 +88,31 @@ void watchers_del_write(watchers* w, int fd)
     FD_CLR(fd, &w->fds_w);
 }
 
+void watcher_sigchld(struct loop_info* fd_info, struct connection* cnx, pid_t pid)
+{
+    /* Nothing to do, watcher is processed in the event loop when select() is
+     * interrupted by the signal */
+}
+
 /* /end watchers */
 
+/* Check if SIGCHLD was received, find which PID and reap appropriately */
+extern volatile sig_atomic_t received_sigchld;
+static void sigchld_process(struct loop_info* loop)
+{
+    int chld;
+    printf("sigchld_process\n");
+    if (received_sigchld) {
+        received_sigchld = 0;
+        do {
+            chld = waitpid(-1, NULL, WNOHANG);
+            CHECK_RES_RETURN(chld, "waitpid", );
+            if (chld) {
+                decrease_forked_connection(loop, chld);
+            }
+        } while (chld);
+    }
+}
 
 
 

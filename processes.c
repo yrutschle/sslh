@@ -26,6 +26,14 @@
 #include "probe.h"
 #include "log.h"
 
+/* Struct to keep track of an association of a forked PID to its
+ * listening socket and its protocol */
+struct pid2proto {
+    pid_t pid;
+    struct listen_endpoint* endpoint;
+    struct sslhcfg_protocols_item* proto;
+};
+
 
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
 {
@@ -130,10 +138,7 @@ static int pid_cmp(hash_item item1, hash_item item2)
 
 /* When a child has died, update the counts appropriately */
 void decrease_forked_connection(struct loop_info* loop, pid_t pid) {
-    struct pid2proto p2p = {
-        .pid = pid,
-        .proto = NULL
-    };
+    struct pid2proto p2p = { .pid = pid };
     struct pid2proto* found = hash_find(loop->pid2proto, &p2p);
     dec_proto_connections(found->proto);
     dec_listen_connections(found->endpoint);
@@ -142,20 +147,18 @@ void decrease_forked_connection(struct loop_info* loop, pid_t pid) {
     free(found);
 }
 
-/* Check if SIGCHLD was received, find which PID and reap appropriately */
-extern volatile sig_atomic_t received_sigchld;
-void sigchld_process(struct loop_info* loop)
+
+typedef struct pid2proto* hash_item;
+#include "hash.h"
+void remember_child_data(struct loop_info* fd_info,
+                         struct connection* cnx, pid_t pid)
 {
-    int chld;
-    if (received_sigchld) {
-        received_sigchld = 0;
-        do {
-            chld = waitpid(-1, NULL, WNOHANG);
-            CHECK_RES_RETURN(chld, "waitpid", );
-            if (chld) {
-                decrease_forked_connection(loop, chld);
-            }
-        } while (chld);
+    struct pid2proto* pid2proto = malloc(sizeof(*pid2proto));
+    pid2proto->pid = pid;
+    pid2proto->proto = cnx->proto;
+    pid2proto->endpoint = cnx->endpoint;
+    if (hash_insert(fd_info->pid2proto, pid2proto)) {
+        /* TODO something if it fails */
     }
 }
 
@@ -170,7 +173,7 @@ void loop_init(struct loop_info* loop)
 
     loop->pid2proto = hash_init(32, pid_make_key, pid_cmp);
     if (!loop->pid2proto) {
-        /* do something!  (we're also not doing anything for UDP) */
+        /* TODO do something!  (we're also not doing anything for UDP) */
     }
 }
 

@@ -33,7 +33,8 @@ struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_e
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
 void loop_init(struct loop_info* loop);
 
-void sigchld_process(struct loop_info* loop);
+void remember_child_data(struct loop_info* fd_info, 
+                         struct connection* cnx, pid_t pid);
 
 /* These must be declared in the loop handler, sslh-ev or sslh-select */
 void watchers_add_read(watchers* w, int fd);

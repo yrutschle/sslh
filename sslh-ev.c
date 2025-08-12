@@ -129,6 +129,26 @@ static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
     cnx_accept_process(info, gap_get(info->watchers->fd2ls, w->fd));
 }
 
+
+void sigchld_cb(EV_P_ ev_child *w, int revents)
+{
+    printf("sigchld_cb %d\n", w->pid);
+    struct loop_info* info = ev_userdata(EV_A);
+    ev_child_stop(EV_A_ w);
+
+    decrease_forked_connection(info, w->pid);
+    free(w);
+}
+
+void watcher_sigchld(struct loop_info* fd_info, struct connection* cnx, pid_t pid)
+{
+    ev_child* cw = malloc(sizeof(*cw));
+
+    ev_child_init(cw, sigchld_cb, pid, 0);
+    ev_child_start(EV_DEFAULT_ cw);
+}
+
+
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
     struct loop_info ev_info;

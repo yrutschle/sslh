@@ -46,6 +46,7 @@
 
 #if 0
 #define DEBUG 1
+#include <stdio.h>
 #endif
 
 typedef void* hash_item;
@@ -169,7 +170,7 @@ int hash_insert(hash* h, hash_item new)
         if (distance(index, h, curr_item) < distance(index, h, new)) {
             gap_set(h->data, index, new);
 #if DEBUG
-            fprintf(stderr, "intermediate insert [%d] at %d\n", new->pid, index);
+            fprintf(stderr, "intermediate insert at %d\n", index);
 #endif
             new = curr_item;
         }

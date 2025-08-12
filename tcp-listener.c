@@ -26,8 +26,6 @@
 #include "log.h"
 
 
-typedef struct pid2proto* hash_item;
-#include "hash.h"
 
 /* Removes cnx from probing list */
 static void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
@@ -309,15 +307,12 @@ void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
     case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
              break;
     default: /* parent */
-             struct pid2proto* pid2proto = malloc(sizeof(*pid2proto));
-             pid2proto->pid = pid;
-             pid2proto->proto = cnx->proto;
-             if (hash_insert(fd_info->pid2proto, pid2proto)) {
-                 /* TODO something if it fails */
-             }
+             remember_child_data(fd_info, cnx, pid);
+             watcher_sigchld(fd_info, cnx, pid);
              break;
     }
-    /* Free file descriptor, but do not reduce protocol count */
+    /* Free file descriptor (used only in child), but do not reduce connection
+     * counts */
     cnx->proto = NULL;
     cnx->endpoint = NULL;
     tidy_connection(cnx, fd_info);
