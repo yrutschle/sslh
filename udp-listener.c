@@ -124,6 +124,7 @@ static void udp_sanity_check(void)
 void udp_init(struct loop_info* fd_info)
 {
     fd_info->hash_sources = hash_init(cfg.udp_max_connections, &hash_make_key, &cnx_cmp);
+    CHECK_ALLOC(fd_info->hash_sources, "hash_init");
 
     udp_protocol_list_init();
     udp_sanity_check();

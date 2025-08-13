@@ -162,6 +162,24 @@ void remember_child_data(struct loop_info* fd_info,
     }
 }
 
+static int max_forking_connections(void)
+{
+    int max_cnx = 0;
+    for (int i = 0; i < cfg.protocols_len; i++) {
+        if (cfg.protocols[i].fork)
+            max_cnx += cfg.protocols[i].max_connections;
+    }
+    return max_cnx;
+}
+
+static int next_power_of_two(int n)
+{
+    n |= (n >> 16);
+    n |= (n >> 4);
+    n |= (n >> 2);
+    n |= (n >> 1);
+    return n + 1;
+}
 
 void loop_init(struct loop_info* loop)
 {
@@ -173,7 +191,8 @@ void loop_init(struct loop_info* loop)
     udp_init(loop);
     tcp_init();
 
-    loop->pid2proto = hash_init(32, pid_make_key, pid_cmp);
+    int max_forks = next_power_of_two(max_forking_connections());
+    loop->pid2proto = hash_init(2 * max_forks, pid_make_key, pid_cmp);
     CHECK_ALLOC(loop->pid2proto, "hash_init");
 }
 
