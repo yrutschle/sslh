@@ -35,11 +35,14 @@ void loop_init(struct loop_info* loop);
 
 void remember_child_data(struct loop_info* fd_info, 
                          struct connection* cnx, pid_t pid);
+void decrease_forked_connection(struct loop_info* loop, pid_t pid);
 
 /* These must be declared in the loop handler, sslh-ev or sslh-select */
 void watchers_add_read(watchers* w, int fd);
 void watchers_del_read(watchers* w, int fd);
 void watchers_add_write(watchers* w, int fd);
 void watchers_del_write(watchers* w, int fd);
+
+void watcher_sigchld(struct loop_info* fd_info, struct connection* cnx, pid_t pid);
 
 #endif
