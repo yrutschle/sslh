@@ -32,8 +32,6 @@ Essentially there are two ways to do this:
 will drop connections after probing if the count is
 exceeded.  This should help in keeping SSH connections
 available even if an attacker is stuffing other protocols.
-Currently this does not work for forking protocols (support
-is planned).
 
 - you can set `max_connections` for each `listen` entry. So
 the `sslh` process for each port will limit the number of
