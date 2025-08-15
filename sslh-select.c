@@ -101,7 +101,6 @@ extern volatile sig_atomic_t received_sigchld;
 static void sigchld_process(struct loop_info* loop)
 {
     int chld;
-    printf("sigchld_process\n");
     if (received_sigchld) {
         received_sigchld = 0;
         do {
