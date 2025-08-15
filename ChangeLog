@@ -4,6 +4,8 @@ vNEXT:
 	[guide](doc/max_connections.md) for more
 	information.
 
+	accept() is now disabled for some time when ulimit -n is reached.
+
 	Fix proxyprotocol target field (Thanks to Github user 404-Not-Found)
 
 	Fix memory leak in regex probe.
