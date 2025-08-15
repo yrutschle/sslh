@@ -99,6 +99,8 @@ struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_e
     int type = listen_socket->type;
     struct connection* cnx;
 
+    udp_timeouts(fd_info);
+
     switch (type) {
     case SOCK_STREAM:
         cnx = accept_new_connection(listen_socket, fd_info);

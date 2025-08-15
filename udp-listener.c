@@ -271,8 +271,6 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
                          malloc/free overhead for each packet, when really 64K is not that much */
 
 
-    udp_timeouts(fd_info);
-
     addrlen = sizeof(src_addr);
     len = recvfrom(sockfd, data, sizeof(data), 0, (struct sockaddr*) &src_addr, &addrlen);
     if (len < 0) {

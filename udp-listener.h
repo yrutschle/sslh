@@ -25,5 +25,6 @@ void udp_s2c_forward(struct connection* cnx);
 
 void udp_init(struct loop_info* fd_info);
 void udp_tidy(struct connection* cnx, struct loop_info* fd_info);
+void udp_timeouts(struct loop_info* fd_info);
 
 #endif /* UDPLISTENER_H */
