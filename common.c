@@ -926,7 +926,6 @@ void setup_signals(void)
     action.sa_handler = SIG_IGN;
     res = sigaction(SIGPIPE, &action, NULL);
     CHECK_RES_DIE(res, "sigaction");
-
 }
 
 

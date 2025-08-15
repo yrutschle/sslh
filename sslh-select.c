@@ -96,6 +96,32 @@ void watcher_sigchld(struct loop_info* fd_info, struct connection* cnx, pid_t pi
 
 /* /end watchers */
 
+
+/* Enable all accept() watchers */
+static void start_accept_watchers(watchers* w, struct listen_endpoint* listen_sockets, int num_addr_listen)
+{
+    for (int i = 0; i < num_addr_listen; i++) {
+        watchers_add_read(w, listen_sockets[i].socketfd);
+    }
+}
+
+/* Disable all accept() watchers */
+static void stop_accept_watchers(watchers* w, struct listen_endpoint* listen_sockets, int num_addr_listen)
+{
+    for (int i = 0; i < num_addr_listen; i++) {
+        watchers_del_read(w, listen_sockets[i].socketfd);
+    }
+}
+
+static void temporary_stop_accept_watchers(
+                                    watchers* w,
+                                    struct listen_endpoint* listen_sockets,
+                                    int num_addr_listen)
+{
+    stop_accept_watchers(w, listen_sockets, num_addr_listen);
+    alarm(2);
+}
+
 /* Check if SIGCHLD was received, find which PID and reap appropriately */
 extern volatile sig_atomic_t received_sigchld;
 static void sigchld_process(struct loop_info* loop)
@@ -113,6 +139,31 @@ static void sigchld_process(struct loop_info* loop)
     }
 }
 
+volatile sig_atomic_t received_sigalrm;
+void sig_sigalrm(int sig)
+{
+    received_sigalrm = 1;
+}
+
+static void setup_sigalrm(void)
+{
+    int res;
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = sig_sigalrm;
+    res = sigaction(SIGALRM, &action, NULL);
+    CHECK_RES_DIE(res, "sigaction");
+}
+
+
+static void sigalrm_process(watchers* w, struct listen_endpoint* listen_sockets, int num_addr_listen)
+{
+    if (received_sigalrm) {
+        received_sigalrm = 0;
+        start_accept_watchers(w, listen_sockets, num_addr_listen);
+    }
+}
 
 
 /* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
@@ -151,6 +202,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     struct timeval tv;
     int i, res;
 
+    setup_sigalrm();
     loop_init(&fd_info, num_addr_listen);
 
     watchers_init(&fd_info.watchers, listen_sockets, num_addr_listen);
@@ -182,6 +234,15 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                 while ((new_cnx = cnx_accept_process(&fd_info, &listen_sockets[i]))) {
                     if (fd_out_of_range(new_cnx->q[0].fd))
                         tidy_connection(new_cnx, &fd_info);
+                }
+                /* if accept() returns with ENFILE, disable listen for a second */
+                switch (errno) {
+                case EMFILE:
+                case ENFILE:  /* Not sure ENFILE should be included here */
+                    temporary_stop_accept_watchers(fd_info.watchers, listen_sockets, num_addr_listen);
+                    break;
+
+                default: break;
                 }
 
             }
@@ -224,6 +285,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
         /* Process if signals occured */
         sigchld_process(&fd_info);
+        sigalrm_process(fd_info.watchers, listen_sockets, num_addr_listen);
     }
 }
 
