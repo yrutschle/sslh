@@ -180,7 +180,6 @@ static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
         switch (errno) {
         case EMFILE:
         case ENFILE:  /* Not sure ENFILE should be included here */
-        case EWOULDBLOCK:  /* or EAGAIN */
             /* cancel accepting for a while */
             temporary_stop_accept_watchers(w);
 
