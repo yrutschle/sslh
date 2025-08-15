@@ -45,6 +45,28 @@ static void cnx_read_cb(EV_P_ ev_io *w, int revents);
 static void cnx_write_cb(EV_P_ ev_io *w, int wevents);
 static void cnx_accept_cb(EV_P_ ev_io *w, int revents);
 
+/*******************************************************************************/
+/* Helper functions */
+
+/* Enable all accept() watchers */
+static void start_accept_watchers(watchers* w, int num_addr_listen) 
+{
+    for (int i = 0; i < num_addr_listen; i++) {
+        ev_io* io = gap_get(w->ev_ior, i);
+        ev_io_start(EV_A_  io);
+    }
+}
+
+/* Disable all accept() watchers */
+static void stop_accept_watchers(watchers* w, int num_addr_listen)
+{
+    for (int i = 0; i < num_addr_listen; i++) {
+        ev_io* io = gap_get(w->ev_ior, i);
+        ev_io_stop(EV_A_  io);
+    }
+}
+
+/*******************************************************************************/
 
 static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets, 
                           int num_addr_listen)
@@ -60,11 +82,11 @@ static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
         ev_io* io = malloc(sizeof(*io));
 
         ev_io_init(io, &cnx_accept_cb, listen_sockets[i].socketfd, EV_READ);
-        ev_io_start(EV_A_  io);
         gap_set((*w)->ev_ior, i, io);
         gap_set((*w)->fd2ls, listen_sockets[i].socketfd, &listen_sockets[i]);
         set_nonblock(listen_sockets[i].socketfd);
     }
+    start_accept_watchers(*w, num_addr_listen);
 }
 
 void watchers_add_read(watchers* w, int fd)
@@ -122,11 +144,50 @@ static void cnx_write_cb(EV_P_ ev_io *w, int wevents)
     cnx_write_process(info, w->fd);
 }
 
+/* Timer expired: destroy timer, restart the accept watchers */
+static void restart_accept_cb( EV_P_ ev_timer *timer, int revents)
+{
+    struct loop_info* info = ev_userdata(EV_A);
 
+    ev_timer_stop(EV_A_ timer);
+    free(timer);
+
+    start_accept_watchers(info->watchers, info->num_addr_listen);
+}
+
+/* Stop the accept() io watchers, start a timer
+ */
+static void temporary_stop_accept_watchers(ev_io* io)
+{
+    struct loop_info* info = ev_userdata(EV_A);
+
+    ev_timer* timer = malloc(sizeof(*timer));
+    stop_accept_watchers(info->watchers, info->num_addr_listen);
+    ev_timer_init(timer, &restart_accept_cb, 1, 0);
+    ev_timer_start(EV_A_ timer);
+}
+
+/* The accept() callback, called when there is READ activity.
+ *
+ * accept()ing when the process as reached its file descriptor limit (ulimit -n) is can of worms with no solution (see libev's manual "The special problem of accept()ing when you can't").
+ * When that happens, the strategy is: Disable all listening sockets, start a 1
+ * second timer, enable all listening sockets. This is terrible, but apparently
+ * the best we can do */
 static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
 {
     struct loop_info* info = ev_userdata(EV_A);
-    cnx_accept_process(info, gap_get(info->watchers->fd2ls, w->fd));
+    if (!cnx_accept_process(info, gap_get(info->watchers->fd2ls, w->fd))) {
+        switch (errno) {
+        case EMFILE:
+        case ENFILE:  /* Not sure ENFILE should be included here */
+        case EWOULDBLOCK:  /* or EAGAIN */
+            /* cancel accepting for a while */
+            temporary_stop_accept_watchers(w);
+
+        default:
+            break;
+        }
+    }
 }
 
 
@@ -153,7 +214,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     struct loop_info ev_info;
     loop = EV_DEFAULT;
 
-    loop_init(&ev_info);
+    loop_init(&ev_info, num_addr_listen);
 
     watchers_init(&ev_info.watchers, listen_sockets, num_addr_listen);
     ev_set_userdata(EV_A_ &ev_info);

@@ -152,7 +152,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     struct timeval tv;
     int i, res;
 
-    loop_init(&fd_info);
+    loop_init(&fd_info, num_addr_listen);
 
     watchers_init(&fd_info.watchers, listen_sockets, num_addr_listen);
 

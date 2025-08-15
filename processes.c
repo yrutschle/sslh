@@ -181,7 +181,7 @@ static int next_power_of_two(int n)
     return n + 1;
 }
 
-void loop_init(struct loop_info* loop)
+void loop_init(struct loop_info* loop, int num_addr_listen)
 {
     memset(loop, 0, sizeof(*loop));
     loop->collection = collection_init(0);
@@ -190,6 +190,8 @@ void loop_init(struct loop_info* loop)
 
     udp_init(loop);
     tcp_init();
+
+    loop->num_addr_listen = num_addr_listen;
 
     int max_forks = next_power_of_two(max_forking_connections());
     loop->pid2proto = hash_init(2 * max_forks, pid_make_key, pid_cmp);

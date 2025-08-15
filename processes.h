@@ -23,6 +23,7 @@ struct loop_info {
     hash* pid2proto; /* to follow which forked PID is processing what protocol for connection count */
 
     watchers* watchers;
+    int num_addr_listen;  /* How many listen endpoints do we have here */
 
     cnx_collection* collection; /* Collection of connections linked to this loop */
 };
@@ -31,7 +32,7 @@ void cnx_read_process(struct loop_info* fd_info, int fd);
 struct connection* cnx_accept_process(struct loop_info* fd_info, struct listen_endpoint* listen_socket);
 
 int tidy_connection(struct connection *cnx, struct loop_info* fd_info);
-void loop_init(struct loop_info* loop);
+void loop_init(struct loop_info* loop, int num_addr_listen);
 
 void remember_child_data(struct loop_info* fd_info, 
                          struct connection* cnx, pid_t pid);
