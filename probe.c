@@ -454,8 +454,8 @@ static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item
  * proto_out: protocol that matched
  *
  * Returns
- *      PROBE_AGAIN if not enough data, and set *proto to NULL
- *      PROBE_MATCH if protocol is identified, in which case *proto is set to
+ *      PROBE_AGAIN if not enough data, and set *proto_out to NULL
+ *      PROBE_MATCH if protocol is identified, in which case *proto_out is set to
  *      point to the appropriate protocol
  * */
 int probe_buffer(char* buf, int len,

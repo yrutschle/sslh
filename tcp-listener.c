@@ -331,7 +331,8 @@ void probing_read_process(struct connection* cnx,
         cnx->proto = timeout_protocol();
         print_message(msg_fd, "timed out, connect to %s\n", cnx->proto->name);
     } else {
-        probe_client_protocol(cnx);
+        if (probe_client_protocol(cnx) == PROBE_AGAIN)
+            return; /* Not enough data, wait for more */
     }
 
     remove_probing_cnx(fd_info, cnx);
