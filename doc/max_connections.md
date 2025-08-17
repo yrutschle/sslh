@@ -12,8 +12,8 @@ cause exgagerated resource consumption.
 In particular, when `sslh` runs into its file descriptor
 limit (as defined with `ulimit -n`), bad things happen: It
 becomes impossible to accept() new sockets efficiently
-(refer to libev's documentation, "The special problem of
- accept()ing when you can't"). Currently, when `sslh-ev` or
+(refer to libev's documentation, ["The special problem of
+ accept()ing when you can't"](http://pod.tst.eu/http://cvs.schmorp.de/libev/ev.pod#The_special_problem_of_accept_ing_wh)). Currently, when `sslh-ev` or
 `sslh-select` reaches its limit of file descriptors, it just
 stops accepting new connections altogether for a few
 seconds, hoping for the situation to get better soon. It is
