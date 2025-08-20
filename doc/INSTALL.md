@@ -163,7 +163,7 @@ Installation
   cp scripts/etc.rc.d.init.d.sslh.centos /etc/rc.d/init.d/sslh
   ```
 
-You might need to create links in /etc/rc<x>.d so that the server
+You might need to create links in `/etc/rc<x>.d` so that the server
 start automatically at boot-up, e.g. under Debian:
 ```sh
 update-rc.d sslh defaults
