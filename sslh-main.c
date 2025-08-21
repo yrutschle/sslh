@@ -84,14 +84,15 @@ static void printsettings(void)
             }
         }
         print_message(msg_config, 
-                      "%s addr: %s. libwrap service: %s log_level: %d [%s] [%s] [%s]\n",
+                      "%s addr: %s. libwrap service: %s log_level: %d [%s] [%s] [%s] pp%d\n",
                       p->name, 
                       buf,
                       p->service,
                       p->log_level,
                       p->keepalive ? "keepalive" : "",
                       p->fork ? "fork" : "",
-                      p->transparent ? "transparent" : ""
+                      p->transparent ? "transparent" : "",
+                      p->proxyprotocol_is_present ? p->proxyprotocol : -1
                      );
     }
     print_message(msg_config, 
