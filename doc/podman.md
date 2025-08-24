@@ -33,6 +33,7 @@ olegstepura](https://github.com/yrutschle/sslh/issues/448)
       # ... (make sure to mount config as you like)
     command: --transparent -F/etc/sslh/sslh.cfg # parameter --transparent here is needed to trigger configure_iptables in init script
    state: started
+   # never add a network here, otherwise setup will not work. Adding a network disconnects sslh container from pod's shared localhost
 
 - name: "Create the caddy container"
   containers.podman.podman_container:
