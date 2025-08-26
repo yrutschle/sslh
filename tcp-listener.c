@@ -165,7 +165,7 @@ struct connection* accept_new_connection(struct listen_endpoint* endpoint, struc
     print_message(msg_fd, "accepting from %d\n", listen_socket);
 
     in_socket = accept(listen_socket, 0, 0);
-    if ((res == -1) && (errno == EAGAIN)) return NULL;   /* Do not log if we're just retring next iteration */
+    if ((in_socket == -1) && (errno == EAGAIN)) return NULL;   /* Do not log if we're just retring next iteration */
     CHECK_RES_RETURN(in_socket, "accept", NULL);
 
     res = set_nonblock(in_socket);
