@@ -160,7 +160,8 @@ void remember_child_data(struct loop_info* fd_info,
     pid2proto->proto = cnx->proto;
     pid2proto->endpoint = cnx->endpoint;
     if (hash_insert(fd_info->pid2proto, pid2proto)) {
-        /* TODO something if it fails */
+        print_message(msg_int_error, "hash_insert for pid %d failed\n", pid);
+        /* TODO: error handling when this fails */
     }
 }
 
@@ -168,8 +169,11 @@ static int max_forking_connections(void)
 {
     int max_cnx = 0;
     for (int i = 0; i < cfg.protocols_len; i++) {
-        if (cfg.protocols[i].fork)
-            max_cnx += cfg.protocols[i].max_connections;
+        if (cfg.protocols[i].fork) {
+            if (cfg.protocols[i].max_connections_is_present)
+                max_cnx += cfg.protocols[i].max_connections;
+            else max_cnx += 512; /* A magic number that's hopefully high enough */
+        }
     }
     return max_cnx;
 }
