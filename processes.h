@@ -37,6 +37,7 @@ void loop_init(struct loop_info* loop, int num_addr_listen);
 void remember_child_data(struct loop_info* fd_info, 
                          struct connection* cnx, pid_t pid);
 void decrease_forked_connection(struct loop_info* loop, pid_t pid);
+int has_space_to_fork(struct loop_info* loop);
 
 /* These must be declared in the loop handler, sslh-ev or sslh-select */
 void watchers_add_read(watchers* w, int fd);

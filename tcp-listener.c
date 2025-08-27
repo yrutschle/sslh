@@ -299,6 +299,12 @@ static void connect_proxy(struct connection *cnx)
 /* Forks a shoveler process for one protocol */
 void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
     pid_t pid;
+
+    if (!has_space_to_fork(fd_info)) {
+        print_message(msg_connections_error, "forking for %s: out of hash space\n", cnx->proto->name);
+        return;
+    }
+
     switch (pid = fork()) {
     case 0:  /* child */
         /* TODO: close all file descriptors except 2 */

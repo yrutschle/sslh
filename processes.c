@@ -152,6 +152,13 @@ void decrease_forked_connection(struct loop_info* loop, pid_t pid) {
 
 typedef struct pid2proto* hash_item;
 #include "hash.h"
+
+int has_space_to_fork(struct loop_info* fd_info)
+{
+    return hash_insertable(fd_info->pid2proto);
+}
+
+
 void remember_child_data(struct loop_info* fd_info,
                          struct connection* cnx, pid_t pid)
 {
@@ -161,7 +168,9 @@ void remember_child_data(struct loop_info* fd_info,
     pid2proto->endpoint = cnx->endpoint;
     if (hash_insert(fd_info->pid2proto, pid2proto)) {
         print_message(msg_int_error, "hash_insert for pid %d failed\n", pid);
-        /* TODO: error handling when this fails */
+        /* This should not happen as called is supposed to check that space is
+         * available in the hash */
+        exit(1);
     }
 }
 
