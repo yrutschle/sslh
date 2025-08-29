@@ -124,16 +124,18 @@ sub stop_echosrv
 }
 
 
-# Runs sslh
-my ($sslh_pid);
+# Runs sslh, restart it if configuration has changed
+my ($sslh_pid, $sslh_conf);
 sub start_sslh
 {
     my ($exe, $conf) = @_;
+    stop_sslh() if (defined $sslh_conf and ($conf ne $sslh_conf));
     return if defined $sslh_pid;
+    $sslh_conf = $conf;
     my ($valgrind);
     if (!($sslh_pid = fork)) {
         my $user = (getpwuid $<)[0]; # Run under current username
-        my $cmd = "../$exe -u $user -F $conf";
+        my $cmd = "../$exe -F $conf";
         print "****CMDLINE [$cmd]\n";
         #$valgrind = 1;
         #$cmd = "valgrind --leak-check=full $cmd";
@@ -150,6 +152,7 @@ sub stop_sslh
 {
     if (defined $sslh_pid) {
         kill TERM => $sslh_pid or warn "kill process: $!\n";
+    `killall sslh-ev sslh-select sslh-fork`;
         undef $sslh_pid;
     }
 }
@@ -188,8 +191,9 @@ sub run_ending_test
 
 
 # Runs one test for one probe. Start echosrv's if required.
-# Extract sslh's listening port from the config file, run
-# sslh, connect, write the test pattern, read the result,
+# Connect to port specified in the test, otherwise to the
+# first port in the sslh configuration.
+# run sslh, connect, write the test pattern, read the result,
 # check it connected to the right echosrv, check the data
 # was transfered ok.
 sub run_test_probe
@@ -202,7 +206,7 @@ sub run_test_probe
 
     my $expected = $test->{expected};
 
-    my $sslh_port = $conf->value("listen")->[0]->{port};
+    my $sslh_port = $test->{port} // $conf->value("listen")->[0]->{port};
     print "test_probe [$expected] $sslh_port\n";
     my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
     warn "t: $!\n" unless $cnx;
@@ -218,10 +222,10 @@ sub run_test_probe
     print "Received $n bytes: protocol $prefix data [$data]\n";
     close $cnx;
 
-    my_is($prefix, $expected, "$exe:$expected: probe");
-    my $data_expected = $test->{data_expected};
+    my_is($prefix, $expected, "$exe:$test->{desc}:probe");
+    my $data_expected = $test->{data_expected} // "^$test->{data}\$";
     $data_expected =~ s/INPUT_DATA/$test->{data}/;
-    my_like($data, qr/$data_expected/s, "$exe:$expected: shoveled");
+    my_like($data, qr/$data_expected/s, "$exe:$test->{desc}:shoveled");
 }
 
 
@@ -262,10 +266,12 @@ sub test_wrong_user
 #
 # * `expected`: protocol prompt added by the echosrv (should be the protocol name)
 #
+# * `data`: what is sent to sslh, as a client
+#
 # * `data_expected` is a regex for the expected return (which can be
 #   different when using Proxyprotocol). INPUT_DATA gets
 #   replaced with $_->{data}, i.e. data sent originally,
-#   before matching.
+#   before matching. Use `data` if not specified.
 #
 
 my @tests = (
@@ -318,6 +324,28 @@ my @tests = (
         data =>  "\x05\x04\x01\x02\x03\x04",
         expected => "socks5",
     },
+
+    # test_pp2.cfg has proxyprotocol on port 8080
+    {
+        desc => "Client-side ProxyProtocol active",
+        run => \&run_test_probe,
+        cfg => "test_pp2.cfg",
+        data => "PROXY TCP4 127.0.0.1 127.0.0.1 8080 8081\x0D\x0ASSH-2.0 hello",
+        expected => "ssh",
+        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+\x0D\x0AINPUT_DATA",
+    },
+
+    # test_pp2.cfg has no proxyprotocol on port 8081, so ssh
+    # should pass untouched
+    {
+        desc => "Client-side ProxyProtocol not active",
+        run => \&run_test_probe,
+        cfg => "test_pp2.cfg",
+        port => 8081,
+        data => "SSH-2.0 hello",
+        expected => "ssh",
+    },
+
 
 );
 
