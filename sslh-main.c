@@ -74,8 +74,11 @@ static void printsettings(void)
         if (p->is_unix) {
             sprintf(buf, "unix socket: %s", p->host);
         } else {
-            strcpy(buf, "resolve on forward");
-            if (!p->resolve_on_forward) {
+            if (p->resolve_on_forward) {
+                strcpy(buf, "resolve on forward: ");
+                size_t len = strlen(buf);
+                sprintf(buf+len, "%s:%s", p->host, p->port);
+            } else {
                 sprintaddr(buf, sizeof(buf), p->saddr);
                 size_t len = strlen(buf);
                 sprintf(buf+len, " family %d %d",
@@ -84,9 +87,10 @@ static void printsettings(void)
             }
         }
         print_message(msg_config, 
-                      "%s addr: %s. libwrap service: %s log_level: %d [%s] [%s] [%s] pp%d\n",
+                      "%s addr: %s. max_cnx: %d libwrap service: %s log_level: %d [%s] [%s] [%s] pp:%d\n",
                       p->name, 
                       buf,
+                      p->max_connections,
                       p->service,
                       p->log_level,
                       p->keepalive ? "keepalive" : "",
@@ -131,6 +135,7 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
             exit(1);
         }
     }
+    probe_regex_matches = pcre2_match_data_create(1, NULL);
 }
 #else
 {

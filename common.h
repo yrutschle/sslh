@@ -109,6 +109,7 @@ struct connection {
     struct sslhcfg_protocols_item* proto; /* Where to connect to */
 
     /* SOCK_STREAM */
+    struct listen_endpoint* endpoint; /* Client-facing listen fd */
     enum connection_state state;
     time_t probe_timeout;
 
@@ -138,6 +139,8 @@ struct listen_endpoint {
     int socketfd;       /* file descriptor of listening socket */
     int type;           /* SOCK_DGRAM | SOCK_STREAM */
     int family;         /* AF_INET | AF_UNIX */
+    int num_connections; /* How many active connections on this endpoint */
+    struct sslhcfg_listen_item* endpoint_cfg; /* the configuration item that corresponds to this endpoint */
 };
 
 #define FD_CNXCLOSED    0
@@ -174,6 +177,8 @@ void drop_privileges(const char* user_name, const char* chroot_path);
 void set_capabilities(int cap_net_admin);
 void write_pid_file(const char* pidfile);
 void dump_connection(struct connection *cnx);
+int inc_proto_connections(struct sslhcfg_protocols_item* cnx);
+void dec_proto_connections(struct sslhcfg_protocols_item* cnx);
 int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 
 int start_listen_sockets(struct listen_endpoint *sockfd[]);
@@ -198,5 +203,8 @@ void main_loop(struct listen_endpoint *listen_sockets, int num_addr_listen);
 /* landlock.c */
 void setup_landlock(void);
 
+
+/* sslh-fork.c or processes.c, depending on the model */
+void setup_sigchld(void);
 
 #endif

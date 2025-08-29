@@ -27,11 +27,15 @@
 #include "sslh-conf.h"
 #include "udp-listener.h"
 
+
 /* Incoming connections are of course all received on a single socket. Create a
  * hash that associates (incoming sockaddr) => struct connection*, so finding
  * the connection related to an incoming packet is fast.
  */
 
+
+typedef struct connection* hash_item;
+#include "hash.h"
 
 
 static int cnx_cmp(struct connection* cnx1, struct connection* cnx2)
@@ -120,6 +124,7 @@ static void udp_sanity_check(void)
 void udp_init(struct loop_info* fd_info)
 {
     fd_info->hash_sources = hash_init(cfg.udp_max_connections, &hash_make_key, &cnx_cmp);
+    CHECK_ALLOC(fd_info->hash_sources, "hash_init");
 
     udp_protocol_list_init();
     udp_sanity_check();
@@ -266,8 +271,6 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
                          malloc/free overhead for each packet, when really 64K is not that much */
 
 
-    udp_timeouts(fd_info);
-
     addrlen = sizeof(src_addr);
     len = recvfrom(sockfd, data, sizeof(data), 0, (struct sockaddr*) &src_addr, &addrlen);
     if (len < 0) {
@@ -301,6 +304,11 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         cnx->client_addr = src_addr;
         cnx->addrlen = addrlen;
         cnx->local_endpoint = sockfd;
+
+        if (inc_proto_connections(cnx->proto)) {
+            tidy_connection(cnx, fd_info);
+            return NULL;
+        }
 
         res = new_source(fd_info->hash_sources, cnx);
         if (res == -1) {

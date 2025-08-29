@@ -1,5 +1,14 @@
 vNEXT:
+	Added `max_connections` setting to `listen` and
+	`protocol` configuration; see the
+	[guide](doc/max_connections.md) for more
+	information.
+
+	accept() is now disabled for some time when ulimit -n is reached.
+
 	Fix proxyprotocol target field (Thanks to Github user 404-Not-Found)
+
+	Fix memory leak in regex probe.
 
 v2.2.4:
 	Fix CVE-2025-46806 for "Misaligned Memory Accesses in `is_openvpn_protocol()`"

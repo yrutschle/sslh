@@ -9,6 +9,7 @@ This chapter is a little excurse to the dataflow. First point of all is somethin
 Packets from local application talking to other local applications are routed through the loopback-interface. They leave postrouting to lo and reentering from there prerouting, without passing ingress/egress.
 This has nothing to do with the "**route_localnet = 1**" trick, which only makes, that the the local ip range 10.0.0.0/8 gets routed!
 As you can read in many articles, this is nothing you should do, as you may bring your system at risk, because it allows to leak packets from outside to applications, which feel themselves secure, by using those unroutable addresses.
+
 #### A Simple Simulation ####
 You can prove this behaviour with a simple test:
 ```

@@ -37,12 +37,34 @@
 #include <stdlib.h>
 #include <stddef.h>
 
+#if HASH_DEBUG
+#include <stdio.h>
+#include <string.h>
+#endif
+
 #include "gap.h"
 
+#if 0
+#define DEBUG 1
+#include <stdio.h>
+#endif
+
 typedef void* hash_item;
+
+typedef struct hash hash;
 #include "hash.h"
 
 static void* const FREE = NULL;
+
+
+/* Define DEBUG adds two functions:
+ * hash_dump() that prints the hash to a file as text
+ * hash_item_print() takes a pointer to a function that prints a hash item
+ * See test suite in hashtest/ for an example
+ *  */
+#if 0
+#define HASH_DEBUG 1
+#endif
 
 struct hash {
     int hash_size;      /* Max number of items in the hash */
@@ -51,9 +73,11 @@ struct hash {
 
     hash_make_key_fn hash_make_key;
     hash_cmp_item_fn cmp_item;
+#ifdef HASH_DEBUG
+    void (*hash_item_print)(FILE* out, hash_item item);
+#endif
 };
 
-typedef struct hash hash;
 
 
 static int hash_make_key(hash* h, hash_item item)
@@ -146,7 +170,7 @@ int hash_insert(hash* h, hash_item new)
         if (distance(index, h, curr_item) < distance(index, h, new)) {
             gap_set(h->data, index, new);
 #if DEBUG
-            fprintf(stderr, "intermediate insert [%s] at %d\n", &new->client_addr, index);
+            fprintf(stderr, "intermediate insert at %d\n", index);
 #endif
             new = curr_item;
         }
@@ -188,17 +212,16 @@ int hash_remove(hash* h, hash_item item)
     return 0;
 }
 
-#if HASH_TESTING
-#include <stdio.h>
-#include <string.h>
-#define STR_LENGTH 16
-struct hash_item {
-    int wanted_index;
-    char str[STR_LENGTH];
-};
+/******************************************************************************/
+#if HASH_DEBUG
+void hash_item_print(hash* h, void fn(FILE*, hash_item))
+{
+    h->hash_item_print = fn;
+}
+
+
 void hash_dump(hash* h, char* filename)
 {
-    char str[STR_LENGTH];
     FILE* out = fopen(filename, "w");
 
     if (!out) {
@@ -209,14 +232,13 @@ void hash_dump(hash* h, char* filename)
     fprintf(out, "<hash elem=%d>\n", h->item_cnt);
     for (int i = 0; i < h->hash_size; i++) {
         hash_item item = gap_get(h->data, i);
-        int idx = 0;
 
-        memset(str, 0, STR_LENGTH);
-        if (item) {
-            idx = hash_make_key(h, item);
-            memcpy(str, ((struct hash_item*)item)->str, STR_LENGTH);
-        }
-        fprintf(out, "\t%d:%d:%s\n", i, idx, str);
+        fprintf(out, "\t%d:", i);
+        if (item)
+            h->hash_item_print(out, item);
+        else
+            fprintf(out, "<empty>");
+        fprintf(out, "\n");
     }
     fprintf(out, "</hash>\n");
     fclose(out);

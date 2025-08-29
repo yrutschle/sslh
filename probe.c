@@ -21,10 +21,6 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#ifdef ENABLE_REGEX
-#define PCRE2_CODE_UNIT_WIDTH 8
-#include <pcre2.h>
-#endif
 #include <regex.h>
 #include <ctype.h>
 #include "probe.h"
@@ -194,7 +190,7 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
 
         memcpy(&i, (p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160)), sizeof(i));
         i = ntohl(i);
-        if (ntohl(*(uint32_t*)(p + OVPN_HARD_RESET_PACKET_ID_OFFSET(OVPN_HMAC_160))) <= 5u)
+        if (i <= 5u)
             return PROBE_MATCH;
 
         return PROBE_NEXT;
@@ -429,16 +425,18 @@ static int is_msrdp_protocol(const char *p, ssize_t len, struct sslhcfg_protocol
     return packet_len == len;
 }
 
+#ifdef ENABLE_REGEX
+pcre2_match_data* probe_regex_matches;
+#endif
+
 static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
 #ifdef ENABLE_REGEX
     pcre2_code**probe = (pcre2_code**)proto->data;
-    pcre2_match_data* matches;
 
-    matches = pcre2_match_data_create(1, NULL);
 
     for (; *probe; probe++) {
-        int res = pcre2_match(*probe, (PCRE2_SPTR8)p, len, 0, 0, matches, NULL);
+        int res = pcre2_match(*probe, (PCRE2_SPTR8)p, len, 0, 0, probe_regex_matches, NULL);
         if (res >= 0) return 1;
 
     }
@@ -456,8 +454,8 @@ static int regex_probe(const char *p, ssize_t len, struct sslhcfg_protocols_item
  * proto_out: protocol that matched
  *
  * Returns
- *      PROBE_AGAIN if not enough data, and set *proto to NULL
- *      PROBE_MATCH if protocol is identified, in which case *proto is set to
+ *      PROBE_AGAIN if not enough data, and set *proto_out to NULL
+ *      PROBE_MATCH if protocol is identified, in which case *proto_out is set to
  *      point to the appropriate protocol
  * */
 int probe_buffer(char* buf, int len,

@@ -55,6 +55,11 @@ static void htest_next_key(FILE* f, char* action, int* key, char str[STR_LENGTH]
     if (res == EOF) exit(0);
 }
 
+static void item_print(FILE* out, hash_item item)
+{
+    fprintf(out, "%d:%s", item->wanted_index, item->str);
+}
+
 int main(int argc, char* argv[])
 {
     hash* h = hash_init(HASH_SIZE, &hash_make_key, &cmp_item);
@@ -62,6 +67,8 @@ int main(int argc, char* argv[])
     hash_item item;
     int line = 0;
     FILE* f;
+
+    hash_item_print(h, item_print);
 
     if (argc != 3) {
         fprintf(stderr, "Usage: htest <script file> <dump file>\n");

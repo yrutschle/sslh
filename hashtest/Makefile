@@ -1,5 +1,5 @@
 
-CFLAGS=-DHASH_TESTING -O2 -Wall
+CFLAGS=-DHASH_DEBUG -O2 -Wall
 OBJ=../hash.o ../gap.o htest.o
 
 htest: $(OBJ)

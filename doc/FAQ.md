@@ -168,3 +168,17 @@ protocols: (
                 ["^(GET|POST|PUT|OPTIONS|DELETE|HEADER) [^ ]* HTTP/[0-9.]*[\r\n]*Host: host_B.acme"] }
 );
 ```
+
+I get an error "Too many open files"
+====================================
+
+`sslh` used up all the file descriptors it can (1024 by default in Linux),
+which means it cannot create new connections. On some
+systems, you can increase the process limit with `ulimit -n
+2048` (for example). Maybe more usefully, you can limit the
+connection usage based on protocols or listening address, as
+described in the [max_connections](max_connections.md)
+guide.
+
+
+

@@ -145,8 +145,8 @@ distclean: clean
 clean:
 	rm -f sslh-fork sslh-select $(CONDITIONAL_TARGETS) echosrv version.h $(MAN) systemd-sslh-generator *.o *.gcov *.gcno *.gcda *.png *.html *.css *.info
 
-tags:
-	ctags --globals -T *.[ch]
+tags: *.c *.h
+	ctags *.[ch]
 
 cscope:
 	-find . -name "*.[chS]" >cscope.files

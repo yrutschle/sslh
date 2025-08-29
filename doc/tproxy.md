@@ -1,7 +1,7 @@
 # Transparent proxy using packet marking
 
 Before reading further, make sure you try to set up
-transparent proxying using [IP routing](doc/simple_transparent_proxy.md).
+transparent proxying using [IP routing](simple_transparent_proxy.md).
 It is conceptually easier to understand, cleaner, and more
 portable.
 
