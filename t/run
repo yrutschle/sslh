@@ -53,7 +53,12 @@ sub my_is {
     push @results, [$cnt++, $desc, $res];
 }
 
-#my $pidfile = $conf->lookup_value("pidfile");
+sub my_like {
+    my ($a, $b, $desc) = @_;
+
+    my $res =  like($a, $b, $desc);
+    push @results, [$cnt++, $desc, $res];
+}
 
 sub verbose_exec
 {
@@ -214,7 +219,9 @@ sub run_test_probe
     close $cnx;
 
     my_is($prefix, $expected, "$exe:$expected: probe");
-    my_is($data, $test->{data}, "$exe:$expected: shoveled");
+    my $data_expected = $test->{data_expected};
+    $data_expected =~ s/INPUT_DATA/$test->{data}/;
+    my_like($data, qr/$data_expected/s, "$exe:$expected: shoveled");
 }
 
 
@@ -248,7 +255,21 @@ sub test_wrong_user
 
 ################################################################################
 
+# Each test is decribed with an entry containing the
+# following fields:
+#
+# * `run`: which test method to use
+#
+# * `expected`: protocol prompt added by the echosrv (should be the protocol name)
+#
+# * `data_expected` is a regex for the expected return (which can be
+#   different when using Proxyprotocol). INPUT_DATA gets
+#   replaced with $_->{data}, i.e. data sent originally,
+#   before matching.
+#
+
 my @tests = (
+
     {
         desc => "No hostname in address",
         run => \&test_no_host,
@@ -276,6 +297,26 @@ my @tests = (
         cfg => "test1.cfg",
         data =>  "\x05\x04\x01\x02\x03\x04",
         expected => "socks5",                   # prefix expected from echosrv
+    },
+
+    # test_pp1.cfg has proxyprotocol on ssh but not socks5.
+    # Check ssh has pp
+    {
+        desc => "Server-side ProxyProtocol active",
+        run => \&run_test_probe,
+        cfg => "test_pp1.cfg",
+        data =>  "SSH-2.0 hello",
+        expected => "ssh",
+        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+.*INPUT_DATA",
+    },
+
+    # check socks5 does not
+    {
+        desc => "Server-side ProxyProtocol not active",
+        run => \&run_test_probe,
+        cfg => "test_pp1.cfg",
+        data =>  "\x05\x04\x01\x02\x03\x04",
+        expected => "socks5",
     },
 
 );
