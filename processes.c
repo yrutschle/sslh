@@ -46,9 +46,9 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
             watchers_del_read(fd_info->watchers, cnx->q[i].fd);
             watchers_del_write(fd_info->watchers, cnx->q[i].fd);
             close(cnx->q[i].fd);
-            if (cnx->q[i].deferred_data)
-                free(cnx->q[i].deferred_data);
         }
+        if (cnx->q[i].begin_deferred_data)
+            free(cnx->q[i].begin_deferred_data);
     }
 
     if (cnx->type == SOCK_DGRAM)

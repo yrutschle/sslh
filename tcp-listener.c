@@ -318,11 +318,6 @@ void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
              watcher_sigchld(fd_info, cnx, pid);
              break;
     }
-    /* Free file descriptor (used only in child), but do not reduce connection
-     * counts */
-    cnx->proto = NULL;
-    cnx->endpoint = NULL;
-    tidy_connection(cnx, fd_info);
 }
 
 /* Process read activity on a socket in probe state 
@@ -356,6 +351,11 @@ void probing_read_process(struct connection* cnx,
         tidy_connection(cnx, fd_info);
     } else if (cnx->proto->fork) {
         fork_shoveling_process(fd_info, cnx);
+        /* Free file descriptor (used only in child), but do not reduce connection
+         * counts */
+        cnx->proto = NULL;
+        cnx->endpoint = NULL;
+        tidy_connection(cnx, fd_info);
     } else {
         connect_queue(cnx, fd_info);
     }
