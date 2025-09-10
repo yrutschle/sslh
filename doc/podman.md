@@ -33,6 +33,8 @@ olegstepura](https://github.com/yrutschle/sslh/issues/448)
       # ... (make sure to mount config as you like)
     command: --transparent -F/etc/sslh/sslh.cfg # parameter --transparent here is needed to trigger configure_iptables in init script
    state: started
+   # ⚠️ Important: Never add a `network:` here, otherwise this setup will NOT work.
+   # Adding a network disconnects the sslh container from the pod's shared localhost.
 
 - name: "Create the caddy container"
   containers.podman.podman_container:
@@ -95,26 +97,60 @@ protocols:
 );
 ```
 
-I omitted caddy configs here as it's not important. Some unrelated container configs were also dropped.
-In the example above `sslh`, `caddy` and `ssh-proxy` are 3 containers in the same pod, all listening on `localhost`. SSLH has to listen on `444` because caddy already listens on `443` and it's more complex to reconfigure caddy port because of let's encrypt (caddy itself "thinks" it is bound to your host interface).
+I omitted Caddy configs here since they're irrelevant, and some unrelated container configs were also dropped for clarity.
 
-Scheme of port mapping is (all containers share same `localhost`):
+In the example above, `sslh`, `caddy`, and `ssh-proxy` are **three containers inside the same Podman pod**, all sharing the same **pod-local `localhost`**.  
+
+`sslh` listens on port **444** instead of **443**, because `caddy` already binds to port `443`, and reconfiguring Caddy is more complex due to its Let's Encrypt integration (Caddy itself "thinks" it’s bound to your host interface).  
+
+#### Port mapping scheme  
+All containers **share the same `localhost`** inside the pod:  
 ```
 host 443 → pod 444 (sslh) → pod 443 (caddy)
 ```
-- podman connects host `443` port to pod's `444` port
-- `sslh` listens `444` on `localhost`, reroutes tls to `caddy` on `localhost:443`
-- `caddy` listens `443` on `localhost` (reverse-proxies to other apps on private network)
-Reverse-proxied services get correct IP in `X-Forwarded-For` header.
 
-Takeaways:
-- `net.ipv4.conf.default.route_localnet` is setup only in container, not on host, which is nice.
-- same with iptables and route rules applied by `init` script in sslh container
-- `sslh` proxy to other services in the private network will not work (because transparent mode is enabled) even if that other service does not need real IP
-	- with transparent mode all services that `sslh` will connect to should be attached to this pod making it listen on `localhost` of the pod
-	- ports of containers should not clash
-	- ports should be published on pod level, not on containers
-	- containers should not be configured to connect to custom networks
-- because of the above proxying ssh to host will also not work out of the box, `sslh` should connect to `localhost` and not to a random IP. While adding another proxy as a container to the same pod sounds like an overkill I don't see any other solution, so `socat` is used as an additional proxy.
-- `reverse_proxy` by caddy to other containers in the same custom network (as pod is attached to) works (e.g. caddy can connect to other IPs from custom network). `socat` can also connect to host and/or other containers in custom network.
 
+- **Podman** maps the host’s `443` → pod’s `444`.  
+- **SSHL** listens on `localhost:444` inside the pod and forwards TLS traffic to `caddy` on `localhost:443`.  
+- **Caddy** listens on `localhost:443` and reverse-proxies to other services in the private network.  
+
+This ensures that **reverse-proxied services** receive the correct client IP in the `X-Forwarded-For` header.
+
+---
+
+### Important note  
+
+⚠️ Do **not** set a `network:` parameter for the `sslh` container when it belongs to a Podman pod.  
+Setting a custom network **forces Podman to detach the container from the pod’s shared network namespace** and creates a **separate `localhost`** for that container, breaking transparent routing.
+
+For example:  
+
+```yaml
+command: --transparent -F/etc/sslh/sslh.cfg # parameter --transparent here is needed to trigger configure_iptables in init script
+state: started
+# ⚠️ Never add a `network:` here!
+# Adding a network disconnects the sslh container from the pod's shared localhost,
+# causing transparent routing to fail.
+```
+
+### Key takeaways  
+
+- `net.ipv4.conf.default.route_localnet` and iptables rules are applied **inside the `sslh` container only**, not on the host.  
+- The `sslh` **init** script manages all required `iptables` and routing rules inside of the container.  
+- **Transparent mode restrictions**:
+    - Any service `sslh` proxies traffic to **must** be inside the same pod and bound to its **pod-local `localhost`**.
+    - Container ports must not conflict within the pod.
+    - Ports should be published **at the pod level**, **not per-container**.
+    - Containers inside this pod **must not** be attached to any custom networks.
+- Because of transparent routing, `sslh` cannot directly proxy SSH to the host IP.  
+  A workaround is to run a lightweight **socat** container in the same pod:  
+  `TCP-LISTEN:222 → TCP:host.containers.internal:22`
+- Caddy’s `reverse_proxy` **to other containers** in the **custom network attached to the pod** still works properly.
+- `socat` can also connect to both the **host** and **other containers** inside the custom network without issues.
+
+### Tested setup
+
+- Confirmed working on **Debian Trixie**  
+- Using **Podman 5.4.2**  
+- Pinned `podman` and related dependencies (`conmon`, `slirp4netns`, `aardvark-dns`, etc.) from **Debian testing**,  
+  since **stable** often ships outdated versions that can break this setup.

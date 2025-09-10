@@ -155,6 +155,10 @@ static int distance(int current_index, hash* h, hash_item item)
         return current_index - wanted_index + h->hash_size;
 }
 
+int hash_insertable(hash* h)
+{
+    return (h->item_cnt < h->hash_size);
+}
 
 int hash_insert(hash* h, hash_item new)
 {

@@ -46,9 +46,9 @@ int tidy_connection(struct connection *cnx, struct loop_info* fd_info)
             watchers_del_read(fd_info->watchers, cnx->q[i].fd);
             watchers_del_write(fd_info->watchers, cnx->q[i].fd);
             close(cnx->q[i].fd);
-            if (cnx->q[i].deferred_data)
-                free(cnx->q[i].deferred_data);
         }
+        if (cnx->q[i].begin_deferred_data)
+            free(cnx->q[i].begin_deferred_data);
     }
 
     if (cnx->type == SOCK_DGRAM)
@@ -152,6 +152,13 @@ void decrease_forked_connection(struct loop_info* loop, pid_t pid) {
 
 typedef struct pid2proto* hash_item;
 #include "hash.h"
+
+int has_space_to_fork(struct loop_info* fd_info)
+{
+    return hash_insertable(fd_info->pid2proto);
+}
+
+
 void remember_child_data(struct loop_info* fd_info,
                          struct connection* cnx, pid_t pid)
 {
@@ -160,7 +167,10 @@ void remember_child_data(struct loop_info* fd_info,
     pid2proto->proto = cnx->proto;
     pid2proto->endpoint = cnx->endpoint;
     if (hash_insert(fd_info->pid2proto, pid2proto)) {
-        /* TODO something if it fails */
+        print_message(msg_int_error, "hash_insert for pid %d failed\n", pid);
+        /* This should not happen as called is supposed to check that space is
+         * available in the hash */
+        exit(1);
     }
 }
 
@@ -168,8 +178,11 @@ static int max_forking_connections(void)
 {
     int max_cnx = 0;
     for (int i = 0; i < cfg.protocols_len; i++) {
-        if (cfg.protocols[i].fork)
-            max_cnx += cfg.protocols[i].max_connections;
+        if (cfg.protocols[i].fork) {
+            if (cfg.protocols[i].max_connections_is_present)
+                max_cnx += cfg.protocols[i].max_connections;
+            else max_cnx += 512; /* A magic number that's hopefully high enough */
+        }
     }
     return max_cnx;
 }

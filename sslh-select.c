@@ -131,6 +131,7 @@ static void sigchld_process(struct loop_info* loop)
         received_sigchld = 0;
         do {
             chld = waitpid(-1, NULL, WNOHANG);
+            if ((chld == -1) && (errno == ECHILD)) return;
             CHECK_RES_RETURN(chld, "waitpid", );
             if (chld) {
                 decrease_forked_connection(loop, chld);
@@ -221,8 +222,9 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
                                           fd_info.watchers->max_fd, fd_info.num_probing);
         res = select(fd_info.watchers->max_fd, &readfds, &writefds,
                      NULL, fd_info.num_probing ? &tv : NULL);
-        if (res < 0)
-            perror("select");
+        if ((res == -1) && ((errno != EAGAIN) && (errno != EINTR)))
+            print_message(msg_system_error, "%s:%d:%d:%s\n", 
+                          __FILE__, __LINE__, errno, strerror(errno));  \
 
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {

@@ -162,8 +162,6 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
         if (len < 1)
             return PROBE_NEXT;
 
-        printf("opcode: %d\n", (p[0] & OVPN_OPCODE_MASK) >> 3);
-
         if ((p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V1 &&
             (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V2 &&
             (p[0] & OVPN_OPCODE_MASK) != OVPN_CONTROL_HARD_RESET_CLIENT_V3

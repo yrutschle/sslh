@@ -165,6 +165,7 @@ struct connection* accept_new_connection(struct listen_endpoint* endpoint, struc
     print_message(msg_fd, "accepting from %d\n", listen_socket);
 
     in_socket = accept(listen_socket, 0, 0);
+    if ((in_socket == -1) && (errno == EAGAIN)) return NULL;   /* Do not log if we're just retring next iteration */
     CHECK_RES_RETURN(in_socket, "accept", NULL);
 
     res = set_nonblock(in_socket);
@@ -298,6 +299,12 @@ static void connect_proxy(struct connection *cnx)
 /* Forks a shoveler process for one protocol */
 void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
     pid_t pid;
+
+    if (!has_space_to_fork(fd_info)) {
+        print_message(msg_connections_error, "forking for %s: out of hash space\n", cnx->proto->name);
+        return;
+    }
+
     switch (pid = fork()) {
     case 0:  /* child */
         /* TODO: close all file descriptors except 2 */
@@ -311,11 +318,6 @@ void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
              watcher_sigchld(fd_info, cnx, pid);
              break;
     }
-    /* Free file descriptor (used only in child), but do not reduce connection
-     * counts */
-    cnx->proto = NULL;
-    cnx->endpoint = NULL;
-    tidy_connection(cnx, fd_info);
 }
 
 /* Process read activity on a socket in probe state 
@@ -349,6 +351,11 @@ void probing_read_process(struct connection* cnx,
         tidy_connection(cnx, fd_info);
     } else if (cnx->proto->fork) {
         fork_shoveling_process(fd_info, cnx);
+        /* Free file descriptor (used only in child), but do not reduce connection
+         * counts */
+        cnx->proto = NULL;
+        cnx->endpoint = NULL;
+        tidy_connection(cnx, fd_info);
     } else {
         connect_queue(cnx, fd_info);
     }

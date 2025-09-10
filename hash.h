@@ -13,6 +13,7 @@ typedef int (*hash_cmp_item_fn)(hash_item item1, hash_item item2);
 
 hash* hash_init(int hash_size, hash_make_key_fn make_key, hash_cmp_item_fn cmp_item);
 
+int hash_insertable(hash* h); /* Is it possible to insert: any space left? */
 int hash_insert(hash* h, hash_item new);
 int hash_remove(hash* h, hash_item item);
 
