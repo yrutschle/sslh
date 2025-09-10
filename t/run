@@ -346,6 +346,17 @@ my @tests = (
         expected => "ssh",
     },
 
+    # test_pp2.cfg has proxyprotocol on port 8080 but
+    # removes it towards "regex_remove_pp" tarbet
+    # TODO: Log the addresses!
+    {
+        desc => "Client-side ProxyProtocol active but removed",
+        run => \&run_test_probe,
+        cfg => "test_pp2.cfg",
+        data => "PROXY TCP4 127.0.0.1 127.0.0.1 8080 8081\x0D\x0Aregex_remove_pp hello",
+        expected => "regex",
+        data_expected => "^regex_remove_pp hello",
+    },
 
 );
 

@@ -184,6 +184,7 @@ int resolve_split_name(struct addrinfo **out, char* hostname, char* port);
 int start_listen_sockets(struct listen_endpoint *sockfd[]);
 
 int defer_write(struct queue *q, void* data, ssize_t data_size);
+void defer_skip(struct queue *q, ssize_t data_size);
 int defer_write_before(struct queue *q, void* data, ssize_t data_size);
 int flush_deferred(struct queue *q);
 
