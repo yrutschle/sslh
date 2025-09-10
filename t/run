@@ -313,7 +313,7 @@ my @tests = (
         cfg => "test_pp1.cfg",
         data =>  "SSH-2.0 hello",
         expected => "ssh",
-        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+.*INPUT_DATA",
+        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+\x0D\x0AINPUT_DATA",
     },
 
     # check socks5 does not
@@ -332,7 +332,7 @@ my @tests = (
         cfg => "test_pp2.cfg",
         data => "PROXY TCP4 127.0.0.1 127.0.0.1 8080 8081\x0D\x0ASSH-2.0 hello",
         expected => "ssh",
-        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+\x0D\x0AINPUT_DATA",
+        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+\x0D\x0ASSH-2.0 hello",
     },
 
     # test_pp2.cfg has no proxyprotocol on port 8081, so ssh
