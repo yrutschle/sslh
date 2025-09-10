@@ -133,4 +133,37 @@ int pp_write_header(int pp_version, struct connection* cnx)
     return 0;
 }
 
+/* Logs the connection data in the pp header and return header length */
+int pp_log_connection(char* buffer, ssize_t buffer_len)
+{
+    pp_info_t pp_info;
+
+    int header_len = pp_parse_hdr((uint8_t*)buffer, buffer_len, &pp_info);
+
+    if (header_len > 0) {
+    print_message(msg_connections, "client had proxyprotocol info: %s:%d to %s:%d not forwarded to server\n",
+                  pp_info.src_addr, pp_info.src_port,
+                  pp_info.dst_addr, pp_info.dst_port);
+    } else {
+        print_message(msg_connections, "no proxyprotocol data found on client side, forwarding as is\n");
+        header_len = 0;
+    }
+
+    return header_len;
+}
+
+int pp_header_len(char* buffer, int buffer_len)
+{
+    pp_info_t pp_info;
+
+    int header_len = pp_parse_hdr((uint8_t*)buffer, buffer_len, &pp_info);
+
+    print_message(msg_probe_info, "proxyprotocol header %d bytes found\n", header_len);
+    
+    if (header_len < 0) header_len = 0;
+
+    return header_len;
+}
+
+
 #endif /* HAVE_PROXYPROTOCOL */

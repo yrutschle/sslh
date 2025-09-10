@@ -514,10 +514,21 @@ void connect_addr(struct connection *cnx, int fd_from, connect_blocking blocking
     cnx->q[1].fd = fd;
 
     if (cnx->proto->proxyprotocol_is_present) {
-        pp_write_header(cnx->proto->proxyprotocol, cnx);
-        /* If pp_write_header() fails, it already logs a message and there is
-         * nothing much we can do. The server side will probably close the
-         * connection */
+        if (cnx->proto->proxyprotocol) {
+            pp_write_header(cnx->proto->proxyprotocol, cnx);
+            /* If pp_write_header() fails, it already logs a message and there is
+             * nothing much we can do. The server side will probably close the
+             * connection */
+        } else {
+            /* proxyprotocol == 0 means we remove a proxyprotocol header from
+             * the client-side, and log PP information (as it will be lost
+             * after sslh) */
+            int pp_len = pp_log_connection(cnx->q[1].begin_deferred_data,
+                                           cnx->q[1].deferred_data_size);
+            if (pp_len > 0) {
+                defer_skip(&cnx->q[1], pp_len);
+            }
+        }
     }
 }
 
@@ -538,6 +549,13 @@ int defer_write(struct queue *q, void* data, ssize_t data_size)
     memcpy(p, data, data_size);
 
     return 0;
+}
+
+/* skip (remove) some data from the head of the queue */
+void defer_skip(struct queue *q, ssize_t data_size)
+{
+    q->deferred_data += data_size;
+    q->deferred_data_size -= data_size;
 }
 
 /* Store some data to write *before* what's already in the queue */

@@ -6,6 +6,8 @@ vNEXT:
 
 	accept() is now disabled for some time when ulimit -n is reached.
 
+	Support proxyprotocol on incoming connections.
+
 	Fix proxyprotocol target field (Thanks to Github user 404-Not-Found)
 
 	Fix memory leak in regex probe.

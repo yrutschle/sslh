@@ -45,8 +45,19 @@ int probe_client_protocol(struct connection *cnx)
 
     if (n > 0) {
         defer_write(&cnx->q[1], buffer, n);
-        return probe_buffer(cnx->q[1].begin_deferred_data,
-                            cnx->q[1].deferred_data_size,
+
+        print_message(msg_packets, "hexdump of incoming packet:\n");
+        hexdump(msg_packets, cnx->q[1].begin_deferred_data, cnx->q[1].deferred_data_size);
+
+
+        size_t pp_len = 0;
+        if (cnx->endpoint->endpoint_cfg->proxyprotocol) {
+            pp_len = pp_header_len(cnx->q[1].begin_deferred_data,
+                                   cnx->q[1].deferred_data_size);
+        }
+
+        return probe_buffer(cnx->q[1].begin_deferred_data + pp_len,
+                            cnx->q[1].deferred_data_size - pp_len,
                             tcp_protocols, tcp_protocols_len,
                             &cnx->proto
                             );

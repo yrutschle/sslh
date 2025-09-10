@@ -87,7 +87,7 @@ static void printsettings(void)
             }
         }
         print_message(msg_config, 
-                      "%s addr: %s. max_cnx: %d libwrap service: %s log_level: %d [%s] [%s] [%s]\n",
+                      "%s addr: %s. max_cnx: %d libwrap service: %s log_level: %d [%s] [%s] [%s] pp:%d\n",
                       p->name, 
                       buf,
                       p->max_connections,
@@ -95,7 +95,8 @@ static void printsettings(void)
                       p->log_level,
                       p->keepalive ? "keepalive" : "",
                       p->fork ? "fork" : "",
-                      p->transparent ? "transparent" : ""
+                      p->transparent ? "transparent" : "",
+                      p->proxyprotocol_is_present ? p->proxyprotocol : -1
                      );
     }
     print_message(msg_config, 
