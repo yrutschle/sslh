@@ -1,4 +1,4 @@
-vNEXT:
+v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the
 	[guide](doc/max_connections.md) for more
@@ -6,7 +6,8 @@ vNEXT:
 
 	accept() is now disabled for some time when ulimit -n is reached.
 
-	Support proxyprotocol on incoming connections.
+	Support proxyprotocol on incoming connections. See
+	the [guide](doc/proxyprotocol.md) for information.
 
 	Fix proxyprotocol target field (Thanks to Github user 404-Not-Found)
 
