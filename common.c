@@ -25,12 +25,6 @@
 #include <sys/prctl.h>
 #endif
 
-/* Added to make the code compilable under CYGWIN
- * */
-#ifndef SA_NOCLDWAIT
-#define SA_NOCLDWAIT 0
-#endif
-
 /* Make use of systemd socket activation
  * */
 #ifdef SYSTEMD

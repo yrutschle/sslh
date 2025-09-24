@@ -9,6 +9,13 @@
 #define FD_SETSIZE 4096
 #endif
 
+/* Cygwin does not define some symbols
+ * */
+#ifndef SA_NOCLDWAIT
+#define SA_NOCLDWAIT 0
+#endif
+
+
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <fcntl.h>
