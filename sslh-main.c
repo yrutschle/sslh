@@ -308,10 +308,7 @@ int main(int argc, char *argv[], char* envp[])
 
    if (cfg.inetd)
    {
-       close(fileno(stderr)); /* Make sure no error will go to client */
-       tcp_init();
-       start_shoveler(0);
-       exit(0);
+       main_inetd();  /* Does not return */
    }
 
    printsettings();

@@ -204,7 +204,7 @@ extern int hosts_ctl();
 #endif
 
 /* sslh-fork.c */
-void start_shoveler(int);
+void main_inetd(void);
 
 void main_loop(struct listen_endpoint *listen_sockets, int num_addr_listen);
 
