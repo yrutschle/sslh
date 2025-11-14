@@ -118,7 +118,7 @@ static int add_resolv(int ruleset_fd)
 static int add_libwrap(int ruleset_fd)
 {
     /* Files for libwrap */
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
     add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts.allow");
     add_path_ro(ruleset_fd, LL_FILE, "/etc/hosts.deny");
 #endif
