@@ -1,3 +1,6 @@
+vNEXT:
+	Fix segmentation fault in sslh-fork.
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the

@@ -292,7 +292,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 }
 
 
-void start_shoveler(int listen_socket) {
+void main_inetd(void) {
     print_message(msg_config_error, "inetd mode is not supported in select mode\n");
     exit(1);
 }

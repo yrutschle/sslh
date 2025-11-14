@@ -69,7 +69,7 @@ int shovel(struct connection *cnx)
 
 /* Child process that finds out what to connect to and proxies 
  */
-void start_shoveler(int in_socket)
+static void start_shoveler(int in_socket, struct listen_endpoint* endpoint)
 {
    fd_set fds;
    struct timeval tv;
@@ -79,6 +79,7 @@ void start_shoveler(int in_socket)
 
    init_cnx(&cnx);
    cnx.q[0].fd = in_socket;
+   cnx.endpoint = endpoint;
 
    FD_ZERO(&fds);
    FD_SET(in_socket, &fds);
@@ -129,6 +130,22 @@ void start_shoveler(int in_socket)
 
    exit(0);
 }
+
+
+void main_inetd(void)
+{
+    struct listen_endpoint endpoint = {0};
+    struct sslhcfg_listen_item endpoint_cfg = {0};
+
+    /* Empty configuration: no connection limits, not proxyprotocol... */
+    endpoint.endpoint_cfg = &endpoint_cfg;
+
+    close(fileno(stderr)); /* Make sure no error will go to client */
+    tcp_init();
+    start_shoveler(0, &endpoint);
+    exit(0);
+}
+
 
 static pid_t *listener_pid;
 static int listener_pid_number = 0;
@@ -252,7 +269,7 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
                  /* Shoveler processes don't need to hog file descriptors */
                  for (i = 0; i < num_endpoints; i++)
                      close(endpoint[i].socketfd);
-                 start_shoveler(in_socket);
+                 start_shoveler(in_socket, endpoint);
                  exit(0);
 
         default: /* In parent process */
