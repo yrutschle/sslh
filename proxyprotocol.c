@@ -89,6 +89,32 @@ static int get_info(int fd, sockpeer_t sockpeer, struct addrinfo* addr, libpp_ad
 }
 
 
+/* Turns an IPv4 address string into an IPv6 address string (i.e. prepends
+ * "::fff:", in place. Assumes the buffer is big enough, but won't go over len */
+static void pp_ipv4_to_ipv6(char* addr, int len)
+{
+    char tmp[108]; /* magic number from proxy_protocol.h */
+
+    int res = snprintf(tmp, sizeof(tmp), "::ffff:%s", addr);
+    if (res >= sizeof(tmp)) {
+        print_message(msg_int_error, "Error converting IPv4 address to IPv6 address");
+        return;
+    }
+    memcpy(addr, tmp, res);
+}
+
+/* Returns the address family (ip4 or ip6) of the server-side of a connection
+ * */
+static int get_serverside_family(struct connection* cnx)
+{
+    struct sockaddr addr;
+    socklen_t addrlen = sizeof(addr);
+
+    int res = getpeername(cnx->q[1].fd, &addr, &addrlen);
+    CHECK_RES_RETURN(res, "getpeername", -1);
+
+    return addr.sa_family;
+}
 
 int pp_write_header(int pp_version, struct connection* cnx)
 {
@@ -97,6 +123,9 @@ int pp_write_header(int pp_version, struct connection* cnx)
     };
     uint16_t pp1_hdr_len;
     int32_t error;
+
+    int src_family = AF_UNSPEC;
+    int dst_family = AF_UNSPEC;
 
     struct sockaddr_storage ss;
     struct addrinfo addr;
@@ -110,19 +139,34 @@ int pp_write_header(int pp_version, struct connection* cnx)
              &pp_info_in_v1.src_addr,
              &pp_info_in_v1.src_port);
     if (res == -1) return -1;
-    pp_info_in_v1.address_family = family_to_pp(addr.ai_addr->sa_family);
+    src_family = addr.ai_addr->sa_family;
 
-    res = get_info(cnx->q[1].fd, SOCK,
+    res = get_info(cnx->q[0].fd, SOCK,
              &addr,
              &pp_info_in_v1.dst_addr,
              &pp_info_in_v1.dst_port
             );
     if (res == -1) return -1;
 
+    dst_family = get_serverside_family(cnx);
+
+    pp_info_in_v1.address_family = family_to_pp(AF_INET);
+
+    /*
+     * If src IPv6/dst IPv4 or src IPv4/dst IPv6,
+     * convert IPv4 to v4-mapped IPv6 (::ffff:a.b.c.d)
+     * (refer to rfc4291, 2.2.3 for mixed-format)
+     */
+    if (src_family != dst_family) {
+        pp_ipv4_to_ipv6(pp_info_in_v1.dst_addr, sizeof(pp_info_in_v1.dst_addr));
+        pp_ipv4_to_ipv6(pp_info_in_v1.src_addr, sizeof(pp_info_in_v1.src_addr));
+        pp_info_in_v1.address_family = family_to_pp(AF_INET6);
+    }
+
     uint8_t *pp1_hdr = pp_create_hdr(pp_version, &pp_info_in_v1, &pp1_hdr_len, &error);
 
     if (!pp1_hdr) {
-        print_message(msg_system_error, "pp_create_hrd:%d:%s\n", error, pp_strerror(error));
+        print_message(msg_system_error, "pp_create_hdr:%d:%s\n", error, pp_strerror(error));
         return -1;
     }
     defer_write_before(&cnx->q[1], pp1_hdr, pp1_hdr_len);

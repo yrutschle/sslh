@@ -1,6 +1,9 @@
 vNEXT:
 	Fix segmentation fault in sslh-fork.
 
+	Mixed IPv4/IPv6 proxyprotocol setups will move both
+	addresses to IPv6 format on the server side.
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the

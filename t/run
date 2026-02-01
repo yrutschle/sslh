@@ -10,6 +10,7 @@
 #  ./run        # run all tests
 #  ./run -l     # list all tests
 #  ./run 1 3 5  # run specified tests
+#  ./run --binary sslh-ev    # run only one binary
 
 use strict;
 use IO::Socket::INET6;
@@ -17,9 +18,13 @@ use Test::More qw/no_plan/;
 use Conf::Libconfig 1.0.3;
 use Getopt::Long;
 
-my ($coverage, $list_tests);
+# --cover: request test coverage analysis (not implemented)
+# --binary: specify which binary to run (default: all)
+# --list: list all available tests (do not run any)
+my ($coverage, $list_tests, $param_binary);
 GetOptions(
     'cover' => \$coverage,
+    'binary=s' => \$param_binary,
     'list' => \$list_tests,
 );
 
@@ -192,7 +197,8 @@ sub run_ending_test
 
 # Runs one test for one probe. Start echosrv's if required.
 # Connect to port specified in the test, otherwise to the
-# first port in the sslh configuration.
+# first port in the sslh configuration; to host specified in
+# the test, otherwise to localhost
 # run sslh, connect, write the test pattern, read the result,
 # check it connected to the right echosrv, check the data
 # was transfered ok.
@@ -206,9 +212,10 @@ sub run_test_probe
 
     my $expected = $test->{expected};
 
+    my $sslh_host = $test->{host} // "localhost";
     my $sslh_port = $test->{port} // $conf->value("listen")->[0]->{port};
-    print "test_probe [$expected] $sslh_port\n";
-    my $cnx = new IO::Socket::INET(PeerHost => "localhost:$sslh_port");
+    print "test_probe [$expected] $sslh_host:$sslh_port\n";
+    my $cnx = new IO::Socket::INET(PeerHost => "$sslh_host:$sslh_port");
     warn "t: $!\n" unless $cnx;
     return unless $cnx;
 
@@ -316,6 +323,7 @@ my @tests = (
         data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ \\d+\x0D\x0AINPUT_DATA",
     },
 
+
     # check socks5 does not
     {
         desc => "Server-side ProxyProtocol not active",
@@ -324,6 +332,19 @@ my @tests = (
         data =>  "\x05\x04\x01\x02\x03\x04",
         expected => "socks5",
     },
+
+
+    # Check pp with IPv4 to IPv6 works.
+    {
+        desc => "Server-side IPv4 to IPv6 ProxyProtocol active",
+        host => "ip4-localhost",
+        run => \&run_test_probe,
+        cfg => "test_pp3.cfg",
+        data =>  "SSH-2.0 hello",
+        expected => "ssh",
+        data_expected => "^PROXY TCP6 ::ffff:127.0.0.1 ::ffff:127.0.0.1 \\d+ 8080\x0D\x0AINPUT_DATA",
+    },
+
 
     # test_pp2.cfg has proxyprotocol on port 8080
     {
@@ -388,10 +409,15 @@ if ($list_tests) {
 
 ################################################################################
 # Run selected tests
-foreach my $test (@tests) {
-    warn "Running test: $test->{desc}\n";
-    my $binary = 'sslh-ev';
-    my $code = ($test->{run})->($binary, $test);
+
+my @binaries = qw/sslh-fork sslh-select sslh-ev/;
+@binaries = $param_binary if defined $param_binary;
+
+foreach my $binary (@binaries) {
+    foreach my $test (@tests) {
+        warn "Running test: $test->{desc}\n";
+        my $code = ($test->{run})->($binary, $test);
+    }
 }
 
 stop_echosrv();
