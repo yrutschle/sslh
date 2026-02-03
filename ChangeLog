@@ -4,6 +4,10 @@ vNEXT:
 	Mixed IPv4/IPv6 proxyprotocol setups will move both
 	addresses to IPv6 format on the server side.
 
+	Add CAP_NET_RAW to systemd config so transparent
+	proxying can work. Removed sslh-select systemd file:
+	don't repeat the same configuration file!
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the
