@@ -334,12 +334,48 @@ my @tests = (
     },
 
 
+    # Check proxyprotocol from IPv4 to IPv4 works.
+    {
+        desc => "Server-side IPv4 to IPv4 ProxyProtocol active",
+        host => "ip4-localhost",
+        run => \&run_test_probe,
+        cfg => "test_pp3.cfg",
+        data =>  "SSH-2.0 hello",
+        expected => "ssh",
+        data_expected => "^PROXY TCP4 127.0.0.1 127.0.0.1 \\d+ 8080\x0D\x0AINPUT_DATA",
+    },
+
+
+    # Check pp with IPv6 to IPv6 works.
+    {
+        desc => "Server-side IPv6 to IPv6 ProxyProtocol active",
+        host => "ip6-localhost",
+        run => \&run_test_probe,
+        cfg => "test_pp4.cfg",
+        data =>  "SSH-2.0 hello",
+        expected => "ssh",
+        data_expected => "^PROXY TCP6 ::ffff:127.0.0.1 ::ffff:127.0.0.1 \\d+ 8080\x0D\x0AINPUT_DATA",
+    },
+
+
     # Check pp with IPv4 to IPv6 works.
     {
         desc => "Server-side IPv4 to IPv6 ProxyProtocol active",
         host => "ip4-localhost",
         run => \&run_test_probe,
-        cfg => "test_pp3.cfg",
+        cfg => "test_pp5.cfg",
+        data =>  "SSH-2.0 hello",
+        expected => "ssh",
+        data_expected => "^PROXY TCP6 ::ffff:127.0.0.1 ::ffff:127.0.0.1 \\d+ 8080\x0D\x0AINPUT_DATA",
+    },
+
+
+    # Check pp with IPv6 to IPv4 works.
+    {
+        desc => "Server-side IPv6 to IPv4 ProxyProtocol active",
+        host => "ip6-localhost",
+        run => \&run_test_probe,
+        cfg => "test_pp5.cfg",
         data =>  "SSH-2.0 hello",
         expected => "ssh",
         data_expected => "^PROXY TCP6 ::ffff:127.0.0.1 ::ffff:127.0.0.1 \\d+ 8080\x0D\x0AINPUT_DATA",
