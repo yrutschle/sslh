@@ -8,6 +8,10 @@ vNEXT:
 	proxying can work. Removed sslh-select systemd file:
 	don't repeat the same configuration file!
 
+	Changed SNI matching log messages from
+	`msg_probe_error` to `msg_probe_info`: beware if you
+	happen to use them...
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the
