@@ -204,7 +204,7 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
     int i, res;
 
     setup_sigalrm();
-    loop_init(&fd_info, num_addr_listen);
+    loop_init(&fd_info, listen_sockets, num_addr_listen);
 
     watchers_init(&fd_info.watchers, listen_sockets, num_addr_listen);
 

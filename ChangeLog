@@ -12,6 +12,12 @@ vNEXT:
 	`msg_probe_error` to `msg_probe_info`: beware if you
 	happen to use them...
 
+	Close unused file descriptors upon forking a worker
+	for a connection (in sslh-ev and sslh-select). In
+	particular, this prevents forked processes to
+	inherit the listen sockets and block a new main
+	process from starting.
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the

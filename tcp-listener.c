@@ -296,6 +296,37 @@ static void connect_proxy(struct connection *cnx)
 }
 
 
+/* This ensures the kernel will close the listening socket when the
+ * parent process closes; otherwise, the listening socket is kept
+ * around by the inactive file descriptor in the child */
+void close_listen_endpoints(struct loop_info* loop)
+{
+    struct listen_endpoint* listen_sockets = loop->listen_sockets;
+    watchers* w = loop->watchers;
+
+    for (int i = 0; i < loop->num_addr_listen; i++) {
+        int fd = listen_sockets[i].socketfd;
+        watchers_del_read(w, fd);
+        watchers_del_write(w, fd);
+        close(fd);
+    }
+}
+
+
+/* Close all connections except specified.
+ * This saves file descriptors and allocated memory when forking */
+void tidy_other_connections(struct loop_info* fd_info, struct connection* keep_cnx)
+{
+    struct connection* cnx;
+    cnx_collection* cnx_coll = fd_info->collection;
+
+    for (int i = 0; i < collection_max_fd(cnx_coll); i++) {
+        cnx = collection_get_cnx_from_fd(cnx_coll, i);
+        if (cnx && (cnx != keep_cnx))
+            tidy_connection(cnx, fd_info);
+    }
+}
+
 /* Forks a shoveler process for one protocol */
 void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
     pid_t pid;
@@ -307,8 +338,8 @@ void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
 
     switch (pid = fork()) {
     case 0:  /* child */
-        /* TODO: close all file descriptors except 2 */
-        /* free(cnx); */
+        close_listen_endpoints(fd_info);
+        tidy_other_connections(fd_info, cnx);
         connect_proxy(cnx);
         exit(0);
     case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));

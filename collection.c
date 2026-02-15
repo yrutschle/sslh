@@ -28,6 +28,7 @@
 /* Info to keep track of all connections */
 struct cnx_collection {
     gap_array* fd2cnx;  /* Array indexed by file descriptor to things in cnx[] */
+    int max_fd;
 };
 
 /* Allocates and initialises a new collection of connections with at least
@@ -42,6 +43,7 @@ cnx_collection* collection_init(int len)
     memset(collection, 0, sizeof(*collection));
 
     collection->fd2cnx = gap_init(len);
+    collection->max_fd = 0;
 
     return collection;
 }
@@ -54,10 +56,17 @@ void collection_destroy(cnx_collection* collection)
     free(collection);
 }
 
+int collection_max_fd(cnx_collection* collection)
+{
+    return collection->max_fd;
+}
+
 /* Points the file descriptor to the specified connection index */
 int collection_add_fd(cnx_collection* collection, struct connection* cnx, int fd)
 {
     gap_set(collection->fd2cnx, fd, cnx);
+    if (fd > collection->max_fd)
+        collection->max_fd = fd;
     return 0;
 }
 
@@ -74,8 +83,7 @@ struct connection* collection_alloc_cnx_from_fd(struct cnx_collection* collectio
     cnx->state = ST_PROBING;
     cnx->probe_timeout = time(NULL) + cfg.timeout;
 
-    gap_set(collection->fd2cnx, fd, cnx);
-
+    collection_add_fd(collection, cnx, fd);
     return cnx;
 }
 

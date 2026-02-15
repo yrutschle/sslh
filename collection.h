@@ -9,6 +9,7 @@ void collection_destroy(cnx_collection* collection);
 
 struct connection* collection_alloc_cnx_from_fd(cnx_collection* collection, int fd);
 int collection_add_fd(cnx_collection* collection, struct connection* cnx, int fd);
+int collection_max_fd(cnx_collection* collection);
 
 /* Remove a connection from the collection */
 int collection_remove_cnx(cnx_collection* collection, struct connection *cnx);

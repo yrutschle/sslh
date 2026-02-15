@@ -207,13 +207,12 @@ void watcher_sigchld(struct loop_info* fd_info, struct connection* cnx, pid_t pi
     ev_child_start(EV_DEFAULT_ cw);
 }
 
-
 void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
     struct loop_info ev_info;
     loop = EV_DEFAULT;
 
-    loop_init(&ev_info, num_addr_listen);
+    loop_init(&ev_info, listen_sockets, num_addr_listen);
 
     watchers_init(&ev_info.watchers, listen_sockets, num_addr_listen);
     ev_set_userdata(EV_A_ &ev_info);
