@@ -253,6 +253,18 @@ static void config_sanity_proxyprotocol(const struct sslhcfg_protocols_item* pro
 #endif
 }
 
+static void config_sanity_listen_proxyprotocol(const struct sslhcfg_listen_item* endpoint)
+{
+#ifndef HAVE_PROXYPROTOCOL
+    if (endpoint->proxyprotocol) {
+        print_message(msg_config_error, "listen on host: \"%s\"; port: \"%s\": "
+                      "Uses proxyprotocol, but libproxyprotocol support was not compiled in.\n"
+                      endpoint->host, endpoint->port);
+        exit(1);
+    }
+#endif
+}
+
 void config_sanity_check(struct sslhcfg_item* cfg)
 {
     size_t i;
@@ -264,6 +276,10 @@ void config_sanity_check(struct sslhcfg_item* cfg)
         exit(1);
     }
 #endif
+
+    for (i = 0; i < cfg->listen_len; i++) {
+        config_sanity_listen_proxyprotocol(&cfg->listen[i]);
+    }
 
     for (i = 0; i < cfg->protocols_len; ++i) {
         if (strcmp(cfg->protocols[i].name, "tls") != 0) {
