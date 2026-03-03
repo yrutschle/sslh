@@ -238,6 +238,21 @@ static void config_sanity_regex(const struct sslhcfg_protocols_item* prot)
     }
 }
 
+/* If user specified proxyprotocol but it is not compiled in, it should not be
+ * ignored as the resulting configuration will most likely not work. In that
+ * case, die. */
+static void config_sanity_proxyprotocol(const struct sslhcfg_protocols_item* prot)
+{
+#ifndef HAVE_PROXYPROTOCOL
+    if (prot->proxyprotocol_is_present) {
+        print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                      "Uses proxyprotocol, but libproxyprotocol support was not compiled in.\n"
+                      prot->name, prot->host, prot->port);
+        exit(1);
+    }
+#endif
+}
+
 void config_sanity_check(struct sslhcfg_item* cfg)
 {
     size_t i;
@@ -267,6 +282,7 @@ void config_sanity_check(struct sslhcfg_item* cfg)
         }
 
         config_sanity_regex(&cfg->protocols[i]);
+        config_sanity_proxyprotocol(&cfg->protocols[i]);
 
         if (cfg->protocols[i].is_udp) {
             if (cfg->protocols[i].tfo_ok) {
