@@ -139,6 +139,13 @@ static void setup_regex_probe(struct sslhcfg_protocols_item *p)
 }
 #else
 {
+    /* Warn if configuration uses regex patterns but PCRE support is not compiled in */
+    if (p->regex_patterns_len > 0) {
+        print_message(msg_config_error, 
+                      "WARNING: protocol '%s' uses regex_patterns but sslh was compiled without PCRE support.\n"
+                      "         These patterns will be ignored. Rebuild with libpcre2 to enable regex matching.\n",
+                      p->name);
+    }
     return;
 }
 #endif
