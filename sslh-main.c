@@ -225,14 +225,12 @@ static void config_sanity_regex(const struct sslhcfg_protocols_item* prot)
     if (prot->regex_patterns_len > 0) {
         if (strcmp(prot->name, "regex") != 0) {
             print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
-                          "regex_patterns setting is only applicable to `regex' probe.\n"
-                          "This setting will be ignored\n",
+                          "regex_patterns setting is only applicable to `regex' probe. Ignoring setting.\n",
                           prot->name, prot->host, prot->port);
         }
 #ifndef ENABLE_REGEX
         print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
-                      "Uses regex_patterns, but libpcre2 support was not compiled in.\n"
-                      "This setting will be ignored.\n",
+                      "Uses regex_patterns, but libpcre2 support was not compiled in. Ignoring setting.\n",
                       prot->name, prot->host, prot->port);
 #endif
     }
@@ -246,7 +244,7 @@ static void config_sanity_proxyprotocol(const struct sslhcfg_protocols_item* pro
 #ifndef HAVE_PROXYPROTOCOL
     if (prot->proxyprotocol_is_present) {
         print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
-                      "Uses proxyprotocol, but libproxyprotocol support was not compiled in.\n"
+                      "Uses proxyprotocol, but libproxyprotocol support was not compiled in.\n",
                       prot->name, prot->host, prot->port);
         exit(1);
     }
@@ -258,9 +256,23 @@ static void config_sanity_listen_proxyprotocol(const struct sslhcfg_listen_item*
 #ifndef HAVE_PROXYPROTOCOL
     if (endpoint->proxyprotocol) {
         print_message(msg_config_error, "listen on host: \"%s\"; port: \"%s\": "
-                      "Uses proxyprotocol, but libproxyprotocol support was not compiled in.\n"
+                      "Uses proxyprotocol, but libproxyprotocol support was not compiled in.\n",
                       endpoint->host, endpoint->port);
         exit(1);
+    }
+#endif
+}
+
+
+/* If user specifies libwrap setting but it is not compiled in, it should
+ * result in a working configuration, but not what they expected, so warn */
+static void config_sanity_libwrap(const struct sslhcfg_protocols_item* prot)
+{
+#ifndef HAVE_LIBWRAP
+    if (prot->service_is_present) {
+        print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                      "WARNING: `service' specified but libwrap not compiled in. Ignoring setting.\n",
+                      prot->name, prot->host, prot->port);
     }
 #endif
 }
@@ -299,6 +311,7 @@ void config_sanity_check(struct sslhcfg_item* cfg)
 
         config_sanity_regex(&cfg->protocols[i]);
         config_sanity_proxyprotocol(&cfg->protocols[i]);
+        config_sanity_libwrap(&cfg->protocols[i]);
 
         if (cfg->protocols[i].is_udp) {
             if (cfg->protocols[i].tfo_ok) {
