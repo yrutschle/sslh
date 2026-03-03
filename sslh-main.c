@@ -220,6 +220,23 @@ static void config_protocols()
     }
 }
 
+static void config_sanity_regex(const struct sslhcfg_protocols_item* prot)
+{
+    if (prot->regex_patterns_len > 0) {
+        if (strcmp(prot->name, "regex") != 0) {
+            print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                          "regex_patterns setting is only applicable to `regex' probe.\n"
+                          "This setting will be ignored\n",
+                          prot->name, prot->host, prot->port);
+        }
+#ifndef ENABLE_REGEX
+        print_message(msg_config_error, "name: \"%s\"; host: \"%s\"; port: \"%s\": "
+                      "Uses regex_patterns, but libpcre2 support was not compiled in.\n"
+                      "This setting will be ignored.\n",
+                      prot->name, prot->host, prot->port);
+#endif
+    }
+}
 
 void config_sanity_check(struct sslhcfg_item* cfg)
 {
@@ -248,6 +265,8 @@ void config_sanity_check(struct sslhcfg_item* cfg)
                 exit(1);
             }
         }
+
+        config_sanity_regex(&cfg->protocols[i]);
 
         if (cfg->protocols[i].is_udp) {
             if (cfg->protocols[i].tfo_ok) {
