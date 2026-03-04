@@ -348,6 +348,41 @@ void close_std(void)
     }
 }
 
+static void print_version(void)
+{
+    printf("%s %s\n", server_type, VERSION);
+#ifdef ENABLE_SANITIZER
+    printf("ENABLE_SANITIZER\n");
+#endif
+#ifdef ENABLE_REGEX
+    printf("ENABLE_REGEX\n");
+#endif
+#ifdef LIBCONFIG
+    printf("LIBCONFIG\n");
+#endif
+#ifdef SYSTEMD
+    printf("SYSTEMD\n");
+#endif
+#ifdef COV_TEST
+    printf("COV_TEST\n");
+#endif
+#ifdef HAVE_LIBWRAP
+    printf("HAVE_LIBWRAP\n");
+#endif
+#ifdef HAVE_LANDLOCK
+    printf("HAVE_LANDLOCK\n");
+#endif
+#ifdef HAVE_PROXYPROTOCOL
+    printf("HAVE_PROXYPROTOCOL\n");
+#endif
+#ifdef HAVE_LIBCAP
+    printf("HAVE_LIBCAP\n");
+#endif
+#ifdef HAVE_LIBBSD
+    printf("HAVE_LIBBSD\n");
+#endif
+}
+
 int main(int argc, char *argv[], char* envp[])
 {
    int res, num_addr_listen;
@@ -363,7 +398,7 @@ int main(int argc, char *argv[], char* envp[])
    config_finish(&cfg);
 
    if (cfg.version) {
-       printf("%s %s\n", server_type, VERSION);
+       print_version();
        exit(0);
    }
 

@@ -18,6 +18,12 @@ vNEXT:
 	inherit the listen sockets and block a new main
 	process from starting.
 
+	More configuration sanity checks (e.g. using regex
+	or proxyprotocol options if libraries are not compiled in)
+
+	-V now outputs compile-time options so it is
+	possible to know what is compiled in.
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the
