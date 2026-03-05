@@ -1,5 +1,8 @@
-vNEXT:
+v2.3.1:
 	Fix segmentation fault in sslh-fork.
+
+	Add file access when using Landlock and Libwrap
+	together.
 
 	Mixed IPv4/IPv6 proxyprotocol setups will move both
 	addresses to IPv6 format on the server side.
