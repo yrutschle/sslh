@@ -1,3 +1,6 @@
+vNEXT:
+	verbose_packet now also dumps UDP packets.
+
 v2.3.1:
 	Fix segmentation fault in sslh-fork.
 
