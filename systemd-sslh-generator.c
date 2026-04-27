@@ -307,11 +307,11 @@ int main(int argc, char *argv[]) {
             err_log = stderr;
         }
         const int r = gen_sslh_config(systemd_invoked ? argv[1] : "");
-        if (systemd_invoked) {
-            fclose(err_log);
-        }
         if (!r) {
             fprintf(err_log, "systemd-sslh-generator: Successfully generated all targets.\n");
+        }
+        if (systemd_invoked) {
+            fclose(err_log);
         }
         return r < 0 ? -1 : 0;
     } else {
