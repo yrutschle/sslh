@@ -1,4 +1,16 @@
 vNEXT:
+	udp_c2s_forward() now silently ignores EAGAIN /
+	EWOULDBLOCK from recvfrom() on the listening UDP
+	socket, matching udp_s2c_forward(). On Linux, a
+	non-blocking UDP socket flagged readable by
+	select() can still return EAGAIN at recv time when
+	the packet has a bad UDP checksum or is otherwise
+	dropped between select and recv. Public UDP
+	listeners (e.g. WireGuard-over-:443 sharing the
+	port with QUIC traffic) previously logged one
+	"recvfrom: Resource temporarily unavailable" line
+	per such packet.
+
 	verbose_packet now also dumps UDP packets.
 
 v2.3.1:

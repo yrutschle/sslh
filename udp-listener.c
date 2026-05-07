@@ -274,6 +274,13 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     addrlen = sizeof(src_addr);
     len = recvfrom(sockfd, data, sizeof(data), 0, (struct sockaddr*) &src_addr, &addrlen);
     if (len < 0) {
+        /* On Linux, recvfrom() on a non-blocking UDP socket can legitimately
+         * return EAGAIN/EWOULDBLOCK after select() reported the socket as
+         * readable: a packet with a bad UDP checksum is dropped at recv time,
+         * not at queue time, and similar races exist with SO_REUSEPORT and
+         * socket filters. Treat that as a no-op rather than spamming stderr,
+         * mirroring what udp_s2c_forward() already does. */
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return NULL;
         perror("recvfrom");
         return NULL;
     }
