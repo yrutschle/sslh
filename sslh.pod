@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
-sslh [B<-F>I<config file>] [B<-t> I<num>] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...]  [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-C> I<chroot>] [B<-P> I<pidfile>] [B<-v> I<n>] [-i] [-V] [-f] [-n]
+sslh [B<-F>I<config file>] [B<-t> I<num>] [B<--transparent>] [B<-p> I<listening address> [B<-p> I<listening address> ...]  [B<--tls> I<target address for TLS>] [B<--ssh> I<target address for SSH>] [B<--wireguard> I<target address for WireGuard>] [B<--openvpn> I<target address for OpenVPN>] [B<--http> I<target address for HTTP>] [B<--xmpp> I<target address for XMPP>] [B<--tinc> I<target address for TINC>] [B<--anyprot> I<default target address>] [B<--on-timeout> I<protocol name>] [B<-u> I<username>] [B<-C> I<chroot>] [B<-P> I<pidfile>] [B<-v> I<n>] [-i] [-V] [-f] [-n]
 
 =head1 DESCRIPTION
 
@@ -135,6 +135,11 @@ If you wish to accept SSLv2, use B<--anyprot> instead.
 
 Interface and port on which to forward SSH connections,
 typically I<localhost:22>.
+
+=item B<--wireguard> I<target address>
+
+Interface and port on which to forward WireGuard connections,
+typically I<localhost:51820>.
 
 =item B<--openvpn> I<target address>
 

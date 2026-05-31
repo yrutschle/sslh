@@ -5,7 +5,7 @@ sslh -- A ssl/ssh multiplexer
 them further based on tests performed on the first data
 packet sent by the remote client.
 
-Probes for HTTP, TLS/SSL (including SNI and ALPN), SSH,
+Probes for HTTP, TLS/SSL (including SNI and ALPN), SSH, WireGuard,
 OpenVPN, tinc, XMPP, SOCKS5, are implemented, and any other
 protocol that can be tested using a regular expression, can
 be recognised. A typical use case is to allow serving
