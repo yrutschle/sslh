@@ -3329,6 +3329,47 @@ then :
  LIBS="$LIBS -lbsd"
 fi
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for wolfSSL_Init in -lwolfssl" >&5
+printf %s "checking for wolfSSL_Init in -lwolfssl... " >&6; }
+if test ${ac_cv_lib_wolfssl_wolfSSL_Init+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lwolfssl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char wolfSSL_Init ();
+int
+main (void)
+{
+return wolfSSL_Init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_wolfssl_wolfSSL_Init=yes
+else $as_nop
+  ac_cv_lib_wolfssl_wolfSSL_Init=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_wolfssl_wolfSSL_Init" >&5
+printf "%s\n" "$ac_cv_lib_wolfssl_wolfSSL_Init" >&6; }
+if test "x$ac_cv_lib_wolfssl_wolfSSL_Init" = xyes
+then :
+  printf "%s\n" "#define HAVE_WOLFSSL 1" >>confdefs.h
+ LIBS="$LIBS -lwolfssl"
+fi
+
 
 ac_header= ac_cache=
 for ac_item in $ac_header_c_list

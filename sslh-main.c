@@ -347,6 +347,8 @@ int main(int argc, char *argv[], char* envp[])
    /* Open log file for writing */
    setup_logfile();
 
+   ech_init();
+
    if (cfg.user || cfg.chroot)
        drop_privileges(cfg.user, cfg.chroot);
    setup_landlock();
