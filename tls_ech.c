@@ -63,6 +63,40 @@ void ech_match_sni(void)
 {
 }
 
+
+/* Appends a configuration to the DNS configuration file */
+static void append_conf(const char* sni, const char* ech)
+{
+    FILE* f = fopen(cfg.ech_conf_sink, "a");
+
+    if (!f) {
+        print_message(msg_config_error, "Unable to open %s:%d:%s\n", cfg.ech_conf_sink, errno, strerror(errno));
+        return;
+    }
+
+    int res = fprintf(f, "%s IN HTTPS 1 . alpn=\"h2\" ech=\"%s\"\n", sni, ech);
+    printf("append: %s IN HTTPS 1 . alpn=\"h2\" ech=\"%s\" : %d\n", sni, ech, res);
+
+    fclose(f);
+}
+
+
+/* Erases the configuration file */
+static void reset_conf(void)
+{
+    FILE* f = fopen(cfg.ech_conf_sink, "w");
+
+    if (!f) {
+        print_message(msg_config_error, "Unable to open %s:%d:%s\n", cfg.ech_conf_sink, errno, strerror(errno));
+        return;
+    }
+
+
+    printf("erased and opend %s\n", cfg.ech_conf_sink);
+}
+
+
+
 /* Generate a keypair for a config; later this will be moved to a separate
  * process, and sslh will just read it */
 static void ech_genkey(WOLFSSL_CTX* ctx, const char* sni)
@@ -91,31 +125,33 @@ static void ech_genkey(WOLFSSL_CTX* ctx, const char* sni)
         exit(1);
     }
 
-    print_message(msg_config, "%s. IN HTTPS 1 . alpn=\"h2\" ech=\"%s\"\n", sni, out);
-
+    append_conf(sni, out);
 }
 
-
-/* For all server names, create a keypair and configuration.
+/* For each public names, create a keypair and configuration.
  * (Later, this will load the configurations from some place else */
-static void ech_load_configs(WOLFSSL_CTX* ctx)
+static void ech_create_configs(WOLFSSL_CTX** ctx)
 {
     int i, j;
 
-    for (i = 0; i < cfg.protocols_len; i++) {
-        struct sslhcfg_protocols_item* prot = &cfg.protocols[i];
-        prot->wolfssl_ctx = malloc(prot->sni_hostnames_len * sizeof(prot->wolfssl_ctx[0]));
+    reset_conf();
+
+    for (i = 0; i < cfg.listen_len; i++) {
+        struct sslhcfg_protocols_item* listen = &cfg.listen[i];
+        printf("1\n");
+        *ctx = malloc(cfg.listen_len * sizeof(*ctx));
         /* TODO deal with malloc failure */
+        printf("2\n");
 
-        for  (j = 0; j < prot->sni_hostnames_len; j++) {
-            prot->wolfssl_ctx[j] = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-            if (prot->wolfssl_ctx[j] == NULL) {
-                print_message(msg_system_error, "Failed to create WOLFSSL_CTX\n");
-                exit(1);
-            }
-
-            ech_genkey(prot->wolfssl_ctx[j], prot->sni_hostnames[j]);
+        ctx[i] = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+        if (!ctx[i]) {
+            print_message(msg_system_error, "Failed to create WOLFSSL_CTX\n");
+            exit(1);
         }
+
+        printf("3\n");
+        ech_genkey(ctx[i], cfg.listen[i].host);
+        printf("4\n");
     }
 
 }
@@ -125,8 +161,9 @@ static void ech_load_configs(WOLFSSL_CTX* ctx)
  * etc */
 void ech_init()
 {
+    WOLFSSL_CTX* ctx = NULL;
 
     wolfSSL_Init();
 
-    ech_load_configs(NULL);
+    ech_create_configs(&ctx);
 }
