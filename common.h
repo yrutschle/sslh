@@ -200,7 +200,7 @@ extern struct addrinfo *addr_listen;
 extern const char* server_type;
 
 #if defined(__APPLE__) && (MAC_OS_X_VERSION_MIN_REQUIRED < 1080)
-extern int hosts_ctl();
+extern int hosts_ctl(char*, char*, char*, char*);
 #endif
 
 /* sslh-fork.c */
