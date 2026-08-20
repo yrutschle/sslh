@@ -11,6 +11,9 @@ AC_CHECK_LIB([wrap], [hosts_ctl], [AC_DEFINE(HAVE_LIBWRAP) LIBS="$LIBS -lwrap" ]
 AC_CHECK_LIB([cap], [cap_get_proc], [AC_DEFINE(HAVE_LIBCAP) LIBS="$LIBS -lcap" ], [])
 AC_CHECK_LIB([bsd], [setproctitle], [AC_DEFINE(HAVE_LIBBSD) LIBS="$LIBS -lbsd" ], [])
 
+dnl TODO: check that wolfssl contains  wolfSSL_GetEchClientHelloInner instead of just existing
+AC_CHECK_LIB([wolfssl], [wolfSSL_Init], [AC_DEFINE(HAVE_WOLFSSL) LIBS="$LIBS -lwolfssl" ], [])
+
 AC_CHECK_HEADERS(linux/landlock.h, AC_DEFINE(HAVE_LANDLOCK), [])
 AC_CHECK_HEADERS(proxy_protocol.h, [AC_DEFINE(HAVE_PROXYPROTOCOL) LIBS="$LIBS -lproxyprotocol" ], [])
 

@@ -61,6 +61,7 @@ static int parse_server_name_extension(const struct TLSProtocol *, const char *,
 static int parse_alpn_extension(const struct TLSProtocol *, const char *, size_t);
 static int has_match(const char**, size_t, const char*, size_t);
 
+
 /* Parse a TLS packet for the Server Name Indication and ALPN extension in the client
  * hello handshake, returning a status code
  *
@@ -80,6 +81,11 @@ parse_tls_header(const struct TLSProtocol *tls_data, const char *data, size_t da
     /* Check that our TCP payload is at least large enough for a TLS header */
     if (data_len < TLS_HEADER_LEN)
         return TLS_ELENGTH;
+
+    /* If if it is an ECH, decrypt and match */
+    ech_match_sni(data, data_len);
+
+
 
     tls_content_type = data[0];
     if (tls_content_type != TLS_HANDSHAKE_CONTENT_TYPE) {

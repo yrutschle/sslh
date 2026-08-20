@@ -44,5 +44,6 @@ struct TLSProtocol *tls_data_set_list(struct TLSProtocol *, int, const char**, s
 #define TLS_ENOEXT      -4 /* No ALPN or SNI extension found */
 #define TLS_EPROTOCOL   -5 /* Protocol error */
 
+void ech_match_sni(const char* buffer_in, size_t buffer_len);
 
 #endif

@@ -1,3 +1,40 @@
+ech branch:
+	This is an experimental version and does not work.
+	Do not use it unless you are experimenting with ECH
+	and an experimental wolfSSL.
+
+	A lot of context is discussed here:
+	https://github.com/wolfSSL/wolfssl/issues/10485
+
+	What it does:
+	- It creates a public ECH configuration for the
+	  first public name (configure in the `listen`
+	  section of the configuration file). This gets
+	  printed in a file configured in `ech_conf_sink`
+	  (see ech_test.cfg example).
+	- Upon incoming connections, it will call an
+	  imaginary wolfSSL_GetEchClientHelloInner().
+	  The resulting packet is hexdumped.
+	- It will also use wolfSSL to decode the SNI and
+	  print it (but does not yet use it to forward).
+
+	Most things happen in tls_ech.c, in particular there
+	is a stub of GetEchClientHelloInner() that needs to
+	be removed when the function becomes available in
+	wolfSSL.
+
+	TODO: 
+	Change configure script to check for appropriate
+	wolfSSL version.
+	Create ECH configurations for each public name
+	Link decoded InnerHello to SNI extraction code
+	....
+	Error cases still to be worked out (see
+	conversations on github)
+	Profit!
+
+
+
 v2.3.0:
 	Added `max_connections` setting to `listen` and
 	`protocol` configuration; see the

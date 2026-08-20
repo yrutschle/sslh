@@ -347,7 +347,7 @@ int main(int argc, char *argv[], char* envp[])
    /* Open log file for writing */
    setup_logfile();
 
-   ech_init();
+   ech_init(listen_sockets, num_addr_listen);
 
    if (cfg.user || cfg.chroot)
        drop_privileges(cfg.user, cfg.chroot);
