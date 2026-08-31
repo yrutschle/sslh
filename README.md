@@ -112,8 +112,6 @@ docker run \
 docker-compose example
 
 ```yaml
-version: "3"
-
 services:
   sslh:
     image: ghcr.io/yrutschle/sslh:latest
@@ -136,8 +134,6 @@ Transparent mode 1: using sslh container for networking
 
 _Note: For transparent mode to work, the sslh container must be able to reach your services via **localhost**_
 ```yaml
-version: "3"
-
 services:
   sslh:
     build: https://github.com/yrutschle/sslh.git
@@ -178,8 +174,6 @@ services:
 Transparent mode 2: using host networking
 
 ```yaml
-version: "3"
-
 services:
   sslh:
     build: https://github.com/yrutschle/sslh.git
