@@ -8,7 +8,7 @@ shouldn't be construed to mean that any of this will happen.
 - have certain services available only from specified subnets
 
 - some sort of "service knocking" allowing to activate a
-  service upon some external even, similar to port knocking;
+  service upon some external event, similar to port knocking;
 for example, go to a specific URL to enable sslh forwarding
 to sshd for a set period of time:
     * sslh listens on 443 and only directs to httpd
