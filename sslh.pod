@@ -87,7 +87,7 @@ configuration file's settings.
 =item B<-t> I<num>, B<--timeout> I<num>
 
 Timeout before forwarding the connection to the timeout
-protocol (which should usually be SSH). Default is 2s.
+protocol (which should usually be SSH). Default is 5s.
 
 =item B<--on-timeout> I<protocol name>
 
@@ -104,7 +104,7 @@ Makes B<sslh> behave as a transparent proxy, i.e. the
 receiving service sees the original client's IP address.
 This works on Linux only and involves B<iproute2> settings.
 In some cases also B<iptables/nftables> settings are needed.
-Refer to the README or L<https://github.com/ftasnetamot/sslh/blob/2014-08-16--close-filehandles-with-detach/doc/simple_transparent_proxy.md>
+Refer to the README or L<https://github.com/yrutschle/sslh/blob/master/doc/simple_transparent_proxy.md>
 for more information.
 
 =item B<-p> I<listening address>, B<--listen> I<listening address>
