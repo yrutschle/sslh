@@ -107,6 +107,12 @@ void print_message(msg_info info, const char* str, ...)
 {
     va_list ap;
 
+    /* print_message() being used for logging, it is often used after system
+     * calls and before caller checks errno; as it itself does not do anything
+     * with errno (can't log an error if error logging fails), it just restores
+     * it on exit */
+    int saved_errno = errno;
+
     if ((*info.verbose & MSG_STDOUT) && ! cfg.inetd) {
         va_start(ap, str);
         vfprintf(stderr, str, ap);
@@ -125,6 +131,8 @@ void print_message(msg_info info, const char* str, ...)
         fflush(logfile_fp);
         va_end(ap);
     }
+
+    errno = saved_errno;
 }
 
 static int do_syslog = 1; /* Should we syslog? controled by syslog_facility = "none" */
