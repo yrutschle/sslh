@@ -239,12 +239,11 @@ static int nonblocking_socket(struct sslhcfg_protocols_item* proto)
     }
 
     int out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
+    CHECK_RES_RETURN(out, "udp:socket:socket", -1);
+
     res = set_nonblock(out);
-    if (res == -1) {
-        print_message(msg_system_error, "%s:%d:%s:%d:%s\n", __FILE__, __LINE__, "udp:socket:nonblock", errno, strerror(errno));
-        close(out);
-        return -1;
-    }
+    CHECK_RES_RETURN(out, "udp:socket:nonblock", -1);
+
     return out;
 }
 
