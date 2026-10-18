@@ -68,9 +68,13 @@ void start_echo(int fd)
     int first = 1;
 
     prefix_len = strlen(cfg.prefix);
+    if (prefix_len >= sizeof(buffer)) {
+        fprintf(stderr, "prefix too long\n");
+        return;
+    }
 
     memset(buffer, 0, sizeof(buffer));
-    strcpy(buffer, cfg.prefix);
+    memcpy(buffer, cfg.prefix, prefix_len);
 
     while (1) {
         ret = read(fd, buffer + prefix_len, sizeof(buffer) - prefix_len);
@@ -147,19 +151,24 @@ void udp_echo(struct listen_endpoint* listen_socket)
     memset(data, 0, sizeof(data));
 
     size_t prefix_len = strlen(cfg.prefix);
+    if (prefix_len >= sizeof(data) - 1) {
+        fprintf(stderr, "prefix too long\n");
+        return;
+    }
     memcpy(data, cfg.prefix, prefix_len);
 
     while (1) {
         addrlen = sizeof(src_addr);
         ssize_t len = recvfrom(listen_socket->socketfd,
                            data + prefix_len,
-                           sizeof(data) - prefix_len,
+                           sizeof(data) - prefix_len - 1,
                            0,
                            &src_addr,
                            &addrlen);
 
         if (len < 0) {
             perror("recvfrom");
+            continue;
         }
         *(data + prefix_len + len) = 0;
         fprintf(stderr, "%zd %s\n", len, data + prefix_len);

@@ -72,16 +72,16 @@ static void printsettings(void)
     for (i = 0; i < cfg.protocols_len; i++ ) {
         p = &cfg.protocols[i];
         if (p->is_unix) {
-            sprintf(buf, "unix socket: %s", p->host);
+            snprintf(buf, sizeof(buf), "unix socket: %s", p->host);
         } else {
             if (p->resolve_on_forward) {
                 strcpy(buf, "resolve on forward: ");
                 size_t len = strlen(buf);
-                sprintf(buf+len, "%s:%s", p->host, p->port);
+                snprintf(buf+len, sizeof(buf)-len, "%s:%s", p->host, p->port);
             } else {
                 sprintaddr(buf, sizeof(buf), p->saddr);
                 size_t len = strlen(buf);
-                sprintf(buf+len, " family %d %d",
+                snprintf(buf+len, sizeof(buf)-len, " family %d %d",
                         p->saddr->ai_family,
                         p->saddr->ai_addr->sa_family);
             }

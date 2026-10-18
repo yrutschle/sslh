@@ -53,7 +53,6 @@ static void shovel(struct connection *cnx, int active_fd, struct loop_info* fd_i
     print_message(msg_fd, "activity on fd%d\n", read_q->fd);
 
     switch(fd2fd(write_q, read_q)) {
-    case -1:
     case FD_CNXCLOSED:
         tidy_connection(cnx, fd_info);
         break;
