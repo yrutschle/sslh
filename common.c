@@ -471,7 +471,11 @@ static int connect_inet(struct connection *cnx, int fd_from, connect_blocking bl
             }
             if (cnx->proto->keepalive) {
                 res = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&one, sizeof(one));
-                CHECK_RES_RETURN(res, "setsockopt(SO_KEEPALIVE)", res);
+                if (res == -1) {
+                    print_message(msg_system_error, "setsockopt(SO_KEEPALIVE): %s\n", strerror(errno));
+                    close(fd);
+                    return res;
+                }
             }
             return fd;
         }
@@ -915,7 +919,9 @@ int check_access_rights(int in_socket, const char* service)
 
     if (!hosts_ctl((char*)service, host, addr_str, STRING_UNKNOWN)) {
         print_message(msg_connections, "connection from %s(%s): access denied\n", host, addr_str);
-        close(in_socket);
+        /* Callers dispose of the socket (tidy_connection() in
+         * sslh-select/-ev, exit() in sslh-fork children): closing it here
+         * too would double-close */
         return -1;
     }
 #endif

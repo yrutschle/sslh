@@ -165,8 +165,15 @@ struct connection* accept_new_connection(struct listen_endpoint* endpoint, struc
     print_message(msg_fd, "accepting from %d\n", listen_socket);
 
     in_socket = accept(listen_socket, 0, 0);
-    if ((in_socket == -1) && (errno == EAGAIN)) return NULL;   /* Do not log if we're just retring next iteration */
-    CHECK_RES_RETURN(in_socket, "accept", NULL);
+    if (in_socket == -1) {
+        int accept_errno = errno;
+        if (accept_errno == EAGAIN) return NULL;   /* Do not log if we're just retring next iteration */
+        print_message(msg_system_error, "accept: %d:%s\n", accept_errno, strerror(accept_errno));
+        /* Callers check errno for EMFILE/ENFILE to back off accepting:
+         * restore it after logging (print_message may clobber errno) */
+        errno = accept_errno;
+        return NULL;
+    }
 
     res = set_nonblock(in_socket);
     if (res == -1) {
@@ -327,13 +334,16 @@ void tidy_other_connections(struct loop_info* fd_info, struct connection* keep_c
     }
 }
 
-/* Forks a shoveler process for one protocol */
-void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
+/* Forks a shoveler process for one protocol.
+ * Returns the child pid on success, -1 if no child was started - in that
+ * case the caller must not skip the connection accounting: no child will
+ * report back through SIGCHLD/pid2proto */
+int fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
     pid_t pid;
 
     if (!has_space_to_fork(fd_info)) {
         print_message(msg_connections_error, "forking for %s: out of hash space\n", cnx->proto->name);
-        return;
+        return -1;
     }
 
     switch (pid = fork()) {
@@ -343,11 +353,11 @@ void fork_shoveling_process(struct loop_info* fd_info, struct connection* cnx) {
         connect_proxy(cnx);
         exit(0);
     case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
-             break;
+             return -1;
     default: /* parent */
              remember_child_data(fd_info, cnx, pid);
              watcher_sigchld(fd_info, cnx, pid);
-             break;
+             return pid;
     }
 }
 
@@ -381,11 +391,15 @@ void probing_read_process(struct connection* cnx,
         check_access_rights(cnx->q[0].fd, cnx->proto->service)) {
         tidy_connection(cnx, fd_info);
     } else if (cnx->proto->fork) {
-        fork_shoveling_process(fd_info, cnx);
+        int pid = fork_shoveling_process(fd_info, cnx);
         /* Free file descriptor (used only in child), but do not reduce connection
-         * counts */
-        cnx->proto = NULL;
-        cnx->endpoint = NULL;
+         * counts - the child reports back through pid2proto/SIGCHLD. If no
+         * child was started, keep proto/endpoint so tidy_connection() undoes
+         * the accounting instead of leaking it */
+        if (pid > 0) {
+            cnx->proto = NULL;
+            cnx->endpoint = NULL;
+        }
         tidy_connection(cnx, fd_info);
     } else {
         connect_queue(cnx, fd_info);
