@@ -203,6 +203,15 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
 /* Same, but for UNIX sockets */
 static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, struct sslhcfg_listen_item* cfg)
 {
+    struct sockaddr_un sun;
+
+    /* Fail before unlink()ing an existing file we could not bind anyway */
+    if (strlen(cfg->host) >= sizeof(sun.sun_path)) {
+        print_message(msg_config_error, "unix socket path too long (%zd, max %zd): %s\n",
+                      strlen(cfg->host), sizeof(sun.sun_path) - 1, cfg->host);
+        exit(4);
+    }
+
     int fd = socket(AF_UNIX, cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
     CHECK_RES_DIE(fd, "socket(AF_UNIX)");
 
@@ -212,10 +221,10 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
         exit(4);
     }
 
-    struct sockaddr_un sun;
+    memset(&sun, 0, sizeof(sun));
     sun.sun_family = AF_UNIX;
     strncpy(sun.sun_path, cfg->host, sizeof(sun.sun_path)-1);
-    printf("binding [%s]\n", sun.sun_path);
+    print_message(msg_config, "binding [%s]\n", sun.sun_path);
     res = bind(fd, (struct sockaddr*)&sun, sizeof(sun));
     CHECK_RES_DIE(res, "bind(AF_UNIX)");
 
@@ -226,7 +235,7 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
     memset(&(*sockfd)[num_addr-1], 0, sizeof((*sockfd)[num_addr-1]));
     (*sockfd)[num_addr-1].socketfd = fd;
     (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
-    (*sockfd)[num_addr-1].family = AF_INET;
+    (*sockfd)[num_addr-1].family = AF_UNIX;
     (*sockfd)[num_addr-1].endpoint_cfg = cfg;
 
     return num_addr;
@@ -475,9 +484,19 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
     struct sockaddr_storage ss;
     struct sockaddr_un* sun = (struct sockaddr_un*)&ss;
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (strlen(cnx->proto->host) >= sizeof(sun->sun_path)) {
+        print_message(msg_system_error, "unix socket path too long (%zd, max %zd): %s\n",
+                      strlen(cnx->proto->host), sizeof(sun->sun_path) - 1,
+                      cnx->proto->host);
+        return -1;
+    }
+
+    memset(&ss, 0, sizeof(ss));
     sun->sun_family = AF_UNIX;
     strncpy(sun->sun_path, cnx->proto->host, sizeof(sun->sun_path)-1);
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    CHECK_RES_RETURN(fd, "socket", -1);
 
     int res = connect(fd, (struct sockaddr*)sun, sizeof(*sun));
     CHECK_RES_RETURN(res, "connect", res);
