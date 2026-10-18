@@ -91,6 +91,13 @@ hash* hash_init(int hash_size, hash_make_key_fn make_key, hash_cmp_item_fn cmp_i
     hash* h = malloc(sizeof(*h));
     if (!h) return NULL;
 
+    /* hash_make_key() computes key % hash_size: a size of 0 crashes with
+     * SIGFPE (e.g. udp_max_connections set to 0, then the first UDP packet
+     * kills the daemon), and a negative size silently disables the limiter
+     * as item_cnt can never equal it */
+    if (hash_size <= 0)
+        hash_size = 1;
+
     h->hash_size = hash_size;
     h->item_cnt = 0;
     h->data = gap_init(hash_size);
