@@ -156,7 +156,10 @@ static int is_openvpn_protocol (const char*p,ssize_t len, struct sslhcfg_protoco
         if (len < 2)
             return PROBE_AGAIN;
 
-        packet_len = ntohs(*(uint16_t*)p);
+        /* p may be unaligned (e.g. on ARM), do not cast to uint16_t* */
+        uint16_t wire_len;
+        memcpy(&wire_len, p, sizeof(wire_len));
+        packet_len = ntohs(wire_len);
         return packet_len == len - 2;
     } else {
         if (len < 1)
@@ -205,7 +208,9 @@ static int is_wireguard_protocol(const char *p, ssize_t len, struct sslhcfg_prot
         return PROBE_NEXT;
 
     // Handshake Init: p[0] = 0x01, p[1..3] = 0x000000 (reserved)
-    if (ntohl(*(uint32_t*)p) != 0x01000000)
+    uint32_t type;
+    memcpy(&type, p, sizeof(type));
+    if (ntohl(type) != 0x01000000)
         return PROBE_NEXT;
 
     return PROBE_MATCH;
@@ -407,20 +412,25 @@ static int is_teamspeak_protocol(const char *p, ssize_t len, struct sslhcfg_prot
     if (len < 8)
         return PROBE_NEXT;
 
-    return !strncmp(p, "TS3INIT1", len);
+    /* Compare a fixed-length prefix: strncmp(p, "TS3INIT1", len) would read
+     * len bytes of the 9-byte literal and never match a real packet, whose
+     * byte 8 is not NUL */
+    return !memcmp(p, "TS3INIT1", 8);
 }
 
 static int is_msrdp_protocol(const char *p, ssize_t len, struct sslhcfg_protocols_item* proto)
 {
     char version;
-    char packet_len;
+    uint16_t packet_len;
     if (len < 7)
         return PROBE_NEXT;
     version=*p;
     if (version!=0x03)
         return 0;
-    packet_len = ntohs(*(uint16_t*)(p+2));
-    return packet_len == len;
+    memcpy(&packet_len, p+2, sizeof(packet_len));
+    /* The declared TPKT length must fit the entire received packet; a char
+     * would truncate e.g. 0x0107 to 7 and accept truncated packets */
+    return ntohs(packet_len) == len;
 }
 
 #ifdef ENABLE_REGEX
