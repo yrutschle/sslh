@@ -21,6 +21,7 @@
 */
 
 #include <errno.h>
+#include <poll.h>
 #include "tcp-listener.h"
 #include "probe.h"
 #include "log.h"
@@ -217,41 +218,37 @@ static int connect_queue(struct connection* cnx,
  */
 static void shovel_single(struct connection *cnx)
 {
-   fd_set fds_r, fds_w;
+   struct pollfd pfd[2];
    int res, i;
-   int max_fd = MAX(cnx->q[0].fd, cnx->q[1].fd) + 1;
 
-   FD_ZERO(&fds_r);
-   FD_ZERO(&fds_w);
+   /* fds may be arbitrarily high if the daemon inherited a populated file
+    * descriptor table, so we cannot use select()/FD_SET which are limited to
+    * FD_SETSIZE */
+   pfd[0].fd = cnx->q[0].fd;
+   pfd[1].fd = cnx->q[1].fd;
+
    while (1) {
       for (i = 0; i < 2; i++) {
-         if (cnx->q[i].deferred_data_size) {
-            FD_SET(cnx->q[i].fd, &fds_w);
-            FD_CLR(cnx->q[1-i].fd, &fds_r);
-         } else {
-            FD_CLR(cnx->q[i].fd, &fds_w);
-            FD_SET(cnx->q[1-i].fd, &fds_r);
-         }
+         pfd[i].events = 0;
+         pfd[i].revents = 0;
+         if (cnx->q[i].deferred_data_size)
+            pfd[i].events |= POLLOUT;
+         if (!cnx->q[1-i].deferred_data_size)
+            pfd[i].events |= POLLIN;
       }
 
-      res = select(
-                   max_fd,
-                   &fds_r,
-                   &fds_w,
-                   NULL,
-                   NULL
-                  );
-      CHECK_RES_DIE(res, "select");
+      res = poll(pfd, 2, -1);
+      CHECK_RES_DIE(res, "poll");
 
       for (i = 0; i < 2; i++) {
-          if (FD_ISSET(cnx->q[i].fd, &fds_w)) {
+          if (pfd[i].revents & POLLOUT) {
               res = flush_deferred(&cnx->q[i]);
               if ((res == -1) && ((errno == EPIPE) || (errno == ECONNRESET))) {
                   print_message(msg_fd, "%s socket closed\n", i ? "server" : "client");
                   return;
               }
           }
-          if (FD_ISSET(cnx->q[i].fd, &fds_r)) {
+          if (pfd[i].revents & (POLLIN | POLLHUP | POLLERR)) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
               if (!res) {
                   print_message(msg_fd, "socket closed\n");
