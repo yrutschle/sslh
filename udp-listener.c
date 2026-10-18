@@ -74,7 +74,7 @@ static int hash_make_key(hash_item new)
         break;
 
     default: /* Just use the first bytes, skipping the address family */
-        out = ((char*)addr)[2];
+        out = ((unsigned char*)addr)[2];
         break;
     }
     return out;
@@ -210,7 +210,10 @@ void udp_timeouts(struct loop_info* fd_info)
 
 void udp_tidy(struct connection* cnx, struct loop_info* fd_info)
 {
-    close(cnx->target_sock);
+    /* target_sock is the same descriptor as q[0].fd, which tidy_connection()
+     * already closed: only close it here if they ever diverge */
+    if ((cnx->target_sock != cnx->q[0].fd) && (cnx->target_sock != cnx->q[1].fd))
+        close(cnx->target_sock);
     hash_remove(fd_info->hash_sources, cnx);
     list_remove(&cnx->proto->timeouts, cnx);
 }
@@ -311,7 +314,7 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         res = new_source(fd_info->hash_sources, cnx);
         if (res == -1) {
             print_message(msg_connections_error, "Out of hash space for new incoming UDP connection -- increase udp_max_connections");
-            collection_remove_cnx(collection, cnx);
+            tidy_connection(cnx, fd_info);
             return NULL;
         }
     }
@@ -321,8 +324,8 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
     res = sendto(cnx->target_sock, data, len, 0,
                  cnx->proto->saddr->ai_addr, cnx->proto->saddr->ai_addrlen);
     mark_active(cnx);
-    print_message(msg_fd, "sending %d to %s\n", 
-            res, sprintaddr(data, sizeof(data), cnx->proto->saddr));
+    print_message(msg_fd, "sending %zd to %s\n",
+            res, sprintaddr(addr_str, sizeof(addr_str), cnx->proto->saddr));
 
     return cnx;
 }
