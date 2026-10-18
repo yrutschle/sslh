@@ -26,6 +26,7 @@
 #include "log.h"
 #include "udp-listener.h"
 #include "tcp-listener.h"
+#include "sslh-conf.h"
 
 
 const char* server_type = "sslh-ev";
@@ -167,6 +168,45 @@ static void temporary_stop_accept_watchers(ev_io* io)
     ev_timer_start(EV_A_ timer);
 }
 
+
+/* Timer to timeout incoming connections that send no data.
+ * It's set to cnx.timeout during initialisation, then started when at least
+ * one connection is probing. It's stopped when the last probing connection is
+ * forwarded. Whenever it fires, it processes the first probing connection
+ * (which is due to time out), then resets the timer to trigger when the next
+ * connection is due. This relies on the loop->probing_list */
+static ev_timer probe_timer;
+
+static void probe_timeout_cb(EV_P_ ev_timer* timer, int revents)
+{
+    struct loop_info* info = ev_userdata(EV_A);
+
+    printf("timer fired\n");
+    ev_timer_stop(EV_A_ &probe_timer);
+
+    /* Process all probing connections that have timed out */
+    if (info->num_probing > 0) {
+        struct connection* cnx = gap_get(info->probing_list, 0);
+        if (cnx) {  /* impossible cnx is NULL? */
+            printf("checking one connection out of %d\n", info->num_probing);
+            probing_read_process(cnx, info);
+        }
+    }
+
+    /* If there is at least one left, restart the timer to fire depending on
+     * the next connection to time out */
+    printf("num_probing: %d\n", info->num_probing);
+    if (info->num_probing > 0) {
+        struct connection* cnx = gap_get(info->probing_list, 0);
+        time_t duration = cnx->probe_timeout - time(NULL);
+        if (duration <= 0) duration = 1;
+        printf("setting next timer in %ld s\n", duration);
+        ev_timer_set(EV_A_ &probe_timer, duration, 0);
+        ev_timer_start(EV_A_ &probe_timer);
+    }
+}
+
+
 /* The accept() callback, called when there is READ activity.
  *
  * accept()ing when the process as reached its file descriptor limit (ulimit -n) is can of worms with no solution (see libev's manual "The special problem of accept()ing when you can't").
@@ -176,7 +216,15 @@ static void temporary_stop_accept_watchers(ev_io* io)
 static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
 {
     struct loop_info* info = ev_userdata(EV_A);
-    if (!cnx_accept_process(info, gap_get(info->watchers->fd2ls, w->fd))) {
+    struct connection* cnx = cnx_accept_process(info, gap_get(info->watchers->fd2ls, w->fd));
+
+    if (cnx) {
+        if (info->num_probing == 1) {  /* This is the first connection, start the timer */
+            ev_timer_set(EV_A_ &probe_timer, cfg.timeout, 0);
+            ev_timer_start(EV_A_ &probe_timer);
+            printf("timer set to %ds\n", cfg.timeout);
+        }
+    } else {  /* accept() failed, probably all file descriptors are used */
         switch (errno) {
         case EMFILE:
         case ENFILE:  /* Not sure ENFILE should be included here */
@@ -211,6 +259,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 {
     struct loop_info ev_info;
     loop = EV_DEFAULT;
+
+    ev_timer_init(&probe_timer, &probe_timeout_cb, cfg.timeout, 0);
 
     loop_init(&ev_info, listen_sockets, num_addr_listen);
 
