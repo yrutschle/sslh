@@ -30,14 +30,16 @@
 /* Removes cnx from probing list */
 static void remove_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
 {
-    gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing);
-    fd_info->num_probing--;
+    if (!gap_remove_ptr(fd_info->probing_list, cnx, fd_info->num_probing)) {
+        fd_info->num_probing--;
+    }
 }
 
 static void add_probing_cnx(struct loop_info* fd_info, struct connection* cnx)
 {
-    gap_set(fd_info->probing_list, fd_info->num_probing, cnx);
-    fd_info->num_probing++;
+    if (!gap_set(fd_info->probing_list, fd_info->num_probing, cnx)) {
+        fd_info->num_probing++;
+    }
 }
 
 /* shovels data from active fd to the other
@@ -53,7 +55,6 @@ static void shovel(struct connection *cnx, int active_fd, struct loop_info* fd_i
     print_message(msg_fd, "activity on fd%d\n", read_q->fd);
 
     switch(fd2fd(write_q, read_q)) {
-    case -1:
     case FD_CNXCLOSED:
         tidy_connection(cnx, fd_info);
         break;

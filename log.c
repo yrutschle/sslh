@@ -48,7 +48,7 @@ msg_info msg_fd = {
 /* Internal errors: inconsistent states, impossible values, things that should never happen, and are therefore the sign of memory corruption: hence the LOG_CRIT */
 msg_info msg_int_error = {
     LOG_CRIT,
-    &cfg.verbose_system_error
+    &cfg.verbose_int_error
 };
 
 /* System errors: when the system around us fails us: memory allocation, fork, ... */

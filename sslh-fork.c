@@ -224,9 +224,10 @@ static void process_signals(struct listen_endpoint* endpoint)
 void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int active_endpoint)
 {
     int i, in_socket;
+    struct listen_endpoint* self = &endpoint[active_endpoint];
 
     while (1) {
-        in_socket = accept(endpoint[active_endpoint].socketfd, 0, 0);
+        in_socket = accept(self->socketfd, 0, 0);
         if (in_socket == -1) {
             print_message(msg_system_error, "%s:%d:%s:%d:%s\n",
                           __FILE__, __LINE__, "accept", errno, strerror(errno));
@@ -243,33 +244,34 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
                 continue;
 
             case EINTR:
-                process_signals(endpoint);
+                process_signals(self);
                 continue;
 
             default:  /* Otherwise, it's something wrong in our parameters, we fail */
                 return;
             }
         }
-        endpoint->num_connections++;
-        print_message(msg_fd, "accepted fd %d (%d concurrent connections)\n", in_socket, endpoint->num_connections);
-        if ((endpoint->endpoint_cfg->max_connections_is_present) 
-            && (endpoint->num_connections > endpoint->endpoint_cfg->max_connections)) 
+        self->num_connections++;
+        print_message(msg_fd, "accepted fd %d (%d concurrent connections)\n", in_socket, self->num_connections);
+        if ((self->endpoint_cfg->max_connections_is_present)
+            && (self->num_connections > self->endpoint_cfg->max_connections))
         {
             print_message(msg_fd, "too many connection, reclosing fd %d\n", in_socket);
-            endpoint->num_connections--;
+            self->num_connections--;
             close(in_socket);
             continue;
         }
 
         switch(fork()) {
         case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
+                 self->num_connections--;  /* no child will reap it */
                  break;
 
         case 0: /* In child process */
                  /* Shoveler processes don't need to hog file descriptors */
                  for (i = 0; i < num_endpoints; i++)
                      close(endpoint[i].socketfd);
-                 start_shoveler(in_socket, endpoint);
+                 start_shoveler(in_socket, self);
                  exit(0);
 
         default: /* In parent process */

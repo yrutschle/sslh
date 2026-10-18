@@ -74,6 +74,13 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
     int sd = 0;
 
 #ifdef SYSTEMD
+    /* Sockets passed by systemd socket activation do not correspond to a
+     * `listen` entry in the configuration, but code dereferences
+     * endpoint->endpoint_cfg unconditionally (e.g. inc_listen_connections()
+     * and probe_client_protocol()), so give them a default, empty
+     * configuration: no max_connections, no proxyprotocol. */
+    static struct sslhcfg_listen_item default_endpoint_cfg;
+
     sd = sd_listen_fds(0);
     if (sd < 0) {
       print_message(msg_system_error, "sd_listen_fds(): %s\n", strerror(-sd));
@@ -86,6 +93,7 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
       for (i = 0; i < sd; i++) {
         (*sockfd)[i].socketfd = SD_LISTEN_FDS_START + i;
         (*sockfd)[i].type = SOCK_STREAM;
+        (*sockfd)[i].endpoint_cfg = &default_endpoint_cfg;
       }
     }
 #endif
@@ -203,6 +211,8 @@ static int start_listen_inet(struct listen_endpoint *sockfd[], int num_addr, str
 /* Same, but for UNIX sockets */
 static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, struct sslhcfg_listen_item* cfg)
 {
+    struct sockaddr_un sun;
+
     int fd = socket(AF_UNIX, cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
     CHECK_RES_DIE(fd, "socket(AF_UNIX)");
 
@@ -212,10 +222,10 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
         exit(4);
     }
 
-    struct sockaddr_un sun;
+    memset(&sun, 0, sizeof(sun));
     sun.sun_family = AF_UNIX;
     strncpy(sun.sun_path, cfg->host, sizeof(sun.sun_path)-1);
-    printf("binding [%s]\n", sun.sun_path);
+    print_message(msg_config, "binding [%s]\n", sun.sun_path);
     res = bind(fd, (struct sockaddr*)&sun, sizeof(sun));
     CHECK_RES_DIE(res, "bind(AF_UNIX)");
 
@@ -229,7 +239,7 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
     memset(&(*sockfd)[num_addr-1], 0, sizeof((*sockfd)[num_addr-1]));
     (*sockfd)[num_addr-1].socketfd = fd;
     (*sockfd)[num_addr-1].type = cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM;
-    (*sockfd)[num_addr-1].family = AF_INET;
+    (*sockfd)[num_addr-1].family = AF_UNIX;
     (*sockfd)[num_addr-1].endpoint_cfg = cfg;
 
     return num_addr;
@@ -489,10 +499,12 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
     struct sockaddr_storage ss;
     struct sockaddr_un* sun = (struct sockaddr_un*)&ss;
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    CHECK_RES_RETURN(fd, "socket", -1);
+    memset(&ss, 0, sizeof(ss));
     sun->sun_family = AF_UNIX;
     strncpy(sun->sun_path, cnx->proto->host, sizeof(sun->sun_path)-1);
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    CHECK_RES_RETURN(fd, "socket", -1);
 
     int res = connect(fd, (struct sockaddr*)sun, sizeof(*sun));
     if (res == -1) {

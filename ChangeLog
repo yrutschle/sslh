@@ -7,6 +7,9 @@ vNEXT:
 	print_message() restores errno, fix sslh-fork
 	exiting upong log errors.
 
+	Add incoming connection timeout management, which
+	was strangely missing.
+
 v2.3.1:
 	Fix segmentation fault in sslh-fork.
 
