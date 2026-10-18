@@ -74,6 +74,13 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
     int sd = 0;
 
 #ifdef SYSTEMD
+    /* Sockets passed by systemd socket activation do not correspond to a
+     * `listen` entry in the configuration, but code dereferences
+     * endpoint->endpoint_cfg unconditionally (e.g. inc_listen_connections()
+     * and probe_client_protocol()), so give them a default, empty
+     * configuration: no max_connections, no proxyprotocol. */
+    static struct sslhcfg_listen_item default_endpoint_cfg;
+
     sd = sd_listen_fds(0);
     if (sd < 0) {
       print_message(msg_system_error, "sd_listen_fds(): %s\n", strerror(-sd));
@@ -86,6 +93,7 @@ int get_fd_sockets(struct listen_endpoint *sockfd[])
       for (i = 0; i < sd; i++) {
         (*sockfd)[i].socketfd = SD_LISTEN_FDS_START + i;
         (*sockfd)[i].type = SOCK_STREAM;
+        (*sockfd)[i].endpoint_cfg = &default_endpoint_cfg;
       }
     }
 #endif
