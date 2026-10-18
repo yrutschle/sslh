@@ -165,15 +165,8 @@ struct connection* accept_new_connection(struct listen_endpoint* endpoint, struc
     print_message(msg_fd, "accepting from %d\n", listen_socket);
 
     in_socket = accept(listen_socket, 0, 0);
-    if (in_socket == -1) {
-        int accept_errno = errno;
-        if (accept_errno == EAGAIN) return NULL;   /* Do not log if we're just retring next iteration */
-        print_message(msg_system_error, "accept: %d:%s\n", accept_errno, strerror(accept_errno));
-        /* Callers check errno for EMFILE/ENFILE to back off accepting:
-         * restore it after logging (print_message may clobber errno) */
-        errno = accept_errno;
-        return NULL;
-    }
+    if ((in_socket == -1) && (errno == EAGAIN)) return NULL;   /* Do not log if we're just retring next iteration */
+    CHECK_RES_RETURN(in_socket, "accept", NULL);
 
     res = set_nonblock(in_socket);
     if (res == -1) {
