@@ -418,8 +418,15 @@ static int connect_inet(struct connection *cnx, int fd_from, connect_blocking bl
     CHECK_RES_RETURN(res, "getpeername", res);
 
     if (cnx->proto->resolve_on_forward) {
-        resolve_split_name(&(cnx->proto->saddr), cnx->proto->host,
-                           cnx->proto->port);
+        /* resolve_split_name() allocates a new addrinfo list: free the
+         * previous one or we leak it on every connection */
+        struct addrinfo *new_addr;
+        if (!resolve_split_name(&new_addr, cnx->proto->host,
+                                cnx->proto->port)) {
+            if (cnx->proto->saddr)
+                freeaddrinfo(cnx->proto->saddr);
+            cnx->proto->saddr = new_addr;
+        }
     }
     for (a = cnx->proto->saddr; a; a = a->ai_next) {
         /* When transparent, make sure both connections use
@@ -476,11 +483,16 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
     struct sockaddr_un* sun = (struct sockaddr_un*)&ss;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    CHECK_RES_RETURN(fd, "socket", -1);
     sun->sun_family = AF_UNIX;
     strncpy(sun->sun_path, cnx->proto->host, sizeof(sun->sun_path)-1);
 
     int res = connect(fd, (struct sockaddr*)sun, sizeof(*sun));
-    CHECK_RES_RETURN(res, "connect", res);
+    if (res == -1) {
+        print_message(msg_system_error, "connect: %d:%s\n", errno, strerror(errno));
+        close(fd);
+        return res;
+    }
 
     if (blocking == NON_BLOCKING) {
         set_nonblock(fd);
@@ -1028,6 +1040,12 @@ void drop_privileges(const char* user_name, const char* chroot_path)
 
         res = chroot(chroot_path);
         CHECK_RES_DIE(res, "chroot");
+
+        /* chroot() does not change the working directory: without this the
+         * process keeps a cwd outside the jail and the confinement is
+         * ineffective for relative path resolution */
+        res = chdir("/");
+        CHECK_RES_DIE(res, "chdir");
     }
 
     if (user_name) {

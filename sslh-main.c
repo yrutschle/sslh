@@ -335,14 +335,14 @@ void config_sanity_check(struct sslhcfg_item* cfg)
  */
 void close_std(void)
 {
-    int newfd;
+    int newfd, i;
 
-    if ((newfd = open("/dev/null", O_RDWR))) {
-        dup2 (newfd, STDIN_FILENO);
-        dup2 (newfd, STDOUT_FILENO);
-        dup2 (newfd, STDERR_FILENO);
-        /* close the helper handle, as this is now unnecessary */
-        close(newfd);
+    if ((newfd = open("/dev/null", O_RDWR)) != -1) {
+        for (i = STDIN_FILENO; i <= STDERR_FILENO; i++)
+            dup2(newfd, i);
+        /* close the helper handle, unless it landed on a standard fd */
+        if (newfd > STDERR_FILENO)
+            close(newfd);
     } else {
         print_message(msg_system_error, "Error closing standard filehandles for background daemon\n");
     }
@@ -387,6 +387,14 @@ int main(int argc, char *argv[], char* envp[])
 {
    int res, num_addr_listen;
    struct listen_endpoint *listen_sockets;
+
+   /* Ensure the three standard file descriptors are open before any socket
+    * is created. Otherwise socket() may return fd 0-2 and close_std() would
+    * later overwrite it with /dev/null, silently dropping a listening
+    * socket. */
+   for (int i = STDIN_FILENO; i <= STDERR_FILENO; i++)
+       if (fcntl(i, F_GETFD) == -1)
+           open("/dev/null", O_RDWR);
 
 #if HAVE_LIBBSD
    setproctitle_init(argc, argv, envp);

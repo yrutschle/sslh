@@ -102,6 +102,11 @@ int gap_remove_ptr(gap_array* gap, void* ptr, int len)
 {
     int start, i;
 
+    /* Bounds check before scanning: reading gap->array[0..len) with
+     * len > gap->len would read out of bounds */
+    if (len > gap->len)
+        return -2;
+
     for (i = 0; i < len; i++)
         if (gap->array[i] == ptr)
             break;
@@ -110,9 +115,6 @@ int gap_remove_ptr(gap_array* gap, void* ptr, int len)
         start = i;
     else
         return -1;
-
-    if (gap->len < len)
-        return -2;
 
     for (i = start; i < len - 1; i++) {
         gap->array[i] = gap->array[i+1];
