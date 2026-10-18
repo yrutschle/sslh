@@ -219,7 +219,10 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
     res = bind(fd, (struct sockaddr*)&sun, sizeof(sun));
     CHECK_RES_DIE(res, "bind(AF_UNIX)");
 
-    res = listen(fd, 50);
+    if (!cfg->is_udp) {
+        res = listen(fd, 50);
+        CHECK_RES_DIE(res, "listen(AF_UNIX)");
+    }
 
     num_addr++;
     *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd[0]));
