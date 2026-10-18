@@ -264,6 +264,7 @@ void tcp_listener(struct listen_endpoint* endpoint, int num_endpoints, int activ
 
         switch(fork()) {
         case -1: print_message(msg_system_error, "fork failed: err %d: %s\n", errno, strerror(errno));
+                 self->num_connections--;  /* no child will reap it */
                  break;
 
         case 0: /* In child process */
