@@ -88,20 +88,20 @@ struct sslhcfg_protocols_item* timeout_protocol(void)
 void hexdump(msg_info msg_info, const char *mem, unsigned int len)
 {
     unsigned int i, j;
-    char str[10 + HEXDUMP_COLS * 4 + 2];
+    char str[12 + HEXDUMP_COLS * 4 + 2]; /* offset <= 12, hex+ascii 64, '\n'+'\0' */
     int c = 0; /* index in str */
 
     for(i = 0; i < len + ((len % HEXDUMP_COLS) ? (HEXDUMP_COLS - len % HEXDUMP_COLS) : 0); i++)
     {
         /* print offset */
         if(i % HEXDUMP_COLS == 0)
-            c += sprintf(&str[c], "0x%06x: ", i);
+            c += snprintf(&str[c], sizeof(str) - c, "0x%06x: ", i);
 
         /* print hex data */
         if(i < len)
-            c += sprintf(&str[c], "%02x ", 0xFF & mem[i]);
+            c += snprintf(&str[c], sizeof(str) - c, "%02x ", 0xFF & mem[i]);
         else /* end of block, just aligning for ASCII dump */
-            c+= sprintf(&str[c], "   ");
+            c += snprintf(&str[c], sizeof(str) - c, "   ");
 
         /* print ASCII dump */
         if(i % HEXDUMP_COLS == (HEXDUMP_COLS - 1)) {

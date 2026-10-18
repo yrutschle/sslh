@@ -142,6 +142,10 @@ static int pid_cmp(hash_item item1, hash_item item2)
 void decrease_forked_connection(struct loop_info* loop, pid_t pid) {
     struct pid2proto p2p = { .pid = pid };
     struct pid2proto* found = hash_find(loop->pid2proto, &p2p);
+    if (!found) {
+        print_message(msg_int_error, "SIGCHLD for unknown pid %d\n", pid);
+        return;
+    }
     dec_proto_connections(found->proto);
     dec_listen_connections(found->endpoint);
 
