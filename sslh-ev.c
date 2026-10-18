@@ -181,26 +181,22 @@ static void probe_timeout_cb(EV_P_ ev_timer* timer, int revents)
 {
     struct loop_info* info = ev_userdata(EV_A);
 
-    printf("timer fired\n");
     ev_timer_stop(EV_A_ &probe_timer);
 
     /* Process all probing connections that have timed out */
     if (info->num_probing > 0) {
         struct connection* cnx = gap_get(info->probing_list, 0);
         if (cnx) {  /* impossible cnx is NULL? */
-            printf("checking one connection out of %d\n", info->num_probing);
             probing_read_process(cnx, info);
         }
     }
 
     /* If there is at least one left, restart the timer to fire depending on
      * the next connection to time out */
-    printf("num_probing: %d\n", info->num_probing);
     if (info->num_probing > 0) {
         struct connection* cnx = gap_get(info->probing_list, 0);
         time_t duration = cnx->probe_timeout - time(NULL);
         if (duration <= 0) duration = 1;
-        printf("setting next timer in %ld s\n", duration);
         ev_timer_set(EV_A_ &probe_timer, duration, 0);
         ev_timer_start(EV_A_ &probe_timer);
     }
@@ -222,7 +218,6 @@ static void cnx_accept_cb(EV_P_ ev_io *w, int revents)
         if (info->num_probing == 1) {  /* This is the first connection, start the timer */
             ev_timer_set(EV_A_ &probe_timer, cfg.timeout, 0);
             ev_timer_start(EV_A_ &probe_timer);
-            printf("timer set to %ds\n", cfg.timeout);
         }
     } else {  /* accept() failed, probably all file descriptors are used */
         switch (errno) {
