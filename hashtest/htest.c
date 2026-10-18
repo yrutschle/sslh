@@ -29,6 +29,7 @@ struct hash_item {
 };
 
 typedef struct hash_item* hash_item;
+typedef struct hash hash;
 
 #include "../hash.h"
 
