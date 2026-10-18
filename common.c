@@ -205,13 +205,6 @@ static int start_listen_unix(struct listen_endpoint *sockfd[], int num_addr, str
 {
     struct sockaddr_un sun;
 
-    /* Fail before unlink()ing an existing file we could not bind anyway */
-    if (strlen(cfg->host) >= sizeof(sun.sun_path)) {
-        print_message(msg_config_error, "unix socket path too long (%zd, max %zd): %s\n",
-                      strlen(cfg->host), sizeof(sun.sun_path) - 1, cfg->host);
-        exit(4);
-    }
-
     int fd = socket(AF_UNIX, cfg->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
     CHECK_RES_DIE(fd, "socket(AF_UNIX)");
 
@@ -483,13 +476,6 @@ static int connect_unix(struct connection *cnx, int fd_from, connect_blocking bl
 {
     struct sockaddr_storage ss;
     struct sockaddr_un* sun = (struct sockaddr_un*)&ss;
-
-    if (strlen(cnx->proto->host) >= sizeof(sun->sun_path)) {
-        print_message(msg_system_error, "unix socket path too long (%zd, max %zd): %s\n",
-                      strlen(cnx->proto->host), sizeof(sun->sun_path) - 1,
-                      cnx->proto->host);
-        return -1;
-    }
 
     memset(&ss, 0, sizeof(ss));
     sun->sun_family = AF_UNIX;

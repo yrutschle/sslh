@@ -30,6 +30,8 @@
 #include <pcre2.h>
 #endif
 
+#include <sys/un.h>
+
 #include "common.h"
 #include "probe.h"
 #include "log.h"
@@ -277,6 +279,21 @@ static void config_sanity_libwrap(const struct sslhcfg_protocols_item* prot)
 #endif
 }
 
+/* sun_path has a fixed, compile-time size (typically 108 chars): a configured
+ * unix socket path that does not fit can never work, so reject it once at
+ * startup rather than at bind()/connect() time */
+static void config_sanity_unix_path(const char* host)
+{
+    size_t path_max = sizeof(((struct sockaddr_un*)0)->sun_path);
+
+    if (host && strlen(host) >= path_max) {
+        print_message(msg_config_error,
+                      "unix socket path too long (%zd, max %zd): %s\n",
+                      strlen(host), path_max - 1, host);
+        exit(4);
+    }
+}
+
 void config_sanity_check(struct sslhcfg_item* cfg)
 {
     size_t i;
@@ -291,6 +308,8 @@ void config_sanity_check(struct sslhcfg_item* cfg)
 
     for (i = 0; i < cfg->listen_len; i++) {
         config_sanity_listen_proxyprotocol(&cfg->listen[i]);
+        if (cfg->listen[i].is_unix)
+            config_sanity_unix_path(cfg->listen[i].host);
     }
 
     for (i = 0; i < cfg->protocols_len; ++i) {
@@ -312,6 +331,8 @@ void config_sanity_check(struct sslhcfg_item* cfg)
         config_sanity_regex(&cfg->protocols[i]);
         config_sanity_proxyprotocol(&cfg->protocols[i]);
         config_sanity_libwrap(&cfg->protocols[i]);
+        if (cfg->protocols[i].is_unix)
+            config_sanity_unix_path(cfg->protocols[i].host);
 
         if (cfg->protocols[i].is_udp) {
             if (cfg->protocols[i].tfo_ok) {
