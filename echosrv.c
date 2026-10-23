@@ -318,7 +318,7 @@ int start_listen_sockets(struct listen_endpoint *sockfd[])
 
         for (addr = start_addr; addr; addr = addr->ai_next) {
             num_addr++;
-            *sockfd = realloc(*sockfd, num_addr * sizeof(*sockfd));
+            *sockfd = realloc(*sockfd, num_addr * sizeof(**sockfd));
             (*sockfd)[num_addr-1].socketfd = listen_single_addr(addr, keepalive, udp);
             (*sockfd)[num_addr-1].type = udp ? SOCK_DGRAM : SOCK_STREAM;
             fprintf(stderr, "%d:\t%s\n", (*sockfd)[num_addr-1].socketfd, sprintaddr(buf, sizeof(buf), addr));
