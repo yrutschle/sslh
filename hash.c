@@ -82,7 +82,9 @@ struct hash {
 
 static int hash_make_key(hash* h, hash_item item)
 {
-    return h->hash_make_key(item) % h->hash_size;
+    /* Item key functions may return negative values (e.g. when hashing raw
+     * address bytes); keep the resulting index inside [0, hash_size) */
+    return (unsigned)h->hash_make_key(item) % (unsigned)h->hash_size;
 }
 
 
