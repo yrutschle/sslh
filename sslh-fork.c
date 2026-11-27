@@ -20,6 +20,8 @@
 
 */
 
+#include <poll.h>
+
 #include "common.h"
 #include "probe.h"
 #include "sslh-conf.h"
@@ -37,26 +39,26 @@ const char* server_type = "sslh-fork";
  */
 int shovel(struct connection *cnx)
 {
-   fd_set fds;
+   struct pollfd fds[2];
    int res, i;
-   int max_fd = MAX(cnx->q[0].fd, cnx->q[1].fd) + 1;
 
-   FD_ZERO(&fds);
+   /* fds may be arbitrarily high if the daemon inherited a populated file
+    * descriptor table, so we cannot use select()/FD_SET which are limited to
+    * FD_SETSIZE */
+   for (i = 0; i < 2; i++) {
+       fds[i].fd = cnx->q[i].fd;
+       fds[i].events = POLLIN;
+   }
+
    while (1) {
-      FD_SET(cnx->q[0].fd, &fds);
-      FD_SET(cnx->q[1].fd, &fds);
+      for (i = 0; i < 2; i++)
+          fds[i].revents = 0;
 
-      res = select(
-                   max_fd,
-                   &fds,
-                   NULL,
-                   NULL,
-                   NULL
-                  );
-      CHECK_RES_DIE(res, "select");
+      res = poll(fds, 2, -1);
+      CHECK_RES_DIE(res, "poll");
 
       for (i = 0; i < 2; i++) {
-          if (FD_ISSET(cnx->q[i].fd, &fds)) {
+          if (fds[i].revents) {
               res = fd2fd(&cnx->q[1-i], &cnx->q[i]);
               if (res == FD_CNXCLOSED) {
                   print_message(msg_fd, "%s %s", i ? "client" : "server", "socket closed\n");
@@ -71,8 +73,8 @@ int shovel(struct connection *cnx)
  */
 static void start_shoveler(int in_socket, struct listen_endpoint* endpoint)
 {
-   fd_set fds;
-   struct timeval tv;
+   struct pollfd pfd;
+   time_t deadline;
    int res = PROBE_AGAIN;
    struct connection cnx;
    struct connection_desc desc;
@@ -81,19 +83,25 @@ static void start_shoveler(int in_socket, struct listen_endpoint* endpoint)
    cnx.q[0].fd = in_socket;
    cnx.endpoint = endpoint;
 
-   FD_ZERO(&fds);
-   FD_SET(in_socket, &fds);
-   memset(&tv, 0, sizeof(tv));
-   tv.tv_sec = cfg.timeout;
+   /* in_socket may be arbitrarily high if the daemon inherited a populated
+    * file descriptor table, so we cannot use select()/FD_SET which are
+    * limited to FD_SETSIZE */
+   pfd.fd = in_socket;
+   pfd.events = POLLIN;
+   deadline = time(NULL) + cfg.timeout;
 
    while (res == PROBE_AGAIN) {
-       /* POSIX does not guarantee that tv will be updated, but the client can
-        * only postpone the inevitable for so long */
-       res = select(in_socket + 1, &fds, NULL, NULL, &tv);
-       if (res == -1)
-           perror("select");
+       /* The timeout applies to the entire probing phase: the client can only
+        * postpone the inevitable for so long */
+       int wait_ms = (int)(deadline - time(NULL)) * 1000;
+       int pres;
 
-       if (FD_ISSET(in_socket, &fds)) {
+       pfd.revents = 0;
+       pres = poll(&pfd, 1, wait_ms > 0 ? wait_ms : 0);
+       if (pres == -1)
+           perror("poll");
+
+       if (pres > 0 && pfd.revents) {
            /* Received data: figure out what protocol it is */
            res = probe_client_protocol(&cnx);
        } else {
