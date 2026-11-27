@@ -233,9 +233,14 @@ static int nonblocking_socket(struct sslhcfg_protocols_item* proto)
     int res;
 
     if (proto->resolve_on_forward) {
-        res = resolve_split_name(&(proto->saddr), proto->host,
-                                 proto->port);
+        /* resolve_split_name() allocates a new addrinfo list: free the
+         * previous one or we leak it for every new UDP source */
+        struct addrinfo *new_addr;
+        res = resolve_split_name(&new_addr, proto->host, proto->port);
         if (res) return -1;
+        if (proto->saddr)
+            freeaddrinfo(proto->saddr);
+        proto->saddr = new_addr;
     }
 
     int out = socket(proto->saddr->ai_family, SOCK_DGRAM, 0);
@@ -294,7 +299,10 @@ struct connection* udp_c2s_forward(int sockfd, struct loop_info* fd_info)
         out = nonblocking_socket(proto);
         if (out == -1) return NULL;
         struct connection* cnx = collection_alloc_cnx_from_fd(collection, out);
-        if (!cnx) return NULL;
+        if (!cnx) {
+            close(out);
+            return NULL;
+        }
         target = out;
         cnx->target_sock = out;
         cnx->proto = proto;
