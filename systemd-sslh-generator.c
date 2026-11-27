@@ -138,8 +138,7 @@ static int write_unit_dropin(const char *runtime_unit_dir, const bool is_fork, c
             return errno;
         }
 
-        len = len + strlen(cfg) + strlen(dropin_ext);
-        char dropin_path[len + 1];
+        char dropin_path[strlen(dropin_dir) + strlen(cfg) + strlen(dropin_ext) + 1];
         strcpy(dropin_path, dropin_dir);
         strcat(dropin_path, cfg);
         strcat(dropin_path, dropin_ext);
@@ -201,15 +200,15 @@ static int gen_sslh_config(char *runtime_unit_dir) {
 //    char **listen_addresses = NULL;
     //Process all config files
     do {
-        char *end = strstr(fa->name, ".cfg");
-        if (!end) {
+        //Only process files whose name actually ends in ".cfg"
+        const size_t end_count = strlen(fa->name);
+        if ((end_count <= 4) || strcmp(fa->name + end_count - 4, ".cfg")) {
             continue;
         }
         //Current sslh config name
-        const size_t end_count = end - fa->name;
-        char config_name[end_count + 1];
-        memcpy(config_name, fa->name, end_count);
-        config_name[end_count] = '\0';
+        char config_name[end_count - 4 + 1];
+        memcpy(config_name, fa->name, end_count - 4);
+        config_name[end_count - 4] = '\0';
 
         //Full path to current sslh config
         char full_path[strlen(config_dir) + strlen(fa->name) + 1];
