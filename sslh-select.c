@@ -48,6 +48,16 @@ struct watchers {
 };
 
 
+/* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
+ * and FD_CLR. Need to drop connections if we go above that limit */
+static int fd_out_of_range(int fd) {
+    if (fd >= FD_SETSIZE) {
+        print_message(msg_system_error, "too many open file descriptor to monitor them all -- dropping connection\n");
+        return 1;
+    }
+    return 0;
+}
+
 static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
                           int num_addr_listen)
 {
@@ -66,25 +76,33 @@ static void watchers_init(watchers** w, struct listen_endpoint* listen_sockets,
 
 void watchers_add_read(watchers* w, int fd)
 {
-    FD_SET(fd, &w->fds_r); 
+    if (fd_out_of_range(fd))
+        return;
+    FD_SET(fd, &w->fds_r);
     if (fd + 1 > w->max_fd)
         w->max_fd = fd + 1;
 }
 
 void watchers_del_read(watchers* w, int fd)
 {
+    if (fd >= FD_SETSIZE)
+        return;
     FD_CLR(fd, &w->fds_r);
 }
 
 void watchers_add_write(watchers* w, int fd)
 {
-    FD_SET(fd, &w->fds_w); 
-    if (fd > w->max_fd)
+    if (fd_out_of_range(fd))
+        return;
+    FD_SET(fd, &w->fds_w);
+    if (fd + 1 > w->max_fd)
         w->max_fd = fd + 1;
 }
 
 void watchers_del_write(watchers* w, int fd)
 {
+    if (fd >= FD_SETSIZE)
+        return;
     FD_CLR(fd, &w->fds_w);
 }
 
@@ -167,18 +185,6 @@ static void sigalrm_process(watchers* w, struct listen_endpoint* listen_sockets,
 }
 
 
-/* if fd becomes higher than FD_SETSIZE, things won't work so well with FD_SET
- * and FD_CLR. Need to drop connections if we go above that limit */
-static int fd_out_of_range(int fd) {
-    if (fd >= FD_SETSIZE) {
-        print_message(msg_system_error, "too many open file descriptor to monitor them all -- dropping connection\n");
-        return 1;
-    }
-    return 0;
-}
-
-
-
 
 
 
@@ -228,7 +234,8 @@ void main_loop(struct listen_endpoint listen_sockets[], int num_addr_listen)
 
         /* Check main socket for new connections */
         for (i = 0; i < num_addr_listen; i++) {
-            if (FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
+            if ((listen_sockets[i].socketfd < FD_SETSIZE) &&
+                FD_ISSET(listen_sockets[i].socketfd, &readfds)) {
                 /* don't also process it as a read socket */
                 FD_CLR(listen_sockets[i].socketfd, &readfds);
 
